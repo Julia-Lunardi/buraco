@@ -18,7 +18,8 @@ from app.db.session import get_db
 from app.models import GameTable, PlayMode, User
 from app.realtime import hub, viewer
 from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
-from app.services import chat, tables
+from app.models import TableStatus
+from app.services import chat, push, tables
 from app.services.tables import TableError
 
 logger = logging.getLogger(__name__)
@@ -30,12 +31,35 @@ async def table_error_handler(_: Request, exc: TableError) -> JSONResponse:
     return JSONResponse(status_code=exc.http_status, content={"code": exc.code, "detail": exc.message})
 
 
-async def _publish(db: AsyncSession, table: GameTable, match, user: User) -> dict:
+async def _before(db: AsyncSession, table_id: uuid.UUID) -> tuple[int | None, TableStatus | None]:
+    """Turn and status before a change, to tell what changed afterwards (for pushes)."""
+    table = await db.get(GameTable, table_id)
+    return (table.current_seat, table.status) if table else (None, None)
+
+
+async def _publish(db: AsyncSession, table: GameTable, match, user: User,
+                   before: tuple[int | None, TableStatus | None] = (None, None)) -> dict:
     """Commit first, then tell everyone: nobody is ever shown a move that rolled back."""
     await db.commit()
     table = await tables.refreshed(db, table)
     await hub.broadcast(table, match, viewer(table, match))
+    if before[1] is not None:
+        hub.spawn(_push_after_change(table.id, *before))
     return viewer(table, match)(user)
+
+
+async def _push_after_change(table_id: uuid.UUID, previous_seat: int | None, previous_status: TableStatus) -> None:
+    async with db_session.SessionLocal() as db:
+        table = await db.get(GameTable, table_id)
+        if table is not None:
+            await push.after_change(db, table, previous_seat, previous_status, hub.connected(table_id))
+
+
+async def _push_joined(table_id: uuid.UUID, name: str) -> None:
+    async with db_session.SessionLocal() as db:
+        table = await db.get(GameTable, table_id)
+        if table is not None:
+            await push.joined(db, table, name, hub.connected(table_id))
 
 
 @router.post("")
@@ -60,7 +84,9 @@ async def mine(user: User = Depends(get_current_user), db: AsyncSession = Depend
 @router.post("/join")
 async def join(body: JoinIn, user: User = Depends(require_account), db: AsyncSession = Depends(get_db)):
     table = await tables.join(db, user, body.code)
-    return await _publish(db, table, await tables.load_match(db, table), user)
+    view = await _publish(db, table, await tables.load_match(db, table), user)
+    hub.spawn(_push_joined(table.id, user.display_name))
+    return view
 
 
 @router.get("/{table_id}")
@@ -71,22 +97,25 @@ async def get(table_id: uuid.UUID, user: User = Depends(get_current_user), db: A
 
 @router.post("/{table_id}/start")
 async def start(table_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    before = await _before(db, table_id)
     table = await tables.start(db, user, table_id)
-    return await _publish(db, table, await tables.load_match(db, table), user)
+    return await _publish(db, table, await tables.load_match(db, table), user, before)
 
 
 @router.post("/{table_id}/actions")
 async def act(table_id: uuid.UUID, body: ActionIn, user: User = Depends(get_current_user),
               db: AsyncSession = Depends(get_db)):
+    before = await _before(db, table_id)
     table, match = await tables.act(db, user, table_id, body.action, hub.covered(table_id))
-    return await _publish(db, table, match, user)
+    return await _publish(db, table, match, user, before)
 
 
 @router.post("/{table_id}/next-round")
 async def next_round(table_id: uuid.UUID, user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
+    before = await _before(db, table_id)
     table, match = await tables.next_round(db, user, table_id, hub.covered(table_id))
-    return await _publish(db, table, match, user)
+    return await _publish(db, table, match, user, before)
 
 
 # --- chat -----------------------------------------------------------------------------
@@ -168,6 +197,7 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
                 continue
             async with db_session.SessionLocal() as db:
                 user = await db.get(User, user_id)
+                before = await _before(db, table_id)
                 try:
                     if message.get("type") == "action":
                         table, match = await tables.act(db, user, table_id, message.get("action") or {},
@@ -189,6 +219,7 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
                 await db.commit()
                 table = await tables.refreshed(db, table)
                 await hub.broadcast(table, match, viewer(table, match))
+                hub.spawn(_push_after_change(table_id, *before))
     except WebSocketDisconnect:
         pass
     except Exception:

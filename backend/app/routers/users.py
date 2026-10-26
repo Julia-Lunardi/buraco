@@ -6,9 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_current_user, require_account
 from app.db.session import get_db
-from app.models import User, UserBlock
+from app.models import DeviceToken, User, UserBlock
 from app.services import chat
-from app.schemas.auth import UserOut
+from app.schemas.auth import PushTokenIn, PushTokenOut, UserOut
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -47,3 +47,26 @@ async def my_blocks(user: User = Depends(require_account), db: AsyncSession = De
     rows = await db.execute(select(User).join(UserBlock, UserBlock.blocked_id == User.id)
                             .where(UserBlock.blocker_id == user.id))
     return [{"id": str(u.id), "name": u.display_name} for u in rows.scalars()]
+
+
+@router.post("/me/push-token", status_code=status.HTTP_204_NO_CONTENT)
+async def register_push_token(body: PushTokenIn, user: User = Depends(get_current_user),
+                              db: AsyncSession = Depends(get_db)) -> Response:
+    """Called after the player allows notifications (asked only after their first table).
+    A token moves to whoever signed in last on that device."""
+    device = await db.get(DeviceToken, body.token)
+    if device is None:
+        db.add(DeviceToken(token=body.token, user_id=user.id, platform=body.platform, locale=body.locale))
+    else:
+        device.user_id, device.platform, device.locale = user.id, body.platform, body.locale
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/me/push-token/remove", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_push_token(body: PushTokenOut, user: User = Depends(get_current_user),
+                            db: AsyncSession = Depends(get_db)) -> Response:
+    """On sign-out, so the next person on this phone doesn't get the previous one's pushes."""
+    device = await db.get(DeviceToken, body.token)
+    if device is not None and device.user_id == user.id:
+        await db.delete(device)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

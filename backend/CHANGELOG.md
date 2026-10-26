@@ -1,5 +1,20 @@
 # Backend Changelog
 
+## 26.10.2026 (9)
+
+- Push notifications (`services/push.py`), ported from Woddie and made async.
+  - Best effort: an Expo outage never blocks a move (tested).
+  - `DeviceNotRegistered` tokens are pruned.
+  - Migration `b8b5c43aef49`.
+- Calm by design: pushes go only to people who don't have the table open.
+  - "Your turn" on **async** tables.
+  - "{name} joined your table" to the host.
+  - "Round over" and "game over".
+  - No chat pushes, and no turn pushes on live tables.
+- Each device registers its language (`POST /users/me/push-token` with `locale`), so pushes arrive in pt-BR, en or da, falling back to pt-BR. A token follows whoever signed in last on that device. `POST /users/me/push-token/remove` is for sign-out.
+- **Fixed a race in the table lock.** A row the session had already loaded came back from `SELECT … FOR UPDATE` with its old in-memory values, so a move could be validated against stale state. The locked reads now use `populate_existing`.
+- 9 tests; 217 in total.
+
 ## 26.10.2026 (8)
 
 - Table chat with the safety tools both stores require for user content (App Store 1.2, Play's UGC policy). Migration `2ee5ed9ec752`.

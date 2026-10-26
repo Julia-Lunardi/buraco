@@ -1,6 +1,7 @@
 import uuid
+from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UserOut(BaseModel):
@@ -35,3 +36,13 @@ class AppleSignIn(BaseModel):
     nonce: str
     # Only present on the very first Apple sign-in; never trusted for account linking.
     full_name: str | None = None
+
+
+class PushTokenIn(BaseModel):
+    token: str = Field(pattern=r"^Expo(nent)?PushToken\[.+\]$", max_length=255)
+    platform: Literal["ios", "android"]
+    locale: str = Field(default="pt-BR", max_length=10)
+
+
+class PushTokenOut(BaseModel):
+    token: str

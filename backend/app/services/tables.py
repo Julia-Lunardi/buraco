@@ -68,7 +68,7 @@ async def join(db: AsyncSession, user: User, code: str) -> GameTable:
         raise TableError(status.HTTP_403_FORBIDDEN, "account_required",
                          "Sign in with Apple or Google to play with friends.")
     table = (await db.execute(select(GameTable).where(GameTable.code == code.strip().upper())
-                              .with_for_update())).scalar_one_or_none()
+                              .with_for_update().execution_options(populate_existing=True))).scalar_one_or_none()
     if table is None:
         raise TableError(status.HTTP_404_NOT_FOUND, "no_such_table", "No table with that code.")
     if _seat_of(table, user) is not None:
@@ -269,8 +269,10 @@ def _seat_of(table: GameTable, user: User) -> int | None:
 
 async def _locked(db: AsyncSession, table_id: uuid.UUID) -> GameTable:
     """Row lock: two players' (or two devices') actions on one table never interleave."""
-    table = (await db.execute(select(GameTable).where(GameTable.id == table_id).with_for_update())
-             ).scalar_one_or_none()
+    # populate_existing: if this session already loaded the table (e.g. to remember the turn
+    # before a move), the locked read must replace that copy, not keep possibly stale values.
+    table = (await db.execute(select(GameTable).where(GameTable.id == table_id).with_for_update()
+                              .execution_options(populate_existing=True))).scalar_one_or_none()
     if table is None:
         raise TableError(status.HTTP_404_NOT_FOUND, "no_such_table", "No such table.")
     return table
