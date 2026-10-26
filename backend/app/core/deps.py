@@ -29,3 +29,23 @@ async def get_current_user(
     if user is None:
         raise _unauthorized("Account not found.")
     return user
+
+
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+    db: AsyncSession = Depends(get_db),
+) -> User | None:
+    """The signed-in user if a valid token came along, else None (never an error)."""
+    if credentials is None:
+        return None
+    try:
+        return await db.get(User, decode_access_token(credentials.credentials))
+    except InvalidToken:
+        return None
+
+
+async def require_account(user: User = Depends(get_current_user)) -> User:
+    """Guests may only play against bots; anything with friends needs Apple or Google."""
+    if user.is_guest:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Sign in with Apple or Google to play with friends.")
+    return user

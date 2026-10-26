@@ -1,5 +1,15 @@
 # Backend Changelog
 
+## 26.10.2026 (5)
+
+- `DELETE /users/me` (204): deletes the account and every session through `ON DELETE CASCADE`. In Salvie the app called this route before it existed, so account deletion always failed; here it is tested from the start.
+- `POST /auth/guest`: bot play without an account, storing only an id and tokens.
+  - When a guest signs in with Google or Apple while sending their guest token, the guest **becomes** that account and keeps its id and games.
+  - If that Google or Apple account already exists, they are signed into it and the empty guest is deleted.
+  - A real account's token is never merged into another account.
+- `require_account` dependency: guests get 403 ("Sign in with Apple or Google to play with friends.") on anything involving friends.
+- 10 tests.
+
 ## 26.10.2026 (4)
 
 - `POST /auth/google` and `POST /auth/apple` (`services/oauth.py`), ported from Salvie's working version with every lesson kept:

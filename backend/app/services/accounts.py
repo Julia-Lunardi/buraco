@@ -1,4 +1,5 @@
-"""Find or create the user behind a verified Google or Apple identity."""
+"""Find or create the user behind a verified Google or Apple identity, and turn
+guests into real accounts."""
 
 from typing import Literal
 
@@ -12,22 +13,41 @@ Provider = Literal["google", "apple"]
 _SUB_COLUMN = {"google": User.google_sub, "apple": User.apple_sub}
 
 
-async def user_for_identity(db: AsyncSession, provider: Provider, identity: Identity) -> User:
-    """1. Same provider account → that user.
+async def create_guest(db: AsyncSession) -> User:
+    user = User(is_guest=True)
+    db.add(user)
+    await db.flush()
+    return user
+
+
+async def user_for_identity(db: AsyncSession, provider: Provider, identity: Identity,
+                            guest: User | None = None) -> User:
+    """1. Same provider account → that user (a guest signing in to an existing
+          account leaves the guest behind; it is deleted).
     2. Else a user with the same *provider-verified* email → link this provider to it.
        Only verified emails link: an email the app merely sends could hijack an account.
-    3. Else a new user."""
+    3. Else the guest who is signing in becomes this account, keeping its games.
+    4. Else a new user."""
     column = _SUB_COLUMN[provider]
     user = (await db.execute(select(User).where(column == identity.sub))).scalar_one_or_none()
     if user is None and identity.email:
         user = (await db.execute(select(User).where(User.email == identity.email))).scalar_one_or_none()
         if user is not None:
             setattr(user, column.key, identity.sub)
+
+    guest = guest if guest is not None and guest.is_guest else None
+    if user is None and guest is not None:
+        user, guest = guest, None
+        user.is_guest = False
+        user.email = identity.email
+        setattr(user, column.key, identity.sub)
     if user is None:
-        user = User(email=identity.email, display_name=identity.name[:40])
+        user = User(email=identity.email)
         setattr(user, column.key, identity.sub)
         db.add(user)
-    elif not user.display_name and identity.name:
+    if not user.display_name and identity.name:
         user.display_name = identity.name[:40]
+    if guest is not None:
+        await db.delete(guest)
     await db.flush()
     return user

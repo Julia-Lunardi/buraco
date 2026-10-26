@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.deps import get_optional_user
 from app.db.session import get_db
+from app.models import User
 from app.schemas.auth import AppleSignIn, GoogleSignIn, RefreshIn, TokenPair
 from app.services import oauth, tokens
-from app.services.accounts import user_for_identity
+from app.services.accounts import create_guest, user_for_identity
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -16,23 +18,32 @@ def _http_error(exc: Exception) -> HTTPException:
     return HTTPException(status.HTTP_401_UNAUTHORIZED, detail=str(exc))
 
 
+@router.post("/guest", response_model=TokenPair)
+async def guest(db: AsyncSession = Depends(get_db)) -> TokenPair:
+    """Play against bots without an account. No personal data: just an id and tokens.
+    Signing in with Apple or Google later (sending the guest's bearer token) keeps it."""
+    return await tokens.issue_token_pair(db, await create_guest(db))
+
+
 @router.post("/google", response_model=TokenPair)
-async def google(body: GoogleSignIn, db: AsyncSession = Depends(get_db)) -> TokenPair:
+async def google(body: GoogleSignIn, db: AsyncSession = Depends(get_db),
+                 current: User | None = Depends(get_optional_user)) -> TokenPair:
     try:
         identity = await oauth.verify_google(body.id_token)
     except (oauth.TokenRejected, oauth.ProviderUnavailable) as exc:
         raise _http_error(exc)
-    user = await user_for_identity(db, "google", identity)
+    user = await user_for_identity(db, "google", identity, guest=current)
     return await tokens.issue_token_pair(db, user)
 
 
 @router.post("/apple", response_model=TokenPair)
-async def apple(body: AppleSignIn, db: AsyncSession = Depends(get_db)) -> TokenPair:
+async def apple(body: AppleSignIn, db: AsyncSession = Depends(get_db),
+                current: User | None = Depends(get_optional_user)) -> TokenPair:
     try:
         identity = await oauth.verify_apple(body.identity_token, body.nonce, body.full_name)
     except (oauth.TokenRejected, oauth.ProviderUnavailable) as exc:
         raise _http_error(exc)
-    user = await user_for_identity(db, "apple", identity)
+    user = await user_for_identity(db, "apple", identity, guest=current)
     return await tokens.issue_token_pair(db, user)
 
 
