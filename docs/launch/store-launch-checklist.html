@@ -121,7 +121,7 @@ body.hide-done li.step.done{display:none}
     <div class="tbl"><table>
       <tr><td>Solution name</td><td><code>buraco</code> → <code>rg-buraco-de</code>, <code>kv-buraco-de</code>, <code>ca-buraco-de</code> (and <code>-pr</code>)</td></tr>
       <tr><td>Bundle id / package</td><td><code>‹bundle›</code> = <code>com.buraco.app</code> (working choice). Cannot be changed after the first Play upload.</td></tr>
-      <tr><td>Scope at launch</td><td>Aberto · 2 and 4 players · live or async chosen per table · Apple + Google sign-in, plus bot play without an account · both orientations, tablet layouts</td></tr>
+      <tr><td>Scope at launch</td><td>Aberto · 2 and 4 players · live or async chosen per table · Apple + Google sign-in, plus bot play without an account · both orientations, tablet layouts · optional tip jar (3 consumables, reached only from Settings, unlocks nothing)</td></tr>
       <tr><td>Postgres</td><td>Shared <code>psql-woddie-de</code> (rg <code>rg-woddie-de</code>), databases <code>buraco_de</code> and <code>buraco_pr</code></td></tr>
       <tr><td>Registry</td><td>Shared <code>acrwoddiede</code>, image repo <code>buraco-backend</code></td></tr>
       <tr><td>Container Apps env</td><td>Shared <code>cae-woddie-de</code> (same as Salvie)</td></tr>
@@ -198,6 +198,12 @@ const PHASES=[
  [M,'Register the bundle id in the Apple Developer portal and tick Sign In with Apple','developer.apple.com → Identifiers',
   '', 'Woddie and Salvie: a missing capability shows up as <code>ASAuthorizationError 1000</code> before any network call, with nothing in the logs.'],
  [M,'Create the app in the Play Console (package = ‹bundle›)','play.google.com/console',''],
+ [M,'Tip jar: sign the Paid Apps agreement and add banking and tax information','App Store Connect → Business',
+  '<p>Required even for a free app once it sells in-app purchases. It can take days to activate, and sandbox purchases don\'t work until it does, so start now.</p>'],
+ [M,'Tip jar: enrol in the App Store Small Business Program','developer.apple.com',
+  '<p>A 15% commission instead of 30%. Skip this if you already enrolled for Woddie or Salvie: it applies to the whole developer account.</p>'],
+ [M,'Tip jar: set up the Play payments profile (merchant account) and accept the 15% service fee terms','Play Console → Monetisation setup',
+  '<p>The payments profile is account-wide, so this may already be done for Woddie or Salvie. Check it rather than redoing it.</p>'],
 ]},
 {t:'Mobile app foundation', d:'Expo SDK 57, configured through <code>app.config.js</code> only.', s:[
  [C,'Expo app with <code>app.config.js</code>: <code>orientation: "default"</code>, <code>supportsTablet</code>, <code>UIRequiresFullScreen</code>, <code>ITSAppUsesNonExemptEncryption: false</code>, <code>usesAppleSignIn: true</code>','mobile',
@@ -221,6 +227,13 @@ const PHASES=[
  [C,'AuthContext with silent refresh, the Google "G" SVG, and errors that show the backend\'s <code>detail</code>','mobile/src',
   '<p>Network errors and 5xx never log the user out. Only a 401 from <code>/auth/refresh</code> does.</p>',
   'Salvie: TestFlight and Play-review sign-in failures could not be diagnosed until the real error was shown.'],
+ [M,'Tip jar: confirm the billing library (recommended: expo-iap) and pick the three price tiers','You',
+  '<p>See <code>docs/plans/tip-jar.md</code> for the comparison. Nothing gets installed until you confirm.</p>'],
+ [C,'Tip jar module: <code>features/support/</code> with <code>useTipJar</code>, a mock mode and unit tests','mobile',
+  '<ul><li>The purchase listener is mounted at app start. On start, unfinished purchases are fetched and finished with <code>isConsumable: true</code>.</li><li>A refused consume is reported as an error, never as success.</li><li>States: loading, unavailable, purchasing, thank-you, cancelled (silent), failed, pending.</li><li>Pin an exact library version and prove it with an EAS iOS build first.</li></ul>',
+  'Woddie 20.10.2026: <code>react-native-iap</code> 15.6.x pulled an OpenIAP pod that needed Xcode 27 and broke iOS builds. expo-iap uses the same pods.'],
+ [C,'"Apoie o app" screen, reached only from Settings, with platform-keyed store wording','mobile',
+  '<p>Three equally weighted buttons (Cafezinho / Pastel / Jantar) showing the store\'s localised prices. No popups, badges or prompts anywhere else, and never after a game.</p>'],
  [C,'Lazy-load <code>expo-notifications</code> and leave Firebase out of iOS','mobile',
   '', 'Salvie 19.09.2026: a static import of <code>expo-notifications</code> crashed Android Expo Go on launch. Woddie: Firebase Swift pods break iOS builds on Xcode 26.'],
 ]},
@@ -260,6 +273,14 @@ const PHASES=[
   '<p>One client holds exactly one SHA-1. Its ID never goes into the app code. Update <code>google-android-client-id</code> in both vaults.</p>'],
  [M,'Build the Android development or preview APK and test Google sign-in','Android device',''],
 ]},
+{t:'Tip jar: App Store side', d:'iOS purchases can be tested on the development build with a Sandbox account. Android follows in the Play phase, because Play needs an uploaded build first.', s:[
+ [M,'Create the 3 consumable in-app purchases <code>tip_small</code>, <code>tip_medium</code> and <code>tip_large</code>','App Store Connect → the app → In-App Purchases',
+  '<p>Names and descriptions in pt-BR, en and da, your price tiers, and a review screenshot of the Support screen.</p>'],
+ [M,'Create a Sandbox tester and sign in with it on the iPhone','App Store Connect → Users and Access → Sandbox',''],
+ [M,'Test on the development build: buy each tip, cancel one, check the pending message with "Ask to Buy"','iPhone',
+  '<p>Buy the same tip twice in a row. If the second purchase is refused, the transaction was not finished.</p>',
+  'expo-iap issue #188: a consumable that is never finished blocks every later purchase of it.'],
+]},
 {t:'Push notifications', d:'Needed for async tables ("your turn").', s:[
  [M,'Add Firebase to the <b>same</b> Google Cloud project as the OAuth clients and register the Android app','console.firebase.google.com',
   '<p>Download <code>google-services.json</code> into <code>mobile/</code> (gitignored). It is used only by FCM.</p>'],
@@ -270,9 +291,9 @@ const PHASES=[
 ]},
 {t:'Legal, chat safety and website', d:'Chat is user-generated content, which brings extra requirements in both stores.', s:[
  [C,'Draft the privacy policy','website',
-  '<p>Covers email and name, the Apple and Google subject IDs, game history, chat messages, push tokens, the processors (Azure, Apple, Google, Expo), retention, account deletion, children\'s policy and a contact address.</p>'],
+  '<p>Covers email and name, the Apple and Google subject IDs, game history, chat messages, push tokens, the processors (Azure, Apple, Google, Expo), retention, account deletion, children\'s policy and a contact address.</p><p>Tip jar paragraph: tips are processed by Apple or Google, the developer never receives payment details, and nothing about tips is stored or analysed.</p>'],
  [C,'Draft the terms of use, with zero tolerance for abusive content','website',
-  '<p>Apple Guideline 1.2 needs terms that ban objectionable content, a way to report it, a way to block users, and published contact details.</p>'],
+  '<p>Apple Guideline 1.2 needs terms that ban objectionable content, a way to report it, a way to block users, and published contact details.</p><p>Tip jar clause: tips are voluntary, unlock nothing, and refunds follow the store\'s policy.</p>'],
  [M,'Review both documents and publish them at stable URLs','You · Cloudflare Pages',''],
  [C,'Chat safety in the app: report a message or player, block, per-player mute, a host switch to turn chat off, and a basic word filter','mobile + backend',''],
  [C,'Links to privacy and terms, plus account deletion, in Settings','mobile',''],
@@ -297,6 +318,8 @@ const PHASES=[
   '<p>iPad screenshots are required because <code>supportsTablet</code> is on.</p>'],
  [M,'Write review notes: how to play against bots with no account and no second person','App Store Connect',
   '<p>Point the reviewer to "play against bots without an account" so they reach a full game in two taps. Sign in with Apple works with their own Apple ID.</p>'],
+ [M,'Tip jar: attach the 3 in-app purchases to this version and add the review note','App Store Connect → the version → In-App Purchases',
+  '<p>An app\'s first in-app purchases must be submitted together with an app version. Review note: "Optional tips for the developer. They unlock no content or features."</p>'],
  [M,'Submit for review','App Store Connect',''],
 ]},
 {t:'Google Play submission', d:'The Play signing SHA-1 is the one thing that breaks Google sign-in only on Play installs.', s:[
@@ -310,6 +333,10 @@ const PHASES=[
  [M,'Create Android OAuth client #2: package ‹bundle›, SHA-1 = <code>SHA1_PLAY</code>','GCP → Credentials',
   '<p>Wait about 5 minutes, then test Google sign-in from a Play internal-track install.</p>',
   'Salvie SIGNIN_STORE_SETUP A: without this client, Play installs fail with <code>DEVELOPER_ERROR</code> (code 10) and nothing reaches the backend.'],
+ [M,'Tip jar: create the 3 one-time (consumable) products <code>tip_small</code>, <code>tip_medium</code> and <code>tip_large</code>, and activate them','Play Console → Monetise → In-app products',
+  '<p>This is only possible once a build is on a testing track. Use the same IDs and names (pt-BR, en, da) as on iOS.</p>'],
+ [M,'Tip jar: add license testers and test from a Play install, buying the same tip twice','Play Console → Setup → License testing',
+  '<p>A second purchase only works if the first one was consumed. A tip that was never consumed is refunded by Google after 3 days.</p>'],
  [M,'Complete the listing: content rating (IARC), data safety form, target audience, app access instructions and privacy URL','Play Console',
   '<p>The data safety answers must match the privacy policy and declare chat messages.</p>'],
  [M,'Add the graphics: 512×512 icon, 1024×500 feature graphic, phone screenshots plus 7" and 10" tablet screenshots, none wider than 2:1','Play Console',
@@ -323,6 +350,7 @@ const PHASES=[
  [M,'A full game against bots, a full game with a friend, and a disconnect and reconnect with a bot taking over','Devices',''],
  [M,'Chat: send, mute, report, block, chat turned off by the host','Devices',''],
  [M,'Account deletion removes the user and signs them out. The privacy and terms links open.','Devices',''],
+ [M,'Tip jar on store builds: the prices are localised, a purchase shows the thank-you message, a cancel shows nothing, and there is no tip prompt anywhere outside Settings','Devices',''],
  [M,'Safe areas, dark mode and reduce motion on a notched iPhone, an iPad and an Android device','Devices',''],
 ]},
 ];
