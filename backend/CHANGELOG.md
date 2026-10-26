@@ -1,5 +1,25 @@
 # Backend Changelog
 
+## 26.10.2026 (6)
+
+- Tables and games are saved after every action (`services/tables.py`, migration `b41f2948a34e`):
+  - `game_tables` holds the settings: mode `live` or `async`, chat on or off, target score, a secret seed, and status lobby → playing → round_over → finished.
+  - `table_seats` records who sits where: a person, a bot, or open.
+  - `game_actions` is the move log, bots' moves included.
+- **The match is never stored as state.** It is rebuilt by replaying the seed plus the move log, which the deterministic engine makes exact. A test plays, reloads in a fresh session and compares all four players' views and the scores. The seed never leaves the server, because it reveals every hand.
+- The flow:
+  - A table with only bots starts at once. Friend tables wait in the lobby and are joined with a 6-character code (no 0/O/1/I/L, since codes get read aloud).
+  - The host starts the game, and seats still open become bots.
+  - After each action, bots play until it's a person's turn.
+  - `next_round` is idempotent: if two players press "next round", only one round starts.
+- Every action locks the table row (`SELECT … FOR UPDATE`), so two devices can never interleave moves.
+- Illegal moves return 422 with the engine's code and its plain-language reason, which feeds the "why was that illegal?" explanation.
+- Guests can create bot tables only. A player who deletes their account mid-game has their seat covered by a bot (`ON DELETE SET NULL`).
+- Async tables simply wait for each person. Live-mode bot takeover of a disconnected seat comes with the WebSocket layer (step 17).
+- `engine/serialize.py`: actions to and from plain dicts, with strict validation of client input.
+- The migration's undo now drops its Postgres enum types, which autogenerate leaves behind. CI also undoes and redoes all migrations.
+- 28 tests, including a whole match played through the service until it finishes.
+
 ## 26.10.2026 (5)
 
 - `DELETE /users/me` (204): deletes the account and every session through `ON DELETE CASCADE`. In Salvie the app called this route before it existed, so account deletion always failed; here it is tested from the start.

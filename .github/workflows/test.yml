@@ -37,5 +37,7 @@ jobs:
         run: uv run alembic upgrade head
       - name: Models and migrations agree
         run: uv run alembic check
+      - name: Migrations undo and redo cleanly
+        run: uv run alembic downgrade base && uv run alembic upgrade head
       - name: Docker image builds
         run: docker build -t buraco-backend .
