@@ -1,5 +1,24 @@
 # Backend Changelog
 
+## 26.10.2026 (7)
+
+- Tables over REST (`routers/tables.py`):
+  - `POST /tables`, `GET /tables` (home screen: unfinished tables, yours-to-play first), `POST /tables/join`, `GET /tables/{id}`, `POST /tables/{id}/start`, `POST /tables/{id}/actions` and `POST /tables/{id}/next-round`.
+  - Errors return `{"code", "detail"}`: a stable code for i18n and the engine's plain-language reason.
+- Live play over `WS /tables/{id}/ws`.
+  - The first message is `{"type": "auth", "token": …}`, which keeps tokens out of URLs and access logs.
+  - The client then sends `action`, `next_round` or `ping`.
+  - After every change, each connected player receives **their own** view; hands differ per seat.
+  - Moves are committed before they are broadcast, so nobody is shown a move that then rolls back. REST moves are broadcast too, so an async move reaches a live viewer.
+- Live tables: a player who drops is shown as disconnected, and after `LIVE_TAKEOVER_SECONDS` (20) a bot plays their seat until they reconnect. Async tables just wait.
+- The player view now sends cards as `{id, label}`. There are two of every card, so actions name cards by id. Melds also carry their canastra kind.
+- `app/realtime.py` keeps presence and bot cover in one process, so the API must run as **one replica** (noted on the runbook's infra step).
+- Lessons from building it:
+  - Work after a disconnect runs as a spawned task, not in the socket handler's `finally`, which can be cancelled.
+  - Background tasks and unexpected socket errors are logged instead of dying silently.
+  - Starlette's TestClient doesn't deliver a mid-test disconnect to the server handler, so the takeover is tested directly with async tests.
+- 10 tests (REST, WebSocket, takeover); 190 in total.
+
 ## 26.10.2026 (6)
 
 - Tables and games are saved after every action (`services/tables.py`, migration `b41f2948a34e`):

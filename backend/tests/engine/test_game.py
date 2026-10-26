@@ -282,7 +282,7 @@ def test_check_does_not_change_state():
 def test_view_shows_only_own_hand():
     rnd = Round(ABERTO, 4, seed=3)
     view = rnd.view_for(2)
-    assert view["hand"] == [c.label for c in rnd.hands[2]]
+    assert view["hand"] == [{"id": c.id, "label": c.label} for c in rnd.hands[2]]
     assert view["hand_sizes"] == [11, 11, 11, 11]
     assert "hands" not in view and "stock" not in view
     assert view["stock_size"] == len(rnd.stock)

@@ -4,7 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.session import engine
-from app.routers import auth, users
+from app.routers import auth, tables, users
+from app.services.tables import TableError
 
 # The schema is owned by Alembic (start.sh runs `alembic upgrade head` before
 # uvicorn); the app never calls create_all, so code and migrations can't drift.
@@ -27,6 +28,8 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(tables.router)
+app.add_exception_handler(TableError, tables.table_error_handler)
 
 
 @app.get("/health", tags=["meta"])

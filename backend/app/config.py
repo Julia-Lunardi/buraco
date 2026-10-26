@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Audience of every Apple identity token.
     apple_bundle_id: str = "com.buraco.app"
 
+    # Live tables: how long a dropped player has to come back before a bot plays for them.
+    live_takeover_seconds: float = 20.0
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

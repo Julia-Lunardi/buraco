@@ -139,21 +139,27 @@ class Round:
         return out
 
     def view_for(self, seat: int) -> dict:
-        """What one player may see: their own hand plus public state."""
+        """What one player may see: their own hand plus public state. Cards carry their
+        id (actions name cards by id: there are two of every card) and their label."""
+        def cards(cs: list[Card]) -> list[dict]:
+            return [{"id": c.id, "label": c.label} for c in cs]
+
         return {
             "seat": seat,
             "current": self.current,
             "phase": self.phase.value,
-            "hand": [c.label for c in self.hands[seat]],
+            "hand": cards(self.hands[seat]),
             "hand_sizes": [len(h) for h in self.hands],
             "stock_size": len(self.stock),
-            "discard": [c.label for c in self.discard],
+            "discard": cards(self.discard),
             "teams": [
                 {
                     "morto_waiting": t.morto is not None,
                     "took_morto": t.took_morto,
-                    "melds": [{"id": m.id, "cards": [c.label for c in m.cards],
-                               "kind": m.shape.kind.value, "wilds": m.shape.wilds} for m in t.melds],
+                    "melds": [{"id": m.id, "cards": cards(m.cards), "kind": m.shape.kind.value,
+                               "wilds": m.shape.wilds,
+                               "canastra": (k.value if (k := canastra_kind(len(m.cards), m.shape, self.preset))
+                                            else None)} for m in t.melds],
                 }
                 for t in self.teams
             ],

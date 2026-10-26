@@ -47,7 +47,7 @@ def test_views_never_leak_other_hands(seed, n):
     def check(rnd, *_):
         for seat in range(n):
             view = rnd.view_for(seat)
-            assert view["hand"] == [c.label for c in rnd.hands[seat]]
+            assert view["hand"] == [{"id": c.id, "label": c.label} for c in rnd.hands[seat]]
             assert "hands" not in view and "stock" not in view
     play_round(Round(ABERTO, n, seed), on_action=check)
 

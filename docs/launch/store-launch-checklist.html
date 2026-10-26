@@ -240,7 +240,7 @@ const PHASES=[
 ]},
 {t:'Azure: shared Woddie resources', d:'Same pattern as Salvie: only a database, an image repo and a container app are new.', s:[
  [C,'Copy Salvie\'s <code>infra/</code> with <code>solution_name = "buraco"</code> and the shared server, registry and CAE values','infra',
-  '<p>The two-phase targeted apply, the <code>kv_secret_*</code> modules, the Key Vault role assignments, and the database resource on the shared server. No <code>moved</code> blocks.</p>',
+  '<p>The two-phase targeted apply, the <code>kv_secret_*</code> modules, the Key Vault role assignments, and the database resource on the shared server. No <code>moved</code> blocks.</p><p><b>Set <code>max_replicas = 1</code></b> (Salvie uses 3). Live tables keep their WebSocket connections in one process (<code>app/realtime.py</code>). Scaling out first needs a shared channel such as Postgres LISTEN/NOTIFY.</p>',
   'Salvie 28.07.2026: <code>moved</code> blocks abort <code>plan -target</code>.'],
  [M,'Create two OIDC app registrations (de, pr) with federated credentials for the GitHub environments <code>de</code> and <code>pr</code>','Entra ID',
   '<p>Grant Contributor on the subscription and note each object id for <code>github_actions_sp_object_id</code>.</p>'],
@@ -371,6 +371,8 @@ const DONE={
   14:'Done by Claude · 26 Oct 2026',
   15:'Done by Claude · 26 Oct 2026 · a guest becomes the account on first sign-in',
   16:'Done by Claude · 26 Oct 2026 · rebuilt from seed + move log; replay checked in tests',
+  17:'Done by Claude · 26 Oct 2026 · REST + WebSocket; a bot covers a dropped live player after 20 s',
+  35:'Decided by Julia · 26 Oct 2026 · expo-iap; default tiers USD 0.99 / 2.99 / 4.99',
 };
 const KEY='buraco-runbook-v1';
 let state={done:{},open:{}};

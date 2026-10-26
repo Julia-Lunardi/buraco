@@ -12,6 +12,7 @@ from typing import Literal
 
 from fastapi import status
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.engine.bots import GreedyBot
@@ -96,8 +97,10 @@ async def start(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTable:
     return table
 
 
-async def act(db: AsyncSession, user: User, table_id: uuid.UUID, action: dict) -> tuple[GameTable, Match]:
-    """Apply one player action, then let bots play until a person's turn or the round ends."""
+async def act(db: AsyncSession, user: User, table_id: uuid.UUID, action: dict,
+              covered: frozenset[int] = frozenset()) -> tuple[GameTable, Match]:
+    """Apply one player action, then let bots play until a person's turn or the round ends.
+    `covered`: seats of disconnected players a bot is holding (live tables only)."""
     table = await _locked(db, table_id)
     seat = _seat_of(table, user)
     if seat is None:
@@ -114,12 +117,13 @@ async def act(db: AsyncSession, user: User, table_id: uuid.UUID, action: dict) -
         _apply(db, table, match, seat, parsed)
     except IllegalMove as exc:  # the engine's code + plain-language reason ("why was that illegal?")
         raise TableError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code, exc.message)
-    _advance(db, table, match)
+    _advance(db, table, match, covered)
     await db.flush()
     return table, match
 
 
-async def next_round(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple[GameTable, Match]:
+async def next_round(db: AsyncSession, user: User, table_id: uuid.UUID,
+                     covered: frozenset[int] = frozenset()) -> tuple[GameTable, Match]:
     table = await _locked(db, table_id)
     if _seat_of(table, user) is None:
         raise TableError(status.HTTP_403_FORBIDDEN, "not_seated", "You are not playing at this table.")
@@ -129,9 +133,77 @@ async def next_round(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple
     match.start_round()
     table.rounds_started += 1
     table.status = TableStatus.PLAYING
-    _advance(db, table, match)
+    _advance(db, table, match, covered)
     await db.flush()
     return table, match
+
+
+async def cover(db: AsyncSession, table_id: uuid.UUID, covered: frozenset[int]) -> tuple[GameTable, Match] | None:
+    """A live player dropped: if it is a covered seat's turn, the bot plays it now."""
+    table = await _locked(db, table_id)
+    if table.mode is not PlayMode.LIVE or table.status is not TableStatus.PLAYING:
+        return None
+    match = await load_match(db, table)
+    _advance(db, table, match, covered)
+    await db.flush()
+    return table, match
+
+
+async def get_for(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple[GameTable, Match]:
+    table = await db.get(GameTable, table_id)
+    if table is None or _seat_of(table, user) is None:
+        raise TableError(status.HTTP_404_NOT_FOUND, "no_such_table", "No such table.")
+    return table, await load_match(db, table)
+
+
+async def tables_of(db: AsyncSession, user: User) -> list[GameTable]:
+    """The user's unfinished tables, theirs-to-play first, then most recent."""
+    rows = (await db.execute(
+        select(GameTable).join(TableSeat).where(TableSeat.user_id == user.id,
+                                                GameTable.status != TableStatus.FINISHED)
+        .order_by(GameTable.updated_at.desc()))).scalars().all()
+    return sorted(rows, key=lambda t: _seat_of(t, user) != t.current_seat)
+
+
+def table_view(table: GameTable, match: Match, user: User, *, connected: set[uuid.UUID] = frozenset(),
+               covered: frozenset[int] = frozenset()) -> dict:
+    """Everything one player may see. Never includes the seed or other hands."""
+    me = _seat_of(table, user)
+    return {
+        "id": str(table.id),
+        "code": table.code,
+        "preset": table.preset,
+        "num_players": table.num_players,
+        "mode": table.mode.value,
+        "chat_enabled": table.chat_enabled,
+        "target_score": table.target_score,
+        "status": table.status.value,
+        "is_host": table.host_id == user.id,
+        "my_seat": me,
+        "current_seat": table.current_seat,
+        "seats": [{
+            "seat": s.seat,
+            "team": s.seat % 2,
+            "name": s.user.display_name if s.user else None,
+            "is_you": s.seat == me,
+            "bot": s.user_id is None and (s.bot_level is not None or table.status is not TableStatus.LOBBY),
+            "open": s.user_id is None and s.bot_level is None and table.status is TableStatus.LOBBY,
+            "connected": s.user_id in connected if s.user_id else None,
+            "covered_by_bot": s.seat in covered,
+        } for s in table.seats],
+        "scores": list(match.scores),
+        "rounds": [[{**dataclasses.asdict(t), "total": t.total} for t in r] for r in match.history],
+        "winner": match.winner,
+        "game": match.round.view_for(me) if match.round is not None and me is not None else None,
+    }
+
+
+async def refreshed(db: AsyncSession, table: GameTable) -> GameTable:
+    """The table with seats and their players freshly loaded. Views read `seat.user`, and
+    async SQLAlchemy cannot lazy-load it after a write."""
+    return (await db.execute(select(GameTable).where(GameTable.id == table.id)
+                             .options(selectinload(GameTable.seats).selectinload(TableSeat.user))
+                             .execution_options(populate_existing=True))).scalar_one()
 
 
 # --- replay -------------------------------------------------------------------------
@@ -172,9 +244,9 @@ def _apply(db: AsyncSession, table: GameTable, match: Match, seat: int, action) 
                       seat=seat, action=action_to_dict(action)))
 
 
-def _advance(db: AsyncSession, table: GameTable, match: Match) -> None:
+def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozenset[int] = frozenset()) -> None:
     rnd = match.round
-    while rnd.phase is not Phase.OVER and _bot_controls(table, rnd.current):
+    while rnd.phase is not Phase.OVER and _bot_controls(table, rnd.current, covered):
         level = table.seats[rnd.current].bot_level or "standard"
         _apply(db, table, match, rnd.current, _BOTS.get(level, _BOTS["standard"]).choose(rnd, rnd.current))
     if rnd.phase is Phase.OVER:
@@ -185,10 +257,10 @@ def _advance(db: AsyncSession, table: GameTable, match: Match) -> None:
         table.current_seat = rnd.current
 
 
-def _bot_controls(table: GameTable, seat: int) -> bool:
-    """Bots play bot seats and any seat without a person (e.g. a deleted account).
-    Live-mode takeover of a disconnected player's seat comes with the WebSocket layer."""
-    return table.seats[seat].user_id is None
+def _bot_controls(table: GameTable, seat: int, covered: frozenset[int]) -> bool:
+    """Bots play bot seats, seats without a person (e.g. a deleted account), and on live
+    tables the seat of a player who dropped (until they come back)."""
+    return table.seats[seat].user_id is None or seat in covered
 
 
 def _seat_of(table: GameTable, user: User) -> int | None:
