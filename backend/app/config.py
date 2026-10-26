@@ -11,6 +11,15 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 90
 
+    # Google OAuth client IDs. All three are valid token audiences: Android signs in
+    # natively and gets a token addressed to the WEB client; iOS uses the iOS client.
+    # Key Vault: google-client-id (WEB), google-ios-client-id, google-android-client-id.
+    google_client_id: str = ""
+    google_ios_client_id: str = ""
+    google_android_client_id: str = ""
+    # Audience of every Apple identity token.
+    apple_bundle_id: str = "com.buraco.app"
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

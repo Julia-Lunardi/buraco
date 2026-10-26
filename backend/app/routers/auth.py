@@ -2,10 +2,38 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.schemas.auth import RefreshIn, TokenPair
-from app.services import tokens
+from app.schemas.auth import AppleSignIn, GoogleSignIn, RefreshIn, TokenPair
+from app.services import oauth, tokens
+from app.services.accounts import user_for_identity
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _http_error(exc: Exception) -> HTTPException:
+    """The detail reaches the app's error message (Salvie: show the backend's reason)."""
+    if isinstance(exc, oauth.ProviderUnavailable):
+        return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
+    return HTTPException(status.HTTP_401_UNAUTHORIZED, detail=str(exc))
+
+
+@router.post("/google", response_model=TokenPair)
+async def google(body: GoogleSignIn, db: AsyncSession = Depends(get_db)) -> TokenPair:
+    try:
+        identity = await oauth.verify_google(body.id_token)
+    except (oauth.TokenRejected, oauth.ProviderUnavailable) as exc:
+        raise _http_error(exc)
+    user = await user_for_identity(db, "google", identity)
+    return await tokens.issue_token_pair(db, user)
+
+
+@router.post("/apple", response_model=TokenPair)
+async def apple(body: AppleSignIn, db: AsyncSession = Depends(get_db)) -> TokenPair:
+    try:
+        identity = await oauth.verify_apple(body.identity_token, body.nonce, body.full_name)
+    except (oauth.TokenRejected, oauth.ProviderUnavailable) as exc:
+        raise _http_error(exc)
+    user = await user_for_identity(db, "apple", identity)
+    return await tokens.issue_token_pair(db, user)
 
 
 @router.post("/refresh", response_model=TokenPair)

@@ -1,5 +1,22 @@
 # Backend Changelog
 
+## 26.10.2026 (4)
+
+- `POST /auth/google` and `POST /auth/apple` (`services/oauth.py`), ported from Salvie's working version with every lesson kept:
+  - Google is verified locally with `google-auth`, accepting all three client IDs as audiences.
+  - The `ValueError` handler comes before `GoogleAuthError`, so a wrong-audience token gives 401, not 503.
+  - Apple keys (JWKS) are cached for 1 hour.
+  - `verify_at_hash=False` is set, because python-jose ≥ 3.5 would otherwise reject every Apple token.
+  - A token without a `kid` gives 401; an unknown `kid` gives 503.
+  - Verification runs off the event loop through `asyncio.to_thread`, with step-by-step logs.
+  - The backend's error reason is returned as `detail`, so the app can show it.
+- Two security fixes compared with Salvie:
+  - **Account linking only uses emails the provider verified** (`email_verified`). Salvie linked an Apple sign-in to an existing account using an email the *app* sent, so anyone could take over an account by sending its email.
+  - **The Apple nonce is required.** Salvie skipped the check when the app omitted it.
+- A first Apple sign-in with a hidden email no longer fails with 400. Buraco accounts don't need an email.
+- `google-auth`, `requests` and `httpx` are declared directly rather than arriving through other packages.
+- 22 OAuth tests. The Apple ones sign real RS256 tokens with a test key, including an `at_hash` claim. Re-enabling `at_hash` verification makes 6 of them fail.
+
 ## 26.10.2026 (3)
 
 - Users and sessions: `users` table (no password column: Apple, Google or guest only; `email` nullable) and `refresh_tokens` (SHA-256 hashes only). Migration `7c489de26eed`.
