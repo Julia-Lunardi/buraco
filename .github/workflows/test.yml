@@ -24,12 +24,18 @@ jobs:
           --health-cmd "pg_isready -U buraco" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql+asyncpg://buraco:buraco@localhost:5434/buraco
+      # Tests rebuild their own schema, so they get a separate database from the migration check.
+      TEST_DATABASE_URL: postgresql+asyncpg://buraco:buraco@localhost:5434/buraco_test
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
+      - name: Create the test database
+        run: PGPASSWORD=buraco psql -h localhost -p 5434 -U buraco -c "CREATE DATABASE buraco_test"
       - run: uv run pytest -q
       - name: Migrations apply to an empty database
         run: uv run alembic upgrade head
+      - name: Models and migrations agree
+        run: uv run alembic check
       - name: Docker image builds
         run: docker build -t buraco-backend .

@@ -12,6 +12,18 @@ make test      # pytest: rules, scoring, bots, property tests, API
 make sim       # 200 bot-vs-bot matches with stats
 ```
 
+API tests run against a real Postgres, because token rotation and revocation are database behaviour.
+Point `TEST_DATABASE_URL` at an empty database (e.g.
+`postgresql+asyncpg://buraco:buraco@localhost:5434/buraco_test`); without it those tests are skipped. CI
+always sets it.
+
+After changing a model: `uv run alembic revision --autogenerate -m "…"`, read the file, then
+`uv run alembic check` (CI fails if models and migrations differ).
+
+Auth (Woddie's `AUTH.md`, unchanged): a 1-hour access JWT plus a 90-day opaque refresh token, stored
+hashed, rotated on every `/auth/refresh`, with reuse detection. The JWT's `sub` is the **user id**, not
+the email, because guests have no email and Apple may hide it. There are no passwords.
+
 Ports: 5434 and 8001, so Buraco runs alongside Woddie and Salvie, which use 5432/5433 and 8000.
 
 Alembic owns the schema: the container's `start.sh` runs `alembic upgrade head` before uvicorn, and

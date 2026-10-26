@@ -1,5 +1,16 @@
 # Backend Changelog
 
+## 26.10.2026 (3)
+
+- Users and sessions: `users` table (no password column: Apple, Google or guest only; `email` nullable) and `refresh_tokens` (SHA-256 hashes only). Migration `7c489de26eed`.
+- `POST /auth/refresh` rotates the token pair. A spent token presented again revokes every session of that user, and the revoke is committed before the 401, because `get_db` rolls back on exceptions (the Salvie lesson).
+- `POST /auth/logout` is deliberately unauthenticated. `GET /users/me` checks the access token.
+- A missing bearer header returns 401, not FastAPI's default 403, because the mobile interceptor only refreshes on 401.
+- The JWT's `sub` is the user id, not the email (Woddie uses the email).
+- Response fields are `access_token` and `refresh_token`, as in Woddie, so its `AuthContext` ports unchanged.
+- 14 API tests against a real Postgres (`TEST_DATABASE_URL`, `tests/conftest.py`).
+- CI: creates the test database, and `alembic check` fails the build if models and migrations differ.
+
 ## 26.10.2026 (2)
 
 - Scaffolded the API: FastAPI (`app/main.py`, `/health`), async SQLAlchemy (`app/db/`), Alembic, `Dockerfile` + `start.sh`, `docker-compose.yml` (Postgres 16 on 5434), and `.env.example`.
