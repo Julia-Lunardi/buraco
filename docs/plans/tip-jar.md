@@ -4,7 +4,19 @@ Status: **planned, waiting for Julia to confirm the billing library.** No code y
 
 ## What it is
 
-An optional "Support the app" screen, reachable **only** from Settings, with three equally weighted tip buttons. Tips are consumable store purchases (Apple In-App Purchase, Google Play Billing) that unlock nothing. No popups, banners, badges or prompts anywhere else, and never after a game.
+An optional "Support the app" screen, reachable **only** from Settings, with three equally weighted contribution buttons. Contributions are consumable store purchases (Apple In-App Purchase, Google Play Billing) that unlock nothing. No popups, banners, badges or prompts anywhere else, and never after a game.
+
+## Purpose: server costs, not a personal tip (Julia, 26.10.2026)
+
+The money pays for **the app's servers** (the backend that runs the tables), not for the developer personally. This decision overrides the brief's "made by one person" framing below:
+
+- **Copy talks about keeping the tables running.** No "buy me a coffee", no personal treats, and no "made by one person".
+  - pt-BR: "O Buraco é gratuito e sem anúncios. As contribuições ajudam a pagar os servidores que mantêm as mesas funcionando. São opcionais e não desbloqueiam nada."
+  - en: "Buraco is free and has no ads. Contributions help pay for the servers that keep the tables running. They're optional and unlock nothing."
+  - da: "Buraco er gratis og uden reklamer. Bidrag hjælper med at betale for de servere, der holder bordene kørende. De er frivillige og låser ikke op for noget."
+- **The wording is "contribuição" / "apoio" ("contribution" / "support"), never "doação" ("donation").** Apple allows in-app *donations* only for registered nonprofits (Guideline 3.2.1), and the stores pay the money to the developer account either way. Calling it a donation would invite rejection and would also be inaccurate.
+- **No precise claims** such as "one month of servers", unless the amounts are made to match the real Azure costs. A promise in the copy has to stay true.
+- The user never sees the product IDs, so they keep the `tip_*` names from the brief. Renaming them `support_*` is possible until the products are created in the stores, but not afterwards.
 
 ## Library: recommendation (needs Julia's OK)
 
@@ -33,13 +45,15 @@ Checked on 26.10.2026. All three are actively maintained.
 - IDs (consumable, the same on both stores): `tip_small`, `tip_medium`, `tip_large`, as in the brief.
   - Woddie and Salvie use reverse-DNS IDs on iOS (`com.salvie.app.pro.monthly`) and short ones on Play. Using one plain ID set on both stores is simpler (one constant, no `Platform.select`), and Apple accepts it.
   - **Proposal: keep `tip_*` everywhere.**
-- Proposed names. The three buttons look identical, and only the name and the store price differ.
+- Proposed names: neutral sizes, nothing personal. The three buttons look identical, and only the name and the store price differ.
 
 | ID | pt-BR | en | da |
 |---|---|---|---|
-| `tip_small` | Um cafezinho | A coffee | En kop kaffe |
-| `tip_medium` | Um pastel | A snack | En snack |
-| `tip_large` | Um jantar | A dinner | En middag |
+| `tip_small` | Apoio pequeno | Small contribution | Lille bidrag |
+| `tip_medium` | Apoio médio | Medium contribution | Mellem bidrag |
+| `tip_large` | Apoio grande | Large contribution | Stort bidrag |
+
+- Store product descriptions, for example: "Ajuda a pagar os servidores do Buraco. Não desbloqueia nada." / "Helps pay for Buraco's servers. Unlocks nothing."
 
 - **Prices: Julia chooses the price tiers.** Nothing is invented here. The app shows the store's localised price string only.
 
@@ -73,7 +87,10 @@ mobile/src/features/support/
 
 ## Not needed from Buraco's backend
 
-Nothing. The privacy policy and terms still need one paragraph each: tips are processed by Apple or Google, the developer never sees payment details, tips unlock nothing, and refunds follow the store's policy.
+Nothing. The privacy policy and terms still need one paragraph each:
+- Contributions are processed by Apple or Google, and the developer never sees payment details.
+- They go toward the app's running costs, mainly the servers.
+- They are voluntary, are not donations to a charity, unlock nothing, and refunds follow the store's policy.
 
 ## Manual steps for Julia
 
@@ -86,7 +103,7 @@ These are also in the launch runbook.
   - names and descriptions in pt-BR, en and da;
   - your chosen price tiers;
   - a review screenshot of the Support screen.
-- Review note: "Optional tips for the developer. They unlock no content or features."
+- Review note: "Optional contributions toward the app's server costs. They unlock no content or features." This replaces the brief's "tips for the developer".
 - The first in-app purchases must be submitted **together with an app version**: attach them to the version before submitting.
 - Create a Sandbox tester account (Users and Access → Sandbox).
 

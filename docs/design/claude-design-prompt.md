@@ -65,8 +65,9 @@ Design the full mobile UI for a **Brazilian buraco (canastra) card game app** fo
 9. **Practice mode extras**: an optional "Por que não posso?" (why was that illegal?) explanation sheet, and an optional hint.
 10. **Settings**: card style (standard / four-colour deck), felt colour, **orientation (Automática / Retrato / Paisagem)**, hand sorting, sound, haptics, reduce motion, language, light/dark/system, account (sign out, **delete account**, which is required by the App Store), and links to privacy and terms.
 11. **Apoie o app (tip jar)**: reached only from Settings.
-    - Short, honest copy: the app is free, has no ads and is made by one person; tips are optional and unlock nothing.
-    - Three **equally weighted** buttons ("Um cafezinho", "Um pastel", "Um jantar"), each showing a store price such as "R$ 4,90".
+    - Short, honest copy: the app is free and has no ads; contributions help pay for the servers that keep the tables running; they are optional and unlock nothing. Example: "O Buraco é gratuito e sem anúncios. As contribuições ajudam a pagar os servidores que mantêm as mesas funcionando. São opcionais e não desbloqueiam nada."
+    - Nothing personal: no "buy me a coffee", and never the word "doação". Say "contribuição" or "apoio".
+    - Three **equally weighted** buttons ("Apoio pequeno", "Apoio médio", "Apoio grande"), each showing a store price such as "R$ 4,90".
     - States: loading, unavailable (one calm sentence), purchasing, thank-you (one quiet line, no confetti), failed (kind, with "Tentar de novo"), pending ("Aguardando aprovação").
     - It never appears anywhere else, has no badge, and never shows after a game.
 12. **System states**: reconnecting, offline, the opponent's turn in an async game ("Vez da Ana — avisamos você"), and push notification permission priming (asked only after the user joins or creates a first table, never at launch).
