@@ -1,5 +1,19 @@
 # Backend Changelog
 
+## 26.10.2026 (8)
+
+- Table chat with the safety tools both stores require for user content (App Store 1.2, Play's UGC policy). Migration `2ee5ed9ec752`.
+- Messages:
+  - Sent over `POST /tables/{id}/chat` or the `chat` WebSocket message; history via `GET /tables/{id}/chat?before=`.
+  - Whitespace is collapsed, up to 300 characters, at most 5 per 10 seconds (429 `slow_down`).
+  - Players at the table only, and not guests.
+- Word filter (`services/profanity.py`): masks whole offensive words in pt-BR, English and Danish, ignoring case and accents. Words with an everyday meaning ("macaco", "bicha", "piranha") are deliberately left out so normal table talk isn't mangled.
+- **Report** keeps a copy of the text. The message is hidden for the reporter at once, and for everyone after 2 distinct reporters. `scripts/chat_reports.py` lists open reports and can hide a message or resolve a report.
+- **Block** is account-wide: a blocked player's messages never reach the blocker, in history or live. Endpoints: `POST`/`DELETE /users/{id}/block`, `GET /users/me/blocks`. Mute stays in the app.
+- `PATCH /tables/{id}`: the host turns chat on or off, and all players see the change.
+- Deleting an account deletes its messages (CASCADE). Its reports keep their copied text for review.
+- 18 tests; 208 in total.
+
 ## 26.10.2026 (7)
 
 - Tables over REST (`routers/tables.py`):

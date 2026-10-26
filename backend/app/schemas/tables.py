@@ -21,3 +21,15 @@ class JoinIn(BaseModel):
 
 class ActionIn(BaseModel):
     action: dict
+
+
+class ChatIn(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)  # trimmed and capped at 300 by the service
+
+
+class ReportIn(BaseModel):
+    reason: str = Field(default="", max_length=200)
+
+
+class TableSettingsIn(BaseModel):
+    chat_enabled: bool

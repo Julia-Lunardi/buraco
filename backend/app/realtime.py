@@ -72,6 +72,17 @@ class Hub:
                     logger.exception("live takeover failed table=%s seat=%s", table_id, seat)
         self._takeovers[(table_id, user_id)] = asyncio.create_task(later())
 
+    async def send_chat(self, table_id: uuid.UUID, message: dict, skip: set[uuid.UUID]) -> None:
+        """Deliver a chat message to everyone connected except `skip` (who blocked the sender)."""
+        for user_id, socks in list(self._sockets[table_id].items()):
+            if user_id in skip:
+                continue
+            for ws in list(socks):
+                try:
+                    await ws.send_json({"type": "chat", "message": message})
+                except Exception:
+                    socks.discard(ws)
+
     async def broadcast(self, table: GameTable, match: Match, view_for) -> None:
         """Send every connected player their own view (hands differ per seat)."""
         for user_id, socks in list(self._sockets[table.id].items()):

@@ -17,8 +17,8 @@ from app.db import session as db_session
 from app.db.session import get_db
 from app.models import GameTable, PlayMode, User
 from app.realtime import hub, viewer
-from app.schemas.tables import ActionIn, JoinIn, TableCreate
-from app.services import tables
+from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
+from app.services import chat, tables
 from app.services.tables import TableError
 
 logger = logging.getLogger(__name__)
@@ -89,12 +89,52 @@ async def next_round(table_id: uuid.UUID, user: User = Depends(get_current_user)
     return await _publish(db, table, match, user)
 
 
+# --- chat -----------------------------------------------------------------------------
+
+async def _deliver_chat(db: AsyncSession, message) -> dict:
+    out = chat.message_out(message)
+    skip = await chat.blocked_by(db, message.user_id)
+    await db.commit()
+    await hub.send_chat(message.table_id, out, skip)
+    return out
+
+
+@router.get("/{table_id}/chat")
+async def chat_history(table_id: uuid.UUID, before: int | None = None, user: User = Depends(require_account),
+                       db: AsyncSession = Depends(get_db)) -> list[dict]:
+    return [chat.message_out(m) for m in await chat.history(db, user, table_id, before)]
+
+
+@router.post("/{table_id}/chat")
+async def chat_post(table_id: uuid.UUID, body: ChatIn, user: User = Depends(require_account),
+                    db: AsyncSession = Depends(get_db)) -> dict:
+    return await _deliver_chat(db, await chat.post(db, user, table_id, body.text))
+
+
+@router.post("/{table_id}/chat/{message_id}/report")
+async def chat_report(table_id: uuid.UUID, message_id: int, body: ReportIn, user: User = Depends(require_account),
+                      db: AsyncSession = Depends(get_db)) -> dict:
+    """Hides the message for the reporter at once; for everyone after two reports.
+    Reports are reviewed by the developer (scripts/chat_reports.py)."""
+    await chat.report(db, user, message_id, body.reason)
+    return {"ok": True}
+
+
+@router.patch("/{table_id}")
+async def update_settings(table_id: uuid.UUID, body: TableSettingsIn, user: User = Depends(require_account),
+                          db: AsyncSession = Depends(get_db)):
+    """Host only: turn table chat on or off."""
+    table = await chat.set_enabled(db, user, table_id, body.chat_enabled)
+    return await _publish(db, table, await tables.load_match(db, table), user)
+
+
 # --- WebSocket ------------------------------------------------------------------------
 #
 # Client → server: {"type": "auth", "token": "<access token>"} first (tokens stay out of
-#   URLs and access logs), then {"type": "action", "action": {...}}, {"type": "next_round"}
-#   or {"type": "ping"}.
+#   URLs and access logs), then {"type": "action", "action": {...}}, {"type": "next_round"},
+#   {"type": "chat", "text": "..."} or {"type": "ping"}.
 # Server → client: {"type": "state", "table": {...}} after every change,
+#   {"type": "chat", "message": {...}} (never from someone you blocked),
 #   {"type": "error", "code", "detail"} for that client only, {"type": "pong"}.
 
 @router.websocket("/{table_id}/ws")
@@ -132,6 +172,11 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
                     if message.get("type") == "action":
                         table, match = await tables.act(db, user, table_id, message.get("action") or {},
                                                         hub.covered(table_id))
+                    elif message.get("type") == "chat":
+                        if user.is_guest:
+                            raise TableError(403, "account_required", "Sign in to chat.")
+                        await _deliver_chat(db, await chat.post(db, user, table_id, str(message.get("text", ""))))
+                        continue
                     elif message.get("type") == "next_round":
                         table, match = await tables.next_round(db, user, table_id, hub.covered(table_id))
                     else:

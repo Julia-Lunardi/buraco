@@ -296,7 +296,11 @@ const PHASES=[
  [C,'Draft the terms of use, with zero tolerance for abusive content','website',
   '<p>Apple Guideline 1.2 needs terms that ban objectionable content, a way to report it, a way to block users, and published contact details.</p><p>Contributions clause: they are voluntary, go toward running costs, are not charitable donations, unlock nothing, and refunds follow the store\'s policy.</p>'],
  [M,'Review both documents and publish them at stable URLs','You · Cloudflare Pages',''],
- [C,'Chat safety in the app: report a message or player, block, per-player mute, a host switch to turn chat off, and a basic word filter','mobile + backend',''],
+ [C,'Chat backend: messages, word filter, report (hidden for the reporter at once, for everyone after 2 reports), block, rate limit, host switch','backend',
+  '<p><code>/tables/{id}/chat</code>, <code>/users/{id}/block</code>, and the <code>chat</code> WebSocket message. Deleting an account deletes its messages.</p>'],
+ [C,'Chat in the app: slide-up panel, quick phrases, per-player mute (kept in the app), and report and block from a player\'s name','mobile',''],
+ [M,'Set a routine to review chat reports (for example weekly, and daily around launch)','Terminal',
+  '<pre>uv run python -m scripts.chat_reports</pre><p>Apple expects reports to be acted on promptly. The script lists open reports and can hide a message (<code>--hide</code>) or mark a report reviewed (<code>--resolve</code>).</p>'],
  [C,'Links to privacy and terms, plus account deletion, in Settings','mobile',''],
 ]},
 {t:'Production environment', d:'Same steps as de, against the <code>pr</code> environment.', s:[
@@ -373,6 +377,7 @@ const DONE={
   16:'Done by Claude · 26 Oct 2026 · rebuilt from seed + move log; replay checked in tests',
   17:'Done by Claude · 26 Oct 2026 · REST + WebSocket; a bot covers a dropped live player after 20 s',
   35:'Decided by Julia · 26 Oct 2026 · expo-iap; default tiers USD 0.99 / 2.99 / 4.99',
+  65:'Done by Claude · 26 Oct 2026 · 18 tests',
 };
 const KEY='buraco-runbook-v1';
 let state={done:{},open:{}};
