@@ -1,0 +1,103 @@
+name: deploy
+
+# de → buraco dev environment; main → production. Same two-phase Terraform as Woddie and
+# Salvie: base infra first, then the Docker image, then the container app that runs it.
+#
+# Switched OFF until the Azure prerequisites exist (runbook: OIDC service principals,
+# GitHub environments, Key Vault secrets). Turn it on by setting the repository
+# variable AZURE_READY=true (Settings → Secrets and variables → Actions → Variables).
+on:
+  push:
+    branches: [de, main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write # OIDC federated login to Azure: no stored cloud password
+  contents: read
+
+env:
+  # Repo inside the shared registry acrwoddiede. `backend` is woddie's and
+  # `sage-backend` is salvie's: these must never collide.
+  IMAGE_NAME: buraco-backend
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    name: Deploy (${{ github.ref == 'refs/heads/main' && 'pr' || 'de' }})
+    needs: [test]
+    if: vars.AZURE_READY == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'pr' || 'de' }}
+    env:
+      ENV: ${{ github.ref == 'refs/heads/main' && 'pr' || 'de' }}
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_USE_OIDC: "true"
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        run: terraform init -backend-config=variables/backend.config.$ENV.tfvars
+
+      # Phase 1: everything the container app needs, but not the app itself (its image
+      # doesn't exist yet). Key Vault secrets are only READ here; they must already
+      # exist in kv-buraco-$ENV.
+      - name: Terraform plan (base infra)
+        run: |
+          terraform plan -out phase1.tfplan \
+            -var-file=variables/variables.tfvars -var-file=variables/variables.$ENV.tfvars \
+            -target=module.resource_group \
+            -target=module.key_vault \
+            -target=azurerm_postgresql_flexible_server_database.app \
+            -target=module.action_group \
+            -target=module.kv_secret_secret_key \
+            -target=module.kv_secret_google_client_id \
+            -target=module.kv_secret_google_ios_client_id \
+            -target=module.kv_secret_google_android_client_id \
+            -target=azurerm_role_assignment.terraform_kv_secrets_officer \
+            -target=azurerm_role_assignment.github_actions_kv_secrets_user
+
+      - name: Terraform apply (base infra)
+        run: terraform apply phase1.tfplan
+
+      - name: Build and push the image
+        working-directory: .
+        run: |
+          az acr login --name ${{ vars.ACR_NAME }}
+          IMAGE=${{ vars.ACR_NAME }}.azurecr.io/$IMAGE_NAME
+          docker build -t $IMAGE:${{ github.sha }} ./backend
+          docker push $IMAGE:${{ github.sha }}
+
+      # Phase 2: full apply. The container runs `alembic upgrade head` at start.
+      - name: Terraform plan (container app)
+        run: |
+          terraform plan -out phase2.tfplan \
+            -var-file=variables/variables.tfvars -var-file=variables/variables.$ENV.tfvars \
+            -var="image_tag=${{ vars.ACR_NAME }}.azurecr.io/$IMAGE_NAME:${{ github.sha }}"
+
+      - name: Terraform apply (container app)
+        run: terraform apply phase2.tfplan
+
+      - name: Health check
+        run: |
+          URL=$(terraform output -raw container_app_url)
+          for i in $(seq 1 30); do
+            curl -fsS "$URL/health" && break
+            sleep 10
+          done
+          curl -fsS "$URL/health"
+          echo "### Backend ($ENV): $URL" >> "$GITHUB_STEP_SUMMARY"

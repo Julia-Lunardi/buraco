@@ -1,10 +1,12 @@
 name: test
 
-# Runs the backend tests and migrations on every push and PR. The deploy workflow
-# (Terraform + Docker, as in Woddie/Salvie) comes with the Azure setup.
+# Backend tests, migrations and Terraform checks. Runs on every push and PR; on de and
+# main it runs as the first job of deploy.yml instead (workflow_call), so never twice.
 on:
   push:
+    branches-ignore: [de, main]
   pull_request:
+  workflow_call:
 
 jobs:
   backend:
@@ -41,3 +43,16 @@ jobs:
         run: uv run alembic downgrade base && uv run alembic upgrade head
       - name: Docker image builds
         run: docker build -t buraco-backend .
+
+  infra:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform is formatted
+        run: terraform fmt -recursive -check
+      - name: Terraform is valid (no Azure access needed)
+        run: terraform init -backend=false -input=false && terraform validate
