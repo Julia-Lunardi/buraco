@@ -1,0 +1,22 @@
+# Local Postgres for the backend. Port 5434 so it runs next to Woddie (5432)
+# and Salvie (5433). In Azure the databases live on the shared psql-woddie-de.
+services:
+  db:
+    image: postgres:16
+    container_name: buraco-db
+    environment:
+      POSTGRES_USER: buraco
+      POSTGRES_PASSWORD: buraco
+      POSTGRES_DB: buraco
+    ports:
+      - "5434:5432"
+    volumes:
+      - buraco_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U buraco"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  buraco_postgres_data:

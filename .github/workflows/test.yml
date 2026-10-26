@@ -1,7 +1,7 @@
 name: test
 
-# Runs the backend test suite on every push and PR. The deploy workflow
-# (Terraform + Docker, as in Woddie/Salvie) is added with the API in a later phase.
+# Runs the backend tests and migrations on every push and PR. The deploy workflow
+# (Terraform + Docker, as in Woddie/Salvie) comes with the Azure setup.
 on:
   push:
   pull_request:
@@ -12,8 +12,24 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: buraco
+          POSTGRES_PASSWORD: buraco
+          POSTGRES_DB: buraco
+        ports: ["5434:5432"]
+        options: >-
+          --health-cmd "pg_isready -U buraco" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://buraco:buraco@localhost:5434/buraco
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
       - run: uv run pytest -q
+      - name: Migrations apply to an empty database
+        run: uv run alembic upgrade head
+      - name: Docker image builds
+        run: docker build -t buraco-backend .

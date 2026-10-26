@@ -1,6 +1,15 @@
 # Backend Changelog
 
-## 26.10.2026
+## 26.10.2026 (2)
+
+- Scaffolded the API: FastAPI (`app/main.py`, `/health`), async SQLAlchemy (`app/db/`), Alembic, `Dockerfile` + `start.sh`, `docker-compose.yml` (Postgres 16 on 5434), and `.env.example`.
+- Two pieces carried over from Salvie unchanged:
+  - `db/url.py` turns Azure's `sslmode=require` into asyncpg's `ssl`, and strips whitespace pasted into secrets.
+  - `db/azure_auth.py` provides Entra-token login to the database for both the app and Alembic.
+- Differs from Salvie: the app does not call `create_all` at startup. Alembic is the only thing that creates or changes tables.
+- Uses `NullPool`, so no connection outlives the 1-hour Entra token and idle pools don't hold slots on the shared server, whose connection limit all four apps share.
+- CI now also applies the migrations to an empty Postgres and builds the Docker image.
+- Not done yet: `docker compose up` failed locally because Docker Desktop's disk is read-only, a host problem. Migrations were checked against a throwaway Homebrew Postgres instead.
 
 - Phase 1: the rules engine for **Aberto** (`app/engine/`), built from the approved `docs/rules/aberto.md`.
   - Pure, deterministic, seeded.

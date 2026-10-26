@@ -2,12 +2,24 @@
 name = "buraco-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
-# The rules engine (app/engine) is pure Python with no dependencies. FastAPI,
-# SQLAlchemy etc. arrive with the API in a later phase.
-dependencies = []
+# The rules engine (app/engine) uses none of these: it stays pure Python, no I/O.
+dependencies = [
+    "alembic>=1.14",
+    "asyncpg>=0.30",
+    "azure-identity>=1.19",
+    "fastapi>=0.115",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "uvicorn[standard]>=0.32",
+]
 
 [dependency-groups]
-dev = ["pytest>=8", "hypothesis>=6.100"]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "httpx>=0.28",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,13 +1,23 @@
 # Buraco backend
 
-Phase 1 holds only the rules engine. The FastAPI app (REST + WebSockets), Postgres and the Azure
-deploy follow the Woddie/Salvie layout in later phases.
+FastAPI + async SQLAlchemy + Alembic on Postgres, using the Woddie/Salvie stack, plus the rules engine.
 
 ```bash
 uv sync
-make test     # pytest: rules, scoring, bots, property tests over full games
-make sim      # 200 bot-vs-bot matches with stats
+cp .env.example .env
+make db        # local Postgres 16 on port 5434 (docker compose)
+make migrate   # alembic upgrade head
+make dev       # API on 0.0.0.0:8001, reachable from a phone on the LAN
+make test      # pytest: rules, scoring, bots, property tests, API
+make sim       # 200 bot-vs-bot matches with stats
 ```
+
+Ports: 5434 and 8001, so Buraco runs alongside Woddie and Salvie, which use 5432/5433 and 8000.
+
+Alembic owns the schema: the container's `start.sh` runs `alembic upgrade head` before uvicorn, and
+the app never calls `create_all`. In Azure, `DB_USE_MANAGED_IDENTITY=true` makes both the app and
+Alembic sign in to the shared `psql-woddie-de` server with an Entra token instead of a password
+(`app/db/azure_auth.py`, copied from Salvie).
 
 ## Engine (`app/engine/`)
 
