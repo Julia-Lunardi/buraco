@@ -1,0 +1,377 @@
+<title>Buraco Launch Runbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&display=swap">
+<style>
+/* Layout: single reading column; each phase is a native <details>; steps are rows with a kind stripe + badge. */
+:root{
+  --bg:#f3f4f1; --panel:#ffffff; --ink:#1b211d; --ink-soft:#4f5a53; --ink-faint:#86918a;
+  --line:rgba(27,33,29,.12); --line-hi:rgba(27,33,29,.22);
+  --felt:#1f5c45; --felt-wash:#e2ece6;
+  --manual:#b4531d; --manual-wash:#f8e7dc;
+  --claude:#3c5bb0; --claude-wash:#e3e8f6;
+  --ci:#5c6b63; --ci-wash:#e7ebe8;
+  --warn:#8a5a00; --warn-wash:#fbf0d6;
+  --font-display:"Bricolage Grotesque", "Public Sans", system-ui, sans-serif;
+  --font-body:"Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121614; --panel:#1a201d; --ink:#e7ece8; --ink-soft:#a9b4ad; --ink-faint:#748079;
+  --line:rgba(231,236,232,.10); --line-hi:rgba(231,236,232,.20);
+  --felt:#6fbf98; --felt-wash:#1d3229;
+  --manual:#f0945c; --manual-wash:#3a2417;
+  --claude:#93a9ee; --claude-wash:#1f2740;
+  --ci:#a3b1a9; --ci-wash:#232a27;
+  --warn:#e8b64c; --warn-wash:#33290f; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#121614; --panel:#1a201d; --ink:#e7ece8; --ink-soft:#a9b4ad; --ink-faint:#748079;
+  --line:rgba(231,236,232,.10); --line-hi:rgba(231,236,232,.20);
+  --felt:#6fbf98; --felt-wash:#1d3229;
+  --manual:#f0945c; --manual-wash:#3a2417;
+  --claude:#93a9ee; --claude-wash:#1f2740;
+  --ci:#a3b1a9; --ci-wash:#232a27;
+  --warn:#e8b64c; --warn-wash:#33290f; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 var(--font-body);
+  padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px));padding-block:32px 64px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1{font:700 clamp(28px,5vw,40px)/1.1 var(--font-display);letter-spacing:-.01em;margin:0;text-wrap:balance}
+.lede{color:var(--ink-soft);margin:0;max-width:65ch}
+code,.mono{font-family:var(--font-mono);font-size:.86em}
+code{background:var(--felt-wash);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+a{color:var(--felt)}
+
+.legend,.toolbar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+.legend p{margin:0;color:var(--ink-soft);font-size:13px;display:flex;gap:8px;align-items:center}
+.badge{font:600 11px/1 var(--font-body);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:4px;white-space:nowrap;display:inline-flex;gap:5px;align-items:center}
+.badge.manual{background:var(--manual);color:var(--panel)}
+.badge.claude{background:var(--claude-wash);color:var(--claude);box-shadow:inset 0 0 0 1px var(--claude)}
+.badge.ci{background:transparent;color:var(--ci);box-shadow:inset 0 0 0 1px var(--ci);border:1px dashed transparent}
+.badge.ci{outline:1px dashed var(--ci);outline-offset:-1px;box-shadow:none}
+
+.toolbar button{font:500 13px var(--font-body);color:var(--ink);background:var(--panel);border:1px solid var(--line-hi);border-radius:6px;padding:7px 12px;cursor:pointer}
+.toolbar button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.toolbar button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--felt);outline-offset:2px}
+.progress{margin-left:auto;font:500 13px var(--font-mono);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+
+.facts{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.facts h2{font:600 13px var(--font-body);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 10px}
+.facts .tbl{overflow-x:auto}
+.facts table{border-collapse:collapse;width:100%;font-size:13.5px}
+.facts td{padding:6px 10px 6px 0;border-top:1px solid var(--line);vertical-align:top}
+.facts td:first-child{color:var(--ink-soft);white-space:nowrap;padding-right:18px}
+
+details.phase{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+details.phase[open]{border-color:var(--line-hi)}
+summary{list-style:none;cursor:pointer;padding:16px 18px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:center}
+summary::-webkit-details-marker{display:none}
+.pnum{font:700 22px/1 var(--font-display);color:var(--felt);font-variant-numeric:tabular-nums;width:2ch}
+.ptitle{font:600 17px/1.3 var(--font-display);margin:0;min-width:0}
+.pmeta{grid-column:2;color:var(--ink-faint);font-size:13px;display:flex;flex-wrap:wrap;gap:4px 12px}
+.pcount{font:500 13px var(--font-mono);color:var(--ink-soft);font-variant-numeric:tabular-nums;grid-row:1/span 2;grid-column:3;display:flex;gap:10px;align-items:center}
+.chev{width:10px;height:10px;border-right:2px solid var(--ink-faint);border-bottom:2px solid var(--ink-faint);transform:rotate(-45deg);transition:transform .15s}
+details[open] .chev{transform:rotate(45deg)}
+.pdone .pnum{color:var(--ink-faint)}
+.pbar{height:3px;background:var(--line)}
+.pbar i{display:block;height:100%;background:var(--felt);width:0;transition:width .2s}
+
+ol.steps{list-style:none;margin:0;padding:0 0 6px}
+li.step{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:14px 18px 14px 15px;border-top:1px solid var(--line);border-left:3px solid transparent}
+li.step.manual{border-left-color:var(--manual)}
+li.step.claude{border-left-color:var(--claude)}
+li.step.ci{border-left-color:var(--ci)}
+li.step.done .stitle{text-decoration:line-through;color:var(--ink-faint)}
+li.step.done .sbody{opacity:.6}
+.step input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--felt);cursor:pointer}
+.shead{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:baseline;min-width:0}
+.sn{font:500 12px var(--font-mono);color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.stitle{font-weight:600;margin:0}
+.sbody{grid-column:2;min-width:0;color:var(--ink-soft);font-size:14.5px;display:flex;flex-direction:column;gap:6px}
+.sbody p{margin:0;max-width:72ch}
+.sbody ul{margin:0;padding-left:18px}
+.where{font-size:12.5px;color:var(--ink-faint)}
+.lesson{background:var(--warn-wash);color:var(--ink);border-radius:6px;padding:8px 10px;font-size:13.5px}
+.lesson b{color:var(--warn);font-weight:600}
+pre{margin:0;background:var(--felt-wash);color:var(--ink);padding:8px 10px;border-radius:6px;overflow-x:auto;font:12.5px/1.5 var(--font-mono)}
+.cond{font:600 11px var(--font-body);letter-spacing:.05em;text-transform:uppercase;color:var(--warn)}
+body.manual-only li.step:not(.manual){display:none}
+body.hide-done li.step.done{display:none}
+@media (max-width:520px){ summary{grid-template-columns:auto 1fr} .pcount{grid-row:auto;grid-column:2} }
+@media (prefers-reduced-motion: reduce){ *{transition:none!important} }
+</style>
+
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>Buraco: from empty repo to both stores</h1>
+    <p class="lede">These steps run in order. Each step only needs what earlier steps produced. Sign-in steps carry the fixes Woddie and Salvie needed, so Buraco starts with the versions that already work in both stores. Ticks are saved in this browser only.</p>
+  </header>
+
+  <div class="legend" aria-label="Legend">
+    <p><span class="badge manual">✋ Manual · you</span> You, in a console, portal or terminal</p>
+    <p><span class="badge claude">Claude Code</span> Code or config in the repo</p>
+    <p><span class="badge ci">Automated · CI</span> Runs by itself on push</p>
+  </div>
+
+  <section class="facts" aria-labelledby="facts-h">
+    <h2 id="facts-h">Shared values used below</h2>
+    <div class="tbl"><table>
+      <tr><td>Solution name</td><td><code>buraco</code> → <code>rg-buraco-de</code>, <code>kv-buraco-de</code>, <code>ca-buraco-de</code> (and <code>-pr</code>)</td></tr>
+      <tr><td>Bundle id / package</td><td><code>‹bundle›</code> = <code>com.buraco.app</code> (working choice). Cannot be changed after the first Play upload.</td></tr>
+      <tr><td>Scope at launch</td><td>Aberto · 2 and 4 players · live or async chosen per table · Apple + Google sign-in, plus bot play without an account · both orientations, tablet layouts</td></tr>
+      <tr><td>Postgres</td><td>Shared <code>psql-woddie-de</code> (rg <code>rg-woddie-de</code>), databases <code>buraco_de</code> and <code>buraco_pr</code></td></tr>
+      <tr><td>Registry</td><td>Shared <code>acrwoddiede</code>, image repo <code>buraco-backend</code></td></tr>
+      <tr><td>Container Apps env</td><td>Shared <code>cae-woddie-de</code> (same as Salvie)</td></tr>
+      <tr><td>Terraform state</td><td><code>rg-terraform / stapptfstate / tfstate</code>, keys <code>buraco.de.terraform.tfstate</code> and <code>buraco.pr.terraform.tfstate</code></td></tr>
+      <tr><td>Google client IDs</td><td>Web (runtime + backend audience), iOS (bundle id), Android ×2 (EAS upload SHA-1 and Play signing SHA-1)</td></tr>
+    </table></div>
+  </section>
+
+  <div class="toolbar" role="toolbar" aria-label="View options">
+    <button type="button" id="btn-expand">Expand all</button>
+    <button type="button" id="btn-collapse">Collapse all</button>
+    <button type="button" id="btn-manual" aria-pressed="false">Only manual steps</button>
+    <button type="button" id="btn-done" aria-pressed="false">Hide done</button>
+    <span class="progress" id="progress" aria-live="polite"></span>
+  </div>
+
+  <div id="phases" style="display:flex;flex-direction:column;gap:12px"></div>
+</div>
+
+<script>
+const M='manual', C='claude', A='ci';
+const PHASES=[
+{t:'Decisions that block everything', d:'Answer these before anything permanent gets registered.', s:[
+ [M,'Confirm <code>com.buraco.app</code> is free before registering it','Play Console · Apple Developer',
+  '<p>Package names are unique across all of Google Play, and a short generic one may already be taken. If registration fails, pick a fallback such as <code>com.salviacodelabs.buraco</code>. The same id goes into Apple, Google Play, the Google Cloud OAuth clients and <code>app.config.js</code>.</p>'],
+ [M,'Choose where the privacy policy and terms will live','You',
+  '<p>No domain yet. Store submission needs a stable public URL, but development can start without one. Cloudflare Pages on a free <code>*.pages.dev</code> address works for now. The backend uses the Container App\'s default <code>*.azurecontainerapps.io</code> URL until a domain exists.</p>'],
+ [M,'Scope decided: Aberto first, 2 and 4 players, live or async per table, Apple + Google + guest bot play, both orientations','You',
+  '<p>Async play means push notifications (Phase 7) are part of version 1.</p>'],
+ [M,'Approve <code>docs/rules/&lt;preset&gt;.md</code>','You · review',
+  '<p>Claude writes it from your answers. The engine tests are derived from it, so no engine code is written until you sign off.</p>'],
+]},
+{t:'Repo bootstrap', d:'Monorepo layout from the playbook, with Woddie\'s and Salvie\'s ignore rules applied from the first commit.', s:[
+ [C,'Create the skeleton: <code>backend/ mobile/ website/ infra/ docs/ .github/workflows/</code>','Repo',
+  '<p>The engine lives in <code>backend/app/engine/</code> (pure Python, no I/O).</p>'],
+ [C,'Write <code>.gitignore</code> before the first <code>npm install</code> or <code>uv sync</code>','Repo',
+  '<ul><li><code>/mobile/ios</code> and <code>/mobile/android</code> are ignored. EAS runs <code>expo prebuild</code> every time.</li><li>Only <code>terraform.tfvars</code> is ignored, never <code>*.tfvars</code>.</li><li><code>.env</code>, <code>google-play-service-account.json</code> and <code>google-services.json</code> are ignored.</li></ul>',
+  'Salvie 28.07.2026: <code>*.tfvars</code> was ignored, so <code>infra/variables/</code> was never committed and every CI <code>terraform init</code> failed. Salvie 15.09.2026: a committed <code>ios/</code> went stale and dropped the Apple entitlement and the URL schemes.'],
+ [M,'Create the long-lived <code>de</code> branch and push','GitHub',''],
+]},
+{t:'Rules engine and backend, running locally', d:'Nothing in this phase needs a cloud credential.', s:[
+ [C,'Rules engine and bot-vs-bot simulator, test-first','backend/app/engine',
+  '<p>Seeded shuffle, preset config flags, property tests (108-card invariant, every game ends).</p>'],
+ [C,'FastAPI scaffold, local Postgres via <code>docker compose</code>, Alembic','backend',
+  '<p>Uses <code>bcrypt</code> directly (not passlib), <code>pydantic[email]</code>, and uvicorn on <code>0.0.0.0</code>.</p>'],
+ [C,'Access and refresh tokens, copied from Woddie\'s <code>AUTH.md</code>','backend',
+  '<p>A 1-hour access JWT and a 90-day opaque refresh token (stored hashed), rotated on each use with reuse detection. <code>/auth/logout</code> is unauthenticated.</p>'],
+ [C,'<code>/auth/google</code> using <code>google-auth</code>, accepting all three audiences','backend/app/routers/auth.py',
+  '<ul><li><code>id_token.verify_oauth2_token</code> (local JWKS), not the <code>tokeninfo</code> endpoint.</li><li>Valid audiences: web, iOS and Android client IDs. Android tokens carry the <b>web</b> client as audience.</li><li><code>except ValueError</code> comes <b>before</b> <code>GoogleAuthError</code>: a bad token returns 401, a Google outage returns 503.</li><li>Runs through <code>asyncio.to_thread</code>. <code>google-auth</code> is declared directly in <code>pyproject.toml</code>.</li></ul>',
+  'Salvie 19.09.2026: the order of the except clauses is pinned by a test. If it is reversed, a wrong-audience token is treated as an outage and the app retries forever.'],
+ [C,'<code>/auth/apple</code> with a cached JWKS and nonce check','backend/app/routers/auth.py',
+  '<ul><li><code>jwt.decode(..., audience=bundle id, options={"verify_at_hash": False})</code></li><li>A missing <code>kid</code> returns 401, an unknown <code>kid</code> returns 503. JWKS is cached for 1 hour.</li><li>Check <code>SHA256(raw nonce) == claims.nonce</code>.</li><li>Email arrives only on the first sign-in, so it is saved then.</li><li>Logging at each step: start, kid, decode_ok, nonce.</li></ul>',
+  'Woddie: python-jose 3.5 checks <code>at_hash</code> by default, which made every Apple login return 401 with no useful log.'],
+ [C,'Port Salvie\'s 12 OAuth tests (unconfigured 503, bad token 401, audience mismatch, nonce mismatch, and so on)','backend/tests',''],
+ [C,'<code>DELETE /users/me</code> (cascades games, chat and refresh tokens)','backend',
+  '', 'Salvie: the app called <code>DELETE /users/me</code>, which did not exist, so account deletion always failed. Apple requires deletion to work.'],
+ [C,'Guest sessions for bot play: an anonymous device token with no personal data, and upgrade to an account on Apple or Google sign-in','backend + mobile',
+  '<p>Guests can only start bot tables. Inviting friends asks them to sign in first.</p>'],
+ [C,'Save game state after every action and let the host choose live or async when creating a table','backend',
+  '<p>Async tables need saved state and "your turn" pushes. Live tables add the bot takeover after a disconnect.</p>'],
+ [C,'WebSocket table endpoint (server-authoritative), REST for tables and invites','backend',
+  '<p>Start with <code>max_replicas = 1</code> so live table state can stay in one process. A shared pub/sub layer comes before scaling out.</p>'],
+]},
+{t:'Google Cloud and Apple identifiers', d:'Sign-in prerequisites. The Android OAuth clients come later because they need SHA-1 fingerprints.', s:[
+ [M,'Create a Google Cloud project for Buraco','console.cloud.google.com',
+  '<p>Keep <b>all</b> OAuth clients and any later Firebase app in this one project.</p>',
+  'Salvie: Firebase lived in a different project from the OAuth clients, which forced a cleanup that breaks push until it is finished.'],
+ [M,'Configure the OAuth consent screen and publish it to production','GCP → Google Auth Platform',
+  '<p>App name, support email, privacy policy URL, and scopes <code>openid email profile</code>. While it is in "Testing", only listed test users can sign in, and store reviewers are not on that list.</p>'],
+ [M,'Create the Google OAuth client: Web application','GCP → Credentials',
+  '<p>This is the runtime ID on Android and the main backend audience. Save it, because it goes to Key Vault in Phase 6.</p>'],
+ [M,'Create the Google OAuth client: iOS (bundle id = ‹bundle›)','GCP → Credentials',
+  '<p>The bundle id must match exactly, or Google rejects the <code>‹bundle›:/oauthredirect</code> redirect.</p>'],
+ [M,'Register the bundle id in the Apple Developer portal and tick Sign In with Apple','developer.apple.com → Identifiers',
+  '', 'Woddie and Salvie: a missing capability shows up as <code>ASAuthorizationError 1000</code> before any network call, with nothing in the logs.'],
+ [M,'Create the app in the Play Console (package = ‹bundle›)','play.google.com/console',''],
+]},
+{t:'Mobile app foundation', d:'Expo SDK 57, configured through <code>app.config.js</code> only.', s:[
+ [C,'Expo app with <code>app.config.js</code>: <code>orientation: "default"</code>, <code>supportsTablet</code>, <code>UIRequiresFullScreen</code>, <code>ITSAppUsesNonExemptEncryption: false</code>, <code>usesAppleSignIn: true</code>','mobile',
+  '<p>The orientation setting (Automatic / Portrait / Landscape) uses <code>expo-screen-orientation</code> at runtime. Android 16 ignores orientation locks on screens 600dp and wider, so tablet layouts must work in both orientations whatever the setting says. <code>UIRequiresFullScreen</code> stays on so iPad Split View is not required.</p><p>Register the URL schemes <code>buraco</code> and <code>‹bundle›</code> in the config, not in a hand-edited <code>Info.plist</code>. Setting <code>infoPlist.CFBundleURLTypes</code> makes prebuild ignore <code>scheme</code>.</p>',
+  'Woddie 30.08.2026: a stale native project lost the Google <code>CFBundleURLScheme</code>, so the OAuth redirect failed silently on iOS.'],
+ [C,'SDK 57 basics: add <code>@expo/vector-icons</code> as a direct dependency, iOS deployment target 16.4, <code>StyleSheet.absoluteFill</code> instead of <code>absoluteFillObject</code>','mobile',
+  '', 'Woddie 20.10.2026: on RN 0.86 <code>absoluteFillObject</code> is undefined with no error, and every icon rendered as "?".'],
+ [M,'Run <code>eas init</code> (writes <code>extra.eas.projectId</code>) and create an <code>EXPO_TOKEN</code>','Terminal · expo.dev','<pre>cd mobile && eas init</pre>'],
+ [C,'Create the <code>eas.json</code> profiles: <code>development</code>, <code>development-device</code> (<code>ios.simulator: false</code>), <code>preview</code>, <code>production</code>','mobile/eas.json',
+  '<p>Inject <code>EXPO_PUBLIC_API_URL</code> and the Google <b>web</b> and <b>iOS</b> client IDs through each profile\'s <code>env</code>, because <code>.env</code> is gitignored and never reaches EAS.</p>',
+  'Salvie 09.07.2026: the client IDs were missing from EAS builds and the login screen crashed TestFlight on launch.'],
+ [C,'iOS Google sign-in with <code>expo-auth-session</code> (default code flow)','LoginScreen',
+  '<ul><li><code>WebBrowser.maybeCompleteAuthSession()</code> at module top level.</li><li>Never set <code>responseType: \'id_token\'</code>. Read <code>response.authentication.idToken</code>.</li><li>Hide the button when the client IDs are missing instead of throwing.</li></ul>',
+  'Salvie: the implicit flow returned <code>unsupported_response_type</code> 400.'],
+ [C,'Android Google sign-in with native <code>@react-native-google-signin</code>','LoginScreen · app.config.js · package.json',
+  '<ul><li><code>GoogleSignin.configure({ webClientId })</code>. The button is gated on the <b>web</b> ID.</li><li>The config plugin is Android-only, and the module is excluded from iOS autolinking (<code>expo.autolinking.ios.exclude</code>).</li><li>Stub the module so Expo Go still boots.</li><li>Clear the loading state in <code>finally</code>. <code>SIGN_IN_CANCELLED</code> and <code>IN_PROGRESS</code> are silent.</li></ul>',
+  'Woddie and Salvie: the <code>AppCheckCore</code> pod install failure, the <code>RNGoogleSignin</code> crash in Expo Go, and a button that spun forever after cancel.'],
+ [C,'Sign in with Apple button','LoginScreen',
+  '<ul><li>iOS only, gated on <code>isAvailableAsync()</code> with a <code>.catch()</code> and a <code>__DEV__</code> warning.</li><li>Measure the container with <code>onLayout</code> and pass a <b>numeric width</b>. A sized <code>Pressable</code> holds the native button as an <code>absoluteFill</code> overlay.</li><li>Send the <b>hashed</b> nonce to Apple and the <b>raw</b> nonce to the backend.</li><li>Write <code>apple_user_id</code> only after the token pair is stored. Check the credential state on app foreground.</li></ul>',
+  'Salvie 20.09.2026: with a percentage width the button measured zero on Fabric and was invisible on device builds.'],
+ [C,'AuthContext with silent refresh, the Google "G" SVG, and errors that show the backend\'s <code>detail</code>','mobile/src',
+  '<p>Network errors and 5xx never log the user out. Only a 401 from <code>/auth/refresh</code> does.</p>',
+  'Salvie: TestFlight and Play-review sign-in failures could not be diagnosed until the real error was shown.'],
+ [C,'Lazy-load <code>expo-notifications</code> and leave Firebase out of iOS','mobile',
+  '', 'Salvie 19.09.2026: a static import of <code>expo-notifications</code> crashed Android Expo Go on launch. Woddie: Firebase Swift pods break iOS builds on Xcode 26.'],
+]},
+{t:'Azure: shared Woddie resources', d:'Same pattern as Salvie: only a database, an image repo and a container app are new.', s:[
+ [C,'Copy Salvie\'s <code>infra/</code> with <code>solution_name = "buraco"</code> and the shared server, registry and CAE values','infra',
+  '<p>The two-phase targeted apply, the <code>kv_secret_*</code> modules, the Key Vault role assignments, and the database resource on the shared server. No <code>moved</code> blocks.</p>',
+  'Salvie 28.07.2026: <code>moved</code> blocks abort <code>plan -target</code>.'],
+ [M,'Create two OIDC app registrations (de, pr) with federated credentials for the GitHub environments <code>de</code> and <code>pr</code>','Entra ID',
+  '<p>Grant Contributor on the subscription and note each object id for <code>github_actions_sp_object_id</code>.</p>'],
+ [M,'Grant both CI service principals <code>User Access Administrator</code> on <code>acrwoddiede</code>','Azure CLI',
+  '<p>Contributor alone cannot create the AcrPull role assignment the container app needs.</p>',
+  'Salvie CONSOLIDATION_PLAN 0.1: Phase 1 failed at apply without this.'],
+ [M,'Create the GitHub environments <code>de</code> and <code>pr</code> with secrets and variables','GitHub → Settings',
+  '<p>Secrets: <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>, <code>EXPO_TOKEN</code>. Variable: <code>ACR_NAME=acrwoddiede</code>. No app secrets go in GitHub.</p>'],
+ [C,'Write <code>.github/workflows/deploy.yml</code>: tests, Terraform phase 1, Docker push to <code>buraco-backend</code>, phase 2','repo',''],
+ [M,'Create the Key Vaults with a targeted apply of <code>module.resource_group</code> and <code>module.key_vault</code> (de and pr)','Terminal · terraform',
+  '<p>Terraform reads the secrets through <code>data</code> sources, so the vaults must exist and be filled before a full plan.</p>'],
+ [M,'Add every runtime secret to <b>both</b> <code>kv-buraco-de</code> and <code>kv-buraco-pr</code>','Azure CLI',
+  '<p><code>secret-key</code>, <code>db-admin-password</code>, <code>google-client-id</code> (<b>the web ID</b>), <code>google-ios-client-id</code>, and <code>google-android-client-id</code> (a placeholder until Phase 7).</p>',
+  'Salvie: <code>google-android-client-id</code> existed only in <code>kv-sage-pr</code> and blocked every de apply for weeks. Putting the Android ID in <code>google-client-id</code> makes Android sign-in return 401 while iOS works.'],
+ [A,'Push to <code>de</code>: CI runs tests, applies Terraform, builds the image and deploys <code>ca-buraco-de</code>','GitHub Actions',''],
+ [M,'Register the container app identity as a <b>non-admin</b> Entra principal on <code>psql-woddie-de</code>, owning only <code>buraco_de</code>, and revoke <code>CONNECT</code> from <code>PUBLIC</code>','psql as your Entra admin',
+  '<pre>SELECT pgaadauth_create_principal_with_oid(\'ca-buraco-de-id\', \'&lt;oid&gt;\', \'service\', false, false);</pre>',
+  'Salvie: a server-level Entra admin would reach Woddie\'s and Salvie\'s data. Postgres grants CONNECT to PUBLIC by default.'],
+ [A,'Alembic migrates <code>buraco_de</code> as the identity, then <code>/health</code> responds','Container app',''],
+ [M,'Bind the custom domain <code>api.‹domain›</code> with a managed certificate','Cloudflare DNS · Azure portal',
+  '<p>A CNAME set to <b>DNS only</b> (grey cloud) plus the <code>asuid</code> TXT record, then create and bind the managed certificate.</p>'],
+]},
+{t:'Device builds and sign-in testing (dev)', d:'Neither sign-in method works in Expo Go. Google returns 400 on the <code>exp://</code> redirect, and the Apple button is hidden. Always test on a device build.', s:[
+ [M,'Run <code>eas credentials</code> for iOS and let EAS manage signing','Terminal',''],
+ [M,'Build <code>development-device</code> for iOS and install it on your iPhone','Terminal',
+  '<pre>eas build --profile development-device --platform ios\nnpx expo start -c --dev-client</pre>'],
+ [M,'Test on the iPhone: Apple sign-in, Google sign-in, and reopening after more than an hour (silent refresh)','iPhone',
+  '<p>If the Google "G" crashes the app to the home screen with no JS error, swap the SVG for a PNG.</p>'],
+ [M,'Copy the SHA-1 of the EAS Android keystore (<code>SHA1_UPLOAD</code>)','eas credentials → Android → production',''],
+ [M,'Create Android OAuth client #1: package ‹bundle›, SHA-1 = <code>SHA1_UPLOAD</code>','GCP → Credentials',
+  '<p>One client holds exactly one SHA-1. Its ID never goes into the app code. Update <code>google-android-client-id</code> in both vaults.</p>'],
+ [M,'Build the Android development or preview APK and test Google sign-in','Android device',''],
+]},
+{t:'Push notifications', d:'Needed for async tables ("your turn").', s:[
+ [M,'Add Firebase to the <b>same</b> Google Cloud project as the OAuth clients and register the Android app','console.firebase.google.com',
+  '<p>Download <code>google-services.json</code> into <code>mobile/</code> (gitignored). It is used only by FCM.</p>'],
+ [M,'Upload the FCM V1 service account key and an APNs key through <code>eas credentials</code>','Terminal',
+  '<p>Delete the downloaded JSON afterwards, because it is a credential.</p>'],
+ [C,'Push service (Expo Push API) on the backend, and prune <code>DeviceNotRegistered</code> tokens','backend',
+  '<p>Ask for permission after the user creates or joins a first table, never at launch.</p>'],
+]},
+{t:'Legal, chat safety and website', d:'Chat is user-generated content, which brings extra requirements in both stores.', s:[
+ [C,'Draft the privacy policy','website',
+  '<p>Covers email and name, the Apple and Google subject IDs, game history, chat messages, push tokens, the processors (Azure, Apple, Google, Expo), retention, account deletion, children\'s policy and a contact address.</p>'],
+ [C,'Draft the terms of use, with zero tolerance for abusive content','website',
+  '<p>Apple Guideline 1.2 needs terms that ban objectionable content, a way to report it, a way to block users, and published contact details.</p>'],
+ [M,'Review both documents and publish them at stable URLs','You · Cloudflare Pages',''],
+ [C,'Chat safety in the app: report a message or player, block, per-player mute, a host switch to turn chat off, and a basic word filter','mobile + backend',''],
+ [C,'Links to privacy and terms, plus account deletion, in Settings','mobile',''],
+]},
+{t:'Production environment', d:'Same steps as de, against the <code>pr</code> environment.', s:[
+ [C,'Set the production <code>EXPO_PUBLIC_API_URL</code> in <code>eas.json</code>','mobile/eas.json',''],
+ [A,'Merge to <code>main</code>: CI deploys <code>ca-buraco-pr</code>','GitHub Actions',''],
+ [M,'Grant the identity on <code>buraco_pr</code> (non-admin principal, revoke CONNECT) and bind the prod domain','psql · DNS',''],
+ [M,'Check that <code>google-client-id</code> in <code>kv-buraco-pr</code> is the web ID','Azure CLI',
+  '<pre>az keyvault secret show --vault-name kv-buraco-pr --name google-client-id --query value -o tsv</pre>'],
+]},
+{t:'App Store submission', d:'TestFlight first, then review.', s:[
+ [C,'Run the store hygiene grep: no "Google Play" or "Play Store" text in the iOS build','mobile/src',
+  '<pre>grep -rin "google play\\|play store" mobile/src</pre>'],
+ [M,'Build and upload the iOS production build','Terminal',
+  '<pre>eas build --platform ios --profile production\neas submit --platform ios --latest</pre>'],
+ [M,'TestFlight on a real device: both sign-ins, reopening after an hour, account deletion, chat report and block','iPhone',''],
+ [M,'Create the App Store Connect record: name, subtitle, description, keywords, support URL and privacy URL','appstoreconnect.apple.com',''],
+ [M,'Fill in the App Privacy answers (to match the privacy policy) and the age rating','App Store Connect',
+  '<p>Age rating: the card game has no wagering and no real money. Answer "yes" to user-generated content (chat).</p>'],
+ [M,'Upload screenshots for iPhone 6.9" and iPad 13" (include landscape table shots)','App Store Connect',
+  '<p>iPad screenshots are required because <code>supportsTablet</code> is on.</p>'],
+ [M,'Write review notes: how to play against bots with no account and no second person','App Store Connect',
+  '<p>Point the reviewer to "play against bots without an account" so they reach a full game in two taps. Sign in with Apple works with their own Apple ID.</p>'],
+ [M,'Submit for review','App Store Connect',''],
+]},
+{t:'Google Play submission', d:'The Play signing SHA-1 is the one thing that breaks Google sign-in only on Play installs.', s:[
+ [C,'Run the store hygiene grep: no "App Store" or "TestFlight" text in the Android build, and trim the permissions','mobile',
+  '<pre>grep -rin "app store\\|testflight" mobile/src</pre>',
+  'Salvie 20.09.2026: unused <code>READ_MEDIA_IMAGES</code> and <code>RECORD_AUDIO</code> triggered extra Play declarations.'],
+ [M,'Create the Play service account (Release Manager) and save its JSON as <code>mobile/google-play-service-account.json</code>','GCP + Play Console → API access',''],
+ [M,'Build and upload the Android production build to the internal track','Terminal',
+  '<pre>eas build --platform android --profile production\neas submit --platform android --latest</pre>'],
+ [M,'Copy the Play App Signing SHA-1 (<code>SHA1_PLAY</code>)','Play Console → Setup → App integrity → App signing',''],
+ [M,'Create Android OAuth client #2: package ‹bundle›, SHA-1 = <code>SHA1_PLAY</code>','GCP → Credentials',
+  '<p>Wait about 5 minutes, then test Google sign-in from a Play internal-track install.</p>',
+  'Salvie SIGNIN_STORE_SETUP A: without this client, Play installs fail with <code>DEVELOPER_ERROR</code> (code 10) and nothing reaches the backend.'],
+ [M,'Complete the listing: content rating (IARC), data safety form, target audience, app access instructions and privacy URL','Play Console',
+  '<p>The data safety answers must match the privacy policy and declare chat messages.</p>'],
+ [M,'Add the graphics: 512×512 icon, 1024×500 feature graphic, phone screenshots plus 7" and 10" tablet screenshots, none wider than 2:1','Play Console',
+  '', 'Salvie: the website screenshots were 2.06:1, which is over Play\'s 2:1 limit.'],
+ [M,'If this is a personal developer account: run a closed test with at least 12 testers for 14 days in a row','Play Console → Closed testing',
+  '<p>Google requires this before production access on each new app from personal accounts. Your friends make a natural test group.</p>'],
+ [M,'Promote to production','Play Console',''],
+]},
+{t:'Final smoke test (both platforms)', d:'Run this on store builds, not dev builds.', s:[
+ [M,'Sign-in: Apple (iOS), Google (iOS + a Play install), and the session surviving more than an hour','Devices',''],
+ [M,'A full game against bots, a full game with a friend, and a disconnect and reconnect with a bot taking over','Devices',''],
+ [M,'Chat: send, mute, report, block, chat turned off by the host','Devices',''],
+ [M,'Account deletion removes the user and signs them out. The privacy and terms links open.','Devices',''],
+ [M,'Safe areas, dark mode and reduce motion on a notched iPhone, an iPad and an Android device','Devices',''],
+]},
+];
+
+const KEY='buraco-runbook-v1';
+let state={done:{},open:{}};
+try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) state=Object.assign(state,s); }catch(e){}
+const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} };
+const LABEL={manual:'✋ Manual · you',claude:'Claude Code',ci:'Automated · CI'};
+
+const root=document.getElementById('phases');
+let n=0;
+PHASES.forEach((p,pi)=>{
+  const det=document.createElement('details'); det.className='phase'; det.dataset.pi=pi;
+  det.open = state.open[pi] ?? (pi<2);
+  const counts={manual:0,claude:0,ci:0}; p.s.forEach(s=>counts[s[0]]++);
+  det.innerHTML=`<summary><span class="pnum">${pi}</span><h2 class="ptitle">${p.t}</h2>
+    <span class="pcount"><span class="pc"></span><span class="chev" aria-hidden="true"></span></span>
+    <span class="pmeta">${p.d}</span></summary><div class="pbar"><i></i></div><ol class="steps"></ol>`;
+  const ol=det.querySelector('ol');
+  p.s.forEach(([kind,title,where,body,lesson])=>{
+    n++; const id='s'+n;
+    const li=document.createElement('li'); li.className='step '+kind; li.dataset.id=id;
+    li.innerHTML=`<input type="checkbox" id="${id}" aria-label="Mark step ${n} done">
+      <div class="shead"><span class="sn">${String(n).padStart(2,'0')}</span>
+        <label class="stitle" for="${id}">${title}</label><span class="badge ${kind}">${LABEL[kind]}</span></div>
+      <div class="sbody"><span class="where">${where}</span>${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}</div>`;
+    const cb=li.querySelector('input'); cb.checked=!!state.done[id]; li.classList.toggle('done',cb.checked);
+    cb.addEventListener('change',()=>{ state.done[id]=cb.checked; li.classList.toggle('done',cb.checked); save(); refresh(); });
+    ol.appendChild(li);
+  });
+  det.addEventListener('toggle',()=>{ state.open[pi]=det.open; save(); });
+  root.appendChild(det);
+});
+
+function refresh(){
+  let all=0,done=0;
+  document.querySelectorAll('details.phase').forEach(det=>{
+    const steps=det.querySelectorAll('li.step'); const d=det.querySelectorAll('li.step.done').length;
+    all+=steps.length; done+=d;
+    det.querySelector('.pc').textContent=`${d}/${steps.length}`;
+    det.querySelector('.pbar i').style.width=(steps.length? d/steps.length*100:0)+'%';
+    det.classList.toggle('pdone', d===steps.length);
+  });
+  document.getElementById('progress').textContent=`${done} of ${all} steps done`;
+}
+refresh();
+
+document.getElementById('btn-expand').onclick=()=>document.querySelectorAll('details.phase').forEach(d=>d.open=true);
+document.getElementById('btn-collapse').onclick=()=>document.querySelectorAll('details.phase').forEach(d=>d.open=false);
+function toggleBtn(btnId,cls){ const b=document.getElementById(btnId);
+  b.onclick=()=>{ const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on); document.body.classList.toggle(cls,on); }; }
+toggleBtn('btn-manual','manual-only'); toggleBtn('btn-done','hide-done');
+</script>

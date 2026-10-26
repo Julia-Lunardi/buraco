@@ -1,0 +1,13 @@
+[project]
+name = "buraco-backend"
+version = "0.1.0"
+requires-python = ">=3.12"
+# The rules engine (app/engine) is pure Python with no dependencies. FastAPI,
+# SQLAlchemy etc. arrive with the API in a later phase.
+dependencies = []
+
+[dependency-groups]
+dev = ["pytest>=8", "hypothesis>=6.100"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
