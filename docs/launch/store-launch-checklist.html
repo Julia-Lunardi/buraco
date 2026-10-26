@@ -92,6 +92,8 @@ li.step.done .sbody{opacity:.6}
 .sbody p{margin:0;max-width:72ch}
 .sbody ul{margin:0;padding-left:18px}
 .where{font-size:12.5px;color:var(--ink-faint)}
+.donenote{font:600 12.5px var(--font-body);color:var(--felt)}
+li.step.done .sbody .donenote{opacity:1}
 .lesson{background:var(--warn-wash);color:var(--ink);border-radius:6px;padding:8px 10px;font-size:13.5px}
 .lesson b{color:var(--warn);font-weight:600}
 pre{margin:0;background:var(--felt-wash);color:var(--ink);padding:8px 10px;border-radius:6px;overflow-x:auto;font:12.5px/1.5 var(--font-mono)}
@@ -325,6 +327,14 @@ const PHASES=[
 ]},
 ];
 
+// Steps already completed, recorded in the page so every viewer sees them (step number → note).
+const DONE={
+  3:'Decided by Julia · 26 Oct 2026',
+  4:'Approved by Julia · 26 Oct 2026',
+  6:'Done by Claude · 26 Oct 2026 · commit 53caffc',
+  7:'Done by Claude · 26 Oct 2026 · origin/de',
+  8:'Done by Claude · 26 Oct 2026 · 103 tests, commit 53caffc',
+};
 const KEY='buraco-runbook-v1';
 let state={done:{},open:{}};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) state=Object.assign(state,s); }catch(e){}
@@ -347,8 +357,8 @@ PHASES.forEach((p,pi)=>{
     li.innerHTML=`<input type="checkbox" id="${id}" aria-label="Mark step ${n} done">
       <div class="shead"><span class="sn">${String(n).padStart(2,'0')}</span>
         <label class="stitle" for="${id}">${title}</label><span class="badge ${kind}">${LABEL[kind]}</span></div>
-      <div class="sbody"><span class="where">${where}</span>${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}</div>`;
-    const cb=li.querySelector('input'); cb.checked=!!state.done[id]; li.classList.toggle('done',cb.checked);
+      <div class="sbody"><span class="where">${where}</span>${DONE[n]?`<span class="donenote">✓ ${DONE[n]}</span>`:''}${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}</div>`;
+    const cb=li.querySelector('input'); cb.checked=state.done[id] ?? !!DONE[n]; li.classList.toggle('done',cb.checked);
     cb.addEventListener('change',()=>{ state.done[id]=cb.checked; li.classList.toggle('done',cb.checked); save(); refresh(); });
     ol.appendChild(li);
   });
