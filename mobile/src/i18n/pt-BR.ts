@@ -1,0 +1,61 @@
+// Source language. en.ts and da.ts are typed against this file, so a missing
+// translation is a type error, not a raw key on screen.
+const ptBR = {
+  appName: 'Buraco',
+  common: {
+    cancel: 'Cancelar',
+    back: 'Voltar',
+    tryAgain: 'Tentar de novo',
+    somethingWrong: 'Algo deu errado. Tente de novo.',
+    offline: 'Sem conexão. Tentando de novo…',
+  },
+  signIn: {
+    tagline: 'Buraco com os amigos, sem pressa.',
+    continueGoogle: 'Continuar com o Google',
+    guest: 'Jogar contra bots sem conta',
+    guestHint: 'Para jogar com amigos, entre com a Apple ou o Google.',
+    googleFailed: 'Não foi possível entrar com o Google.',
+    appleFailed: 'Não foi possível entrar com a Apple.',
+    privacy: 'Privacidade',
+    terms: 'Termos',
+  },
+  home: {
+    newTable: 'Nova mesa',
+    joinWithCode: 'Entrar com código',
+    practice: 'Treinar contra bots',
+    yourTables: 'Suas mesas',
+    yourTurn: 'Sua vez',
+    waitingFor: 'Vez de {{name}}',
+    lobby: 'Esperando jogadores',
+    roundOver: 'Rodada encerrada',
+    empty: 'Nenhuma mesa ainda. Crie uma e chame os amigos.',
+    bot: 'Bot',
+    signInForFriends: 'Entre com a Apple ou o Google para jogar com amigos.',
+  },
+  settings: {
+    title: 'Ajustes',
+    appearance: 'Aparência',
+    theme: 'Tema',
+    themeSystem: 'Automático',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
+    felt: 'Cor da mesa',
+    feltGreen: 'Verde',
+    feltBlue: 'Azul-acinzentado',
+    orientation: 'Orientação',
+    orientationAuto: 'Automática',
+    orientationPortrait: 'Retrato',
+    orientationLandscape: 'Paisagem',
+    account: 'Conta',
+    signOut: 'Sair',
+    deleteAccount: 'Excluir conta',
+    deleteConfirm: 'Excluir sua conta? Suas mesas e mensagens serão apagadas. Isso não pode ser desfeito.',
+    deleteConfirmButton: 'Excluir',
+    support: 'Apoie o app',
+    privacy: 'Política de privacidade',
+    terms: 'Termos de uso',
+  },
+};
+
+export default ptBR;
+export type Messages = typeof ptBR;
