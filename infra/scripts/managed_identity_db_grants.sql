@@ -13,7 +13,7 @@
 --   export PGPASSWORD=$(az account get-access-token \
 --       --resource https://ossrdbms-aad.database.windows.net --query accessToken -o tsv)
 --   psql "host=psql-woddie-de.postgres.database.azure.com dbname=postgres sslmode=require \
---         user=<your Entra admin principal name>" \
+--         user=juliasnotes_outlook.com#EXT#@juliasnotesoutlook.onmicrosoft.com" \
 --        -v identity=ca-buraco-de-id -v oid="$OID" -v db=buraco_de \
 --        -f infra/scripts/managed_identity_db_grants.sql
 --
@@ -22,14 +22,17 @@
 SELECT pgaadauth_create_principal_with_oid(:'identity', :'oid', 'service', false, false);
 ALTER DATABASE :"db" OWNER TO :"identity";
 GRANT CONNECT ON DATABASE :"db" TO :"identity";
--- Postgres lets PUBLIC connect to every database by default; isolation on a shared
--- server is not automatic.
-REVOKE CONNECT ON DATABASE :"db" FROM PUBLIC;
 
 -- Postgres 15+ no longer lets PUBLIC create in schema public: hand it to the app so
 -- Alembic (running as the identity at container start) can create the tables.
+-- Connect BEFORE the revoke below: azure_pg_admin is not a superuser, so once PUBLIC
+-- loses CONNECT you (an Entra admin, not the owner) can no longer get in.
 \connect :db
 ALTER SCHEMA public OWNER TO :"identity";
+
+-- Postgres lets PUBLIC connect to every database by default; isolation on a shared
+-- server is not automatic.
+REVOKE CONNECT ON DATABASE :"db" FROM PUBLIC;
 
 -- Check: datacl must list the identity, and the owner must be the identity.
 SELECT datname, pg_get_userbyid(datdba) AS owner, datacl FROM pg_database WHERE datname = :'db';

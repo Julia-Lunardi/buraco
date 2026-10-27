@@ -536,7 +536,7 @@ az keyvault secret set --vault-name $V --name google-android-client-id --value "
 <li>You are already an Entra admin on <code>psql-woddie-de</code> from the Salvie setup. If not, Salvie's CONSOLIDATION_PLAN §0.2 shows the one <code>az rest</code> call.</li>
 <li><pre>OID=$(az identity show -g rg-buraco-de -n ca-buraco-de-id --query principalId -o tsv)
 export PGPASSWORD=$(az account get-access-token --resource https://ossrdbms-aad.database.windows.net --query accessToken -o tsv)
-psql "host=psql-woddie-de.postgres.database.azure.com dbname=postgres sslmode=require user=&lt;your Entra admin name&gt;" \\
+psql "host=psql-woddie-de.postgres.database.azure.com dbname=postgres sslmode=require user=juliasnotes_outlook.com#EXT#@juliasnotesoutlook.onmicrosoft.com" \\
   -v identity=ca-buraco-de-id -v oid="$OID" -v db=buraco_de \\
   -f ~/Development/buraco/infra/scripts/managed_identity_db_grants.sql</pre></li>
 <li>The last query must show <code>ca-buraco-de-id</code> as the owner. Then re-run the deploy workflow; this time the health check passes.</li></ol>`],
