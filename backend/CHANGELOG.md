@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 27.10.2026 (4)
+
+- `PATCH /users/me` changes the display name. Whitespace is collapsed, 1–40 characters, and the chat word filter applies, because a name is user content other players see. Apple sends a name only on the first sign-in and guests have none, so the app asks for one.
+
 ## 27.10.2026 (3)
 
 - **STBL preset** (`docs/rules/stbl.md`, a draft for review): Aberto with no trincas, where only a clean canastra (limpa or real) lets a team go out. It's a pure configuration change, because the engine was built that way.

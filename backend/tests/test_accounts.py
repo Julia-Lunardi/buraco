@@ -114,3 +114,19 @@ async def test_guests_cannot_use_friend_features(client, sessions):
         assert res.json()["detail"] == "Sign in with Apple or Google to play with friends."
     finally:
         app.router.routes = [r for r in app.router.routes if getattr(r, "path", "") != "/_test/friends-only"]
+
+
+# --- display name -------------------------------------------------------------------
+
+async def test_change_display_name_is_trimmed_and_filtered(client, sessions):
+    guest = (await client.post("/auth/guest")).json()
+    res = await client.patch("/users/me", json={"display_name": "  Ana   Souza "}, headers=bearer(guest["access_token"]))
+    assert res.status_code == 200 and res.json()["display_name"] == "Ana Souza"
+    res = await client.patch("/users/me", json={"display_name": "porra"}, headers=bearer(guest["access_token"]))
+    assert res.json()["display_name"] == "*****"
+
+
+async def test_display_name_must_not_be_blank_or_too_long(client, sessions):
+    token = (await client.post("/auth/guest")).json()["access_token"]
+    assert (await client.patch("/users/me", json={"display_name": "   "}, headers=bearer(token))).status_code == 422
+    assert (await client.patch("/users/me", json={"display_name": "x" * 41}, headers=bearer(token))).status_code == 422

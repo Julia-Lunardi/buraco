@@ -38,6 +38,10 @@ class AppleSignIn(BaseModel):
     full_name: str | None = None
 
 
+class ProfileIn(BaseModel):
+    display_name: str = Field(min_length=1, max_length=40)
+
+
 class PushTokenIn(BaseModel):
     token: str = Field(pattern=r"^Expo(nent)?PushToken\[.+\]$", max_length=255)
     platform: Literal["ios", "android"]

@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,13 +8,27 @@ from app.core.deps import get_current_user, require_account
 from app.db.session import get_db
 from app.models import DeviceToken, User, UserBlock
 from app.services import chat
-from app.schemas.auth import PushTokenIn, PushTokenOut, UserOut
+from app.schemas.auth import ProfileIn, PushTokenIn, PushTokenOut, UserOut
+from app.services.profanity import clean
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)) -> User:
+    return user
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(body: ProfileIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> User:
+    """The name other players see at the table and in chat. Apple sends a name only on the
+    first sign-in and guests have none, so the app asks for one before playing with friends.
+    The chat word filter applies here too: a name is user content other players see."""
+    name = " ".join(body.display_name.split())
+    if not name:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Choose a name.")
+    user.display_name = clean(name)[:40]
+    await db.flush()
     return user
 
 

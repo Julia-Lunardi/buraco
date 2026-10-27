@@ -17,6 +17,7 @@ interface AuthValue {
   signInWithApple(identityToken: string, rawNonce: string, fullName: string | undefined,
                   appleUserId: string): Promise<void>;
   signOut(): Promise<void>;
+  updateName(name: string): Promise<void>;
   deleteAccount(): Promise<void>;
 }
 
@@ -106,6 +107,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await unregisterToken(); // before the session goes: the call needs it
       if (refreshToken) api.post('/auth/logout', { refresh_token: refreshToken }).catch(() => {});
       await endSession();
+    },
+    async updateName(name) {
+      const { data } = await api.patch<SessionUser>('/users/me', { display_name: name });
+      setUser(data);
     },
     async deleteAccount() {
       await api.delete('/users/me');

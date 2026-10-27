@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
+import NameField from '../components/NameField';
 import SegmentedControl from '../components/SegmentedControl';
 import { LEGAL_URLS } from '../config';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,7 +18,7 @@ export default function SettingsScreen() {
   const { c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
   const prefs = usePreferences();
-  const { user, signOut, deleteAccount } = useAuth();
+  const { signOut, deleteAccount } = useAuth();
   const [error, setError] = useState('');
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -71,7 +72,7 @@ export default function SettingsScreen() {
                   { value: 'landscape', label: t('settings.orientationLandscape') }]} />
 
       {section(t('settings.account'))}
-      {user?.display_name ? <Text style={[type.body, { color: c.inkSoft }]}>{user.display_name}</Text> : null}
+      <NameField />
       {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
       {row(t('settings.signOut'), () => { void signOut(); })}
       {row(t('settings.deleteAccount'), confirmDelete, c.invalidInk)}

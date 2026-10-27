@@ -7,6 +7,7 @@ import { errorDetail } from '../api/client';
 import { type BotLevel, createTable, type PlayMode, type Preset, type SeatKind } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
+import NameField from '../components/NameField';
 import SegmentedControl from '../components/SegmentedControl';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
@@ -36,6 +37,8 @@ export default function NewTableScreen({ navigation, route }: Props) {
   const [error, setError] = useState('');
 
   const count = Number(players) as 2 | 4;
+  // Friends need to see who invited them: a friends' table needs a name first.
+  const needsName = !guest && !user?.display_name && seats.slice(0, count - 1).includes('friend');
   const otherSeats = seats.slice(0, count - 1);
 
   // In a 4-player game partners sit opposite: seat 2 is your partner, 1 and 3 opponents.
@@ -108,9 +111,10 @@ export default function NewTableScreen({ navigation, route }: Props) {
                 trackColor={{ true: c.accent, false: c.line }} />
       </View>
 
+      {needsName ? <NameField compact /> : null}
       {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
       <View style={{ marginTop: space.space3 }}>
-        <Button label={t('newTable.create')} onPress={create} busy={busy} />
+        <Button label={t('newTable.create')} onPress={create} busy={busy} disabled={needsName} />
       </View>
     </ScrollView>
   );

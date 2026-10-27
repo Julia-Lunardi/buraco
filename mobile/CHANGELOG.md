@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 27.10.2026 (9)
+
+- "Seu nome" can be edited in Settings. Creating a table with friend seats, or joining one, asks for a name first if the account has none, so nobody shows up as "—" in the lobby or chat.
+
 ## 27.10.2026 (8)
 
 - New table: rules are now Aberto or **STBL** ("Sem trinca e só bate com canastra limpa."). Fechado stays "em breve".

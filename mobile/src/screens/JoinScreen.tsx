@@ -4,7 +4,9 @@ import { KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-nat
 
 import { errorDetail } from '../api/client';
 import { joinTable } from '../api/tables';
+import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
+import NameField from '../components/NameField';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
@@ -17,6 +19,8 @@ export default function JoinScreen({ navigation }: Props) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
+  const needsName = !user?.display_name;
 
   async function join() {
     setBusy(true);
@@ -50,8 +54,9 @@ export default function JoinScreen({ navigation }: Props) {
                                 paddingHorizontal: space.space4, paddingVertical: space.space3, letterSpacing: 6,
                                 textAlign: 'center', fontVariant: ['tabular-nums'] }]}
         />
+        {needsName ? <NameField compact /> : null}
         {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
-        <Button label={t('join.submit')} onPress={join} busy={busy} disabled={code.length !== 6} />
+        <Button label={t('join.submit')} onPress={join} busy={busy} disabled={code.length !== 6 || needsName} />
       </View>
     </KeyboardAvoidingView>
   );
