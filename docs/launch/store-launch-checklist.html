@@ -738,7 +738,7 @@ PHASES.forEach((p,pi)=>{
       <div class="shead"><span class="sn">${String(n).padStart(2,'0')}</span>
         <label class="stitle" for="${id}">${title}</label><span class="badge ${kind}">${LABEL[kind]}</span></div>
       <div class="sbody"><span class="where">${where}</span>${DONE[n]?`<span class="donenote">✓ ${DONE[n]}</span>`:''}${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}${howFor(kind,title)}</div>`;
-    const cb=li.querySelector('input'); cb.checked=state.done[id] ?? !!DONE[n]; li.classList.toggle('done',cb.checked);
+    const cb=li.querySelector('input'); cb.checked=state.done[id] ?? (!!DONE[n] && !DONE[n].startsWith('Half')); li.classList.toggle('done',cb.checked);
     cb.addEventListener('change',async()=>{ const on=cb.checked; state.done[id]=on; li.classList.toggle('done',on); save(); refresh();
       if(!ticks) return;
       try{ syncNote('Saving…'); await ticks.doc(id).set({done:on}); syncNote('Ticks saved'); }
