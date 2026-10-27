@@ -151,6 +151,22 @@ async def cover(db: AsyncSession, table_id: uuid.UUID, covered: frozenset[int]) 
     return table, match
 
 
+async def hint(db: AsyncSession, user: User, table_id: uuid.UUID) -> dict:
+    """What the sharp bot would play in your seat. Practice only: refused at any table with
+    another person, where it would be an unfair advantage."""
+    table = await db.get(GameTable, table_id)
+    seat = _seat_of(table, user) if table else None
+    if seat is None:
+        raise TableError(status.HTTP_404_NOT_FOUND, "no_such_table", "No such table.")
+    if any(s.user_id is not None and s.user_id != user.id for s in table.seats):
+        raise TableError(status.HTTP_403_FORBIDDEN, "hint_practice_only", "Hints are only for games against bots.")
+    match = await load_match(db, table)
+    rnd = match.round
+    if table.status is not TableStatus.PLAYING or rnd is None or rnd.current != seat:
+        raise TableError(status.HTTP_409_CONFLICT, "not_your_turn", "It is not your turn.")
+    return action_to_dict(BOTS["sharp"].choose(rnd, seat))
+
+
 async def get_for(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple[GameTable, Match]:
     table = await db.get(GameTable, table_id)
     if table is None or _seat_of(table, user) is None:

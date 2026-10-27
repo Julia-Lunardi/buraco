@@ -110,6 +110,12 @@ async def act(table_id: uuid.UUID, body: ActionIn, user: User = Depends(get_curr
     return await _publish(db, table, match, user, before)
 
 
+@router.get("/{table_id}/hint")
+async def hint(table_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> dict:
+    """Practice games only: the move the sharp bot would make in your seat."""
+    return {"action": await tables.hint(db, user, table_id)}
+
+
 @router.post("/{table_id}/next-round")
 async def next_round(table_id: uuid.UUID, user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):

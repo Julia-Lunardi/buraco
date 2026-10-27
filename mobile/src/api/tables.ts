@@ -125,6 +125,11 @@ export async function act(id: string, action: Action): Promise<TableView> {
   return (await api.post<TableView>(`/tables/${id}/actions`, { action })).data;
 }
 
+/** Practice games only: the move the sharp bot would make in your seat. */
+export async function getHint(id: string): Promise<Action> {
+  return (await api.get<{ action: Action }>(`/tables/${id}/hint`)).data.action;
+}
+
 export async function nextRound(id: string): Promise<TableView> {
   return (await api.post<TableView>(`/tables/${id}/next-round`)).data;
 }

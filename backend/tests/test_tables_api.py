@@ -248,3 +248,24 @@ async def test_async_tables_never_hand_a_seat_to_a_bot(client, sessions, monkeyp
     await asyncio.sleep(0.3)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
     assert view["current_seat"] == 1 and view["seats"][1]["covered_by_bot"] is False
+
+
+# --- practice hint ------------------------------------------------------------------------
+
+async def test_hint_suggests_a_legal_move_in_practice_games(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    hint = (await client.get(f"/tables/{table['id']}/hint", headers=bearer(ana))).json()["action"]
+    assert hint["type"] in ("draw", "take_discard")  # start of the turn
+    played = await client.post(f"/tables/{table['id']}/actions", json={"action": hint}, headers=bearer(ana))
+    assert played.status_code == 200  # the hint is always a legal move
+
+
+async def test_no_hints_when_playing_with_friends(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["friend"]}, headers=bearer(ana))).json()
+    await client.post("/tables/join", json={"code": table["code"]}, headers=bearer(bia))
+    await client.post(f"/tables/{table['id']}/start", headers=bearer(ana))
+    res = await client.get(f"/tables/{table['id']}/hint", headers=bearer(ana))
+    assert res.status_code == 403 and res.json()["code"] == "hint_practice_only"

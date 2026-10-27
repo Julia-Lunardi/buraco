@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { MeldView, SeatView, TableView } from '../api/tables';
+import { getHint, type MeldView, type SeatView, type TableView } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from '../api/errors';
 import Button from '../components/Button';
@@ -32,6 +32,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const { user } = useAuth();
   const chat = useChat(tableId, liveChat, user?.id);
   const [chatOpen, setChatOpen] = useState(false);
+  const [hintText, setHintText] = useState('');
   const push = usePushOffer();
   const [picked, setPicked] = useState<number[]>([]);
 
@@ -50,13 +51,26 @@ export default function TableScreen({ navigation, route }: Props) {
   // Chat only where there is someone to talk to (bot tables have none; guests can't chat).
   const people = table.seats.filter((s) => !s.bot && !s.open).length;
   const chatAvailable = people >= 2 && !user?.is_guest;
+  const practice = people === 1; // only bots besides you: hints allowed
   const me = table.my_seat ?? 0;
   const myTeam = me % 2;
   const myTurn = game !== null && game.current === me && table.status === 'playing';
   const teamName = (team: number) => (team === myTeam ? t('table.us') : t('table.them'));
   const seatName = (seat: SeatView) => seat.is_you ? t('newTable.you') : seat.bot ? t('newTable.bot') : seat.name ?? '—';
   const toggle = (id: number) => setPicked(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
-  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); };
+  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setHintText(''); };
+
+  async function showHint() {
+    try {
+      const hint = await getHint(tableId);
+      setHintText(t(`table.hint_${hint.type}`));
+      // Pre-select the cards the hint uses; the player still makes the move.
+      if (hint.type === 'lay_down' || hint.type === 'add_to_meld') setPicked(hint.cards);
+      else if (hint.type === 'discard') setPicked([hint.card]);
+    } catch {
+      setHintText('');
+    }
+  }
 
   const turnLine = () => {
     if (!game || table.status !== 'playing') return '';
@@ -134,6 +148,13 @@ export default function TableScreen({ navigation, route }: Props) {
                 </>
               ) : <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.emptyPile')}</Text>}
             </View>
+
+            {practice && myTurn ? (
+              <View style={{ gap: space.space1 }}>
+                <Button label={t('table.hint')} variant="quiet" onTable onPress={() => { void showHint(); }} />
+                {hintText ? <Text style={[type.body, { color: c.tableInk }]} accessibilityLiveRegion="polite">{hintText}</Text> : null}
+              </View>
+            ) : null}
 
             {/* Actions */}
             {myTurn && game.phase === 'draw' ? (

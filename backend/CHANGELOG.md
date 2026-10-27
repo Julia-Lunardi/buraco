@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 27.10.2026 (2)
+
+- `GET /tables/{id}/hint` returns the sharp bot's move for your seat. Only at tables where every other seat is a bot (403 `hint_practice_only` otherwise), and only on your turn. Tests check the hint is always a legal move and is refused with friends.
+
 ## 27.10.2026
 
 - Three bot levels (`engine/bots.py`), as the design asks:

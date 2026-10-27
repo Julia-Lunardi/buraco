@@ -9,16 +9,18 @@ interface Props {
   disabled?: boolean;
   busy?: boolean;
   accessibilityHint?: string;
+  /** On the dark table: quiet text uses `accent` (design: `accent-ink` is for surfaces). */
+  onTable?: boolean;
 }
 
 /** Design system `Button`. Primary is the one gold accent with `onAccent` text (8.4:1);
  * secondary is a raised outline; quiet is a text button. At least 44pt tall. */
-export default function Button({ label, onPress, variant = 'primary', disabled, busy, accessibilityHint }: Props) {
+export default function Button({ label, onPress, variant = 'primary', disabled, busy, accessibilityHint, onTable }: Props) {
   const { c, space, radius, size, type } = useTheme();
   const colors = {
     primary: { bg: c.accent, fg: c.onAccent, border: c.accent },
     secondary: { bg: c.surfaceRaised, fg: c.ink, border: c.line },
-    quiet: { bg: 'transparent', fg: c.accentInk, border: 'transparent' },
+    quiet: { bg: 'transparent', fg: onTable ? c.accent : c.accentInk, border: 'transparent' },
   }[variant];
   return (
     <Pressable

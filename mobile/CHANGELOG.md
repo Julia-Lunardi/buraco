@@ -1,5 +1,10 @@
 # Mobile Changelog
 
+## 27.10.2026 (7)
+
+- Practice hint ("Dica"): on your turn at a table with only bots, it says in words what the sharp bot would play and pre-selects those cards. You still make the move. The backend refuses hints at any table with another person.
+- `Button` gets `onTable`: on the dark table, quiet buttons use `accent`, since `accent-ink` is for light surfaces.
+
 ## 27.10.2026 (6)
 
 - New table: "Nível dos bots" with Tranquilo, Normal and Esperto. Esperto shows the hint "Esperto não entrega o lixo de bandeja."
