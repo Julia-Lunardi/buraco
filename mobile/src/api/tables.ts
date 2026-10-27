@@ -1,17 +1,127 @@
 import { api } from './client';
 
+export type TableStatus = 'lobby' | 'playing' | 'round_over' | 'finished';
+export type PlayMode = 'live' | 'async';
+export type SeatKind = 'friend' | 'bot';
+
 /** One row of GET /tables: the home screen's list. */
 export interface TableSummary {
   id: string;
   code: string;
-  status: 'lobby' | 'playing' | 'round_over' | 'finished';
-  mode: 'live' | 'async';
+  status: TableStatus;
+  mode: PlayMode;
   num_players: 2 | 4;
   your_turn: boolean;
   players: (string | null)[];
 }
 
+export interface CardView {
+  id: number;
+  label: string; // "10H", "QS", "2C", "JK"
+}
+
+export interface MeldView {
+  id: number;
+  cards: CardView[];
+  kind: 'sequence' | 'trinca';
+  wilds: number;
+  canastra: 'suja' | 'limpa' | 'real' | null;
+}
+
+/** The engine's per-player view (backend Round.view_for). */
+export interface GameView {
+  seat: number;
+  current: number;
+  phase: 'draw' | 'play' | 'over';
+  hand: CardView[];
+  hand_sizes: number[];
+  stock_size: number;
+  discard: CardView[];
+  teams: { morto_waiting: boolean; took_morto: boolean; melds: MeldView[] }[];
+  went_out: number | null;
+}
+
+export interface SeatView {
+  seat: number;
+  team: 0 | 1;
+  name: string | null;
+  is_you: boolean;
+  bot: boolean;
+  open: boolean;
+  connected: boolean | null;
+  covered_by_bot: boolean;
+}
+
+export interface TeamScore {
+  melded: number;
+  canastras: { suja: number; limpa: number; real: number };
+  canastra_bonus: number;
+  bater: number;
+  hand_penalty: number;
+  morto_penalty: number;
+  total: number;
+}
+
+/** Everything one player may see of a table (backend services.tables.table_view). */
+export interface TableView {
+  id: string;
+  code: string;
+  preset: string;
+  num_players: 2 | 4;
+  mode: PlayMode;
+  chat_enabled: boolean;
+  target_score: number;
+  status: TableStatus;
+  is_host: boolean;
+  my_seat: number | null;
+  current_seat: number | null;
+  seats: SeatView[];
+  scores: [number, number];
+  rounds: [TeamScore, TeamScore][];
+  winner: 0 | 1 | null;
+  game: GameView | null;
+}
+
+export interface NewTable {
+  num_players: 2 | 4;
+  /** Seats 1..n-1; the host sits at 0. */
+  seats: SeatKind[];
+  mode: PlayMode;
+  chat_enabled: boolean;
+  target_score?: number;
+}
+
+export type Action =
+  | { type: 'draw' }
+  | { type: 'take_discard' }
+  | { type: 'lay_down'; cards: number[] }
+  | { type: 'add_to_meld'; meld: number; cards: number[] }
+  | { type: 'discard'; card: number };
+
 export async function myTables(): Promise<TableSummary[]> {
-  const { data } = await api.get<TableSummary[]>('/tables');
-  return data;
+  return (await api.get<TableSummary[]>('/tables')).data;
+}
+
+export async function createTable(body: NewTable): Promise<TableView> {
+  return (await api.post<TableView>('/tables', { preset: 'aberto', ...body })).data;
+}
+
+export async function joinTable(code: string): Promise<TableView> {
+  return (await api.post<TableView>('/tables/join', { code: code.trim().toUpperCase() })).data;
+}
+
+export async function getTable(id: string): Promise<TableView> {
+  return (await api.get<TableView>(`/tables/${id}`)).data;
+}
+
+export async function startTable(id: string): Promise<TableView> {
+  return (await api.post<TableView>(`/tables/${id}/start`)).data;
+}
+
+export async function act(id: string, action: Action): Promise<TableView> {
+  return (await api.post<TableView>(`/tables/${id}/actions`, { action })).data;
+}
+
+export async function nextRound(id: string): Promise<TableView> {
+  return (await api.post<TableView>(`/tables/${id}/next-round`)).data;
 }

@@ -4,8 +4,9 @@ import { useTheme } from '../theme';
 
 interface Props<T extends string> {
   value: T;
-  options: { value: T; label: string }[];
-  onChange(value: T): void;
+  // NoInfer: T comes from `value` alone, so ('2' | '4') isn't widened to string by the options.
+  options: { value: NoInfer<T>; label: string }[];
+  onChange(value: NoInfer<T>): void;
   accessibilityLabel: string;
 }
 

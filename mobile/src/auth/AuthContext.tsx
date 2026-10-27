@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useM
 import { AppState, Platform } from 'react-native';
 
 import { api, setSessionEndedHandler } from '../api/client';
+import { registerToken, unregisterToken } from '../notifications/push';
 import { clearSession, KEYS, type SessionUser, storePair, type TokenPair } from './session';
 
 type Status = 'loading' | 'signedOut' | 'signedIn';
@@ -45,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const { data } = await api.get<SessionUser>('/users/me');
         setUser(data);
+        void registerToken(); // no prompt: only if notifications were already allowed
       } catch {
         // Offline or server trouble: stay signed in; a real 401 already ended the session.
       }
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await storePair(SecureStore, pair);
     setUser(pair.user);
     setStatus('signedIn');
+    void registerToken();
   }, []);
 
   const value = useMemo<AuthValue>(() => ({
@@ -100,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     async signOut() {
       const refreshToken = await SecureStore.getItemAsync(KEYS.refresh).catch(() => null);
+      await unregisterToken(); // before the session goes: the call needs it
       if (refreshToken) api.post('/auth/logout', { refresh_token: refreshToken }).catch(() => {});
       await endSession();
     },

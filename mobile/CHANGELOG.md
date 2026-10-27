@@ -1,5 +1,33 @@
 # Mobile Changelog
 
+## 27.10.2026 (3)
+
+- The full flow works end to end:
+  - **Home** has three actions: new table, join with a code, and practice against bots (guests get practice only). Tapping a table opens it.
+  - **New table**: rules (Aberto; Fechado and STBL "em breve"), 2 or 4 players, friend or bot per seat (partner opposite in 4-player games), live or async with a one-line explanation, 1.500 or 3.000 points, chat on or off.
+  - **Join** uses a 6-character code.
+  - **Lobby**: the code to share, seats filling live, who's connected, and the host's start button. Everyone moves to the table when the game starts.
+- **Table: a working prototype**, so games can be played on a device now:
+  - the hand with tap-to-select, the melds per team with limpa, suja and real frames, the stock, the top of the pile, and each team's morto;
+  - draw, take the pile, lay down, add to a meld, and discard;
+  - the illegal-move reason from the server, the round summary, the next round and game over.
+  - The designed table from Claude Design replaces only its layout; the data flow stays.
+- `realtime/tableSocket.ts` implements the live protocol without React, unit-tested (12 tests):
+  - it authenticates in the first message, so tokens never go in URLs;
+  - it reconnects with 1/2/5/10 s backoff, reset after a good reconnection;
+  - an expired token (4401) gets one refresh and an immediate retry; "not seated" (4404) stops;
+  - it pings every 25 s.
+  - `useTableSocket` wraps it.
+- Notifications:
+  - `expo-notifications` loads lazily; a static import crashed Android Expo Go in Salvie.
+  - A priming sheet ("Quer saber quando for sua vez?") appears **once**, on the first lobby or table, and the system prompt only follows a tap on "Ativar avisos".
+  - The token is registered in the device's language and re-registered after sign-in (without a prompt). It is removed on sign-out, so the next person on the phone gets nothing.
+  - No banners inside the app, because the table is already on screen.
+- `PlayingCard` follows the design system: off-white face, a `wild` corner notch on 2s and jokers, a gold outline that lifts when selected, and spoken names in all three languages ("10 de copas", "hjerter 10").
+- `Button` (primary, secondary, quiet). `SegmentedControl` infers its type from `value` (`NoInfer`).
+- The Android `google-services.json` comes from the EAS file variable `GOOGLE_SERVICES_JSON`; the file is gitignored and would never reach EAS.
+- 41 tests. Lint and typecheck clean, `expo-doctor` 21/21, and both platforms bundle.
+
 ## 27.10.2026 (2)
 
 - The "Apoie o app" (Support the app) screen, reached only from Settings: contributions toward the server costs (`docs/plans/tip-jar.md`).

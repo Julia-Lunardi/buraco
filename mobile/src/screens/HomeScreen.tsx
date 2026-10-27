@@ -7,15 +7,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { errorDetail } from '../api/client';
 import { myTables, type TableSummary } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
+import Button from '../components/Button';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-/** Home: your unfinished tables (yours-to-play first, ordered by the server).
- * New table / join / the table itself arrive with the design's screens; until then only
- * what works is shown (no dead buttons: Salvie once shipped one). */
+/** Home: new table, join with a code, practice against bots, and your unfinished tables
+ * (yours-to-play first, ordered by the server). */
 export default function HomeScreen({ navigation }: Props) {
   const { c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
@@ -73,6 +73,16 @@ export default function HomeScreen({ navigation }: Props) {
           }} />}
           ListHeaderComponent={
             <>
+              <View style={{ gap: space.space2, marginBottom: space.space4 }}>
+                {!user?.is_guest ? (
+                  <>
+                    <Button label={t('home.newTable')} onPress={() => navigation.navigate('NewTable')} />
+                    <Button label={t('home.joinWithCode')} variant="secondary" onPress={() => navigation.navigate('Join')} />
+                  </>
+                ) : null}
+                <Button label={t('home.practice')} variant={user?.is_guest ? 'primary' : 'quiet'}
+                        onPress={() => navigation.navigate('NewTable', { practice: true })} />
+              </View>
               {error ? <Text style={[type.body, { color: c.inkSoft }]}>{error}</Text> : null}
               {tables?.length ? (
                 <Text style={[type.heading, { color: c.ink, marginBottom: space.space2 }]}>{t('home.yourTables')}</Text>
@@ -85,15 +95,18 @@ export default function HomeScreen({ navigation }: Props) {
             </Text>
           ) : null}
           renderItem={({ item }) => (
-            <View style={{ backgroundColor: c.surfaceRaised, borderRadius: radius.radiusMd, padding: space.space4,
-                           gap: space.space1 }}>
+            <Pressable
+              onPress={() => navigation.navigate(item.status === 'lobby' ? 'Lobby' : 'Table', { tableId: item.id })}
+              accessibilityRole="button"
+              style={({ pressed }) => ({ backgroundColor: c.surfaceRaised, borderRadius: radius.radiusMd,
+                                         padding: space.space4, gap: space.space1, opacity: pressed ? 0.7 : 1 })}>
               <Text style={[type.bodyStrong, { color: c.ink }]}>
                 {item.players.map((p) => p ?? t('home.bot')).join(' · ')}
               </Text>
               <Text style={[type.caption, { color: item.your_turn ? c.accentInk : c.inkSoft }]}>
                 {statusLine(item)}{statusLine(item) ? ' · ' : ''}{item.code}
               </Text>
-            </View>
+            </Pressable>
           )}
         />
       )}

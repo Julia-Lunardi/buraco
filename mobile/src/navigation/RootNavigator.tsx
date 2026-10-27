@@ -5,6 +5,10 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { t } from '../i18n';
 import HomeScreen from '../screens/HomeScreen';
+import JoinScreen from '../screens/JoinScreen';
+import LobbyScreen from '../screens/LobbyScreen';
+import NewTableScreen from '../screens/NewTableScreen';
+import TableScreen from '../screens/TableScreen';
 import SupportScreen from '../features/support/SupportScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
@@ -41,6 +45,13 @@ export default function RootNavigator() {
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Settings" component={SettingsScreen}
                           options={{ title: t('settings.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="NewTable" component={NewTableScreen}
+                          options={{ title: t('newTable.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="Join" component={JoinScreen}
+                          options={{ title: t('join.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="Lobby" component={LobbyScreen}
+                          options={{ title: t('lobby.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="Table" component={TableScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Support" component={SupportScreen}
                           options={{ title: t('support.title'), headerBackTitle: t('common.back') }} />
           </>
