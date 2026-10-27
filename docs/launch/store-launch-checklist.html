@@ -254,8 +254,8 @@ const PHASES=[
   'Salvie 28.07.2026: <code>moved</code> blocks abort <code>plan -target</code>.'],
  [M,'Create two OIDC app registrations (de, pr) with federated credentials for the GitHub environments <code>de</code> and <code>pr</code>','Entra ID',
   '<p>Grant Contributor on the subscription and note each object id for <code>github_actions_sp_object_id</code>.</p>'],
- [M,'Grant both CI service principals <code>User Access Administrator</code> on <code>acrwoddiede</code>','Azure CLI',
-  '<p>Contributor alone cannot create the AcrPull role assignment the container app needs.</p>',
+ [M,'Grant both CI service principals <code>User Access Administrator</code> on <code>acrwoddiede</code> and on their own Key Vault','Azure CLI',
+  '<p>Contributor alone cannot create role assignments: the AcrPull one on the registry, or the two Key Vault Secrets User ones (the app\'s identity and CI itself). Woddie\'s CI principal has the same rights.</p>',
   'Salvie CONSOLIDATION_PLAN 0.1: Phase 1 failed at apply without this.'],
  [M,'Create the GitHub environments <code>de</code> and <code>pr</code> with secrets and variables','GitHub → Settings',
   '<p>Secrets: <code>AZURE_CLIENT_ID</code>, <code>AZURE_TENANT_ID</code>, <code>AZURE_SUBSCRIPTION_ID</code>, <code>EXPO_TOKEN</code>. Variable: <code>ACR_NAME=acrwoddiede</code>. No app secrets go in GitHub.</p><p>Also put each service principal\'s object id into <code>infra/variables/variables.de.tfvars</code> and <code>variables.pr.tfvars</code> (<code>github_actions_sp_object_id</code>), so CI may read Key Vault.</p>'],
@@ -486,12 +486,19 @@ Or pick the personal address now and change it before launch: it is editable at 
 Put it in <code>infra/variables/variables.de.tfvars</code> → <code>github_actions_sp_object_id</code>.</li>
 <li>Repeat everything for <code>gh-buraco-pr</code> with environment <code>pr</code> and <code>variables.pr.tfvars</code>. Commit both tfvars files on <code>de</code>.</li></ol>`],
 ['User Access Administrator',`<ol>
+<li>Use the <b>service principal object id</b>, the same ones as in the tfvars. Not the Application (client) id: Azure accepts that without complaint and the role silently goes nowhere.
+<pre>az ad sp show --id &lt;application-client-id&gt; --query id -o tsv</pre></li>
 <li><pre>ACR=$(az acr show -n acrwoddiede --query id -o tsv)
-for SP in &lt;de-sp-object-id&gt; &lt;pr-sp-object-id&gt;; do
-  az role assignment create --assignee-object-id $SP --assignee-principal-type ServicePrincipal \\
-    --role "User Access Administrator" --scope $ACR
-done</pre></li>
-<li>Why: Contributor cannot create role assignments, and Terraform must grant the app's identity AcrPull on the shared registry. Salvie's first deploy failed without this.</li></ol>`],
+for e in de pr; do
+  SP=$(grep github_actions_sp_object_id infra/variables/variables.$e.tfvars | cut -d'"' -f2)
+  KV=$(az keyvault show -n kv-buraco-$e --query id -o tsv)
+  for SCOPE in $ACR $KV; do
+    az role assignment create --assignee-object-id $SP --assignee-principal-type ServicePrincipal \\
+      --role "User Access Administrator" --scope $SCOPE
+  done
+done</pre>
+Run it from <code>~/Development/buraco</code>, after the Key Vaults exist.</li>
+<li>Why: Contributor cannot create role assignments. Terraform must grant AcrPull on the shared registry and Key Vault Secrets User on the vault. Salvie's first deploy failed without the first one.</li></ol>`],
 ['Create the GitHub environments',`<ol>
 <li>github.com/Julia-Lunardi/buraco → Settings → <b>Environments</b> → New environment <code>de</code>, and another named <code>pr</code>.</li>
 <li>In each environment, add <b>secrets</b>:<ul>
@@ -503,13 +510,13 @@ done</pre></li>
 <li>Optional for <code>pr</code>: add yourself under "Required reviewers", so production deploys wait for your click.</li></ol>`],
 ['Create the Key Vaults with a targeted apply',`<ol>
 <li><pre>cd ~/Development/buraco/infra &amp;&amp; az login
-ME=$(az ad signed-in-user show --query id -o tsv)
-terraform init -backend-config=variables/backend.config.de.tfvars
+terraform init -reconfigure -backend-config=variables/backend.config.de.tfvars
 terraform apply -var-file=variables/variables.tfvars -var-file=variables/variables.de.tfvars \\
-  -var terraform_operator_object_id=$ME \\
   -target=module.resource_group -target=module.key_vault \\
-  -target=azurerm_role_assignment.terraform_kv_secrets_officer</pre></li>
-<li>Read the plan: only <code>rg-buraco-de</code>, <code>kv-buraco-de</code> and one role assignment should be created. Then type <code>yes</code>.</li>
+  -target=azurerm_role_assignment.terraform_kv_secrets_officer \\
+  -target=azurerm_role_assignment.github_actions_kv_secrets_user</pre>
+Your object id (<code>terraform_operator_object_id</code>) is in the tfvars, so no <code>-var</code> is needed.</li>
+<li>Read the plan: <code>rg-buraco-de</code>, <code>kv-buraco-de</code> and <b>two</b> role assignments (Key Vault Secrets Officer for you, Secrets User for CI). If no role assignment shows, stop: the object ids in the tfvars are empty. Then type <code>yes</code>.</li>
 <li>For production: <code>terraform init -reconfigure -backend-config=variables/backend.config.pr.tfvars</code>, then the same apply with <code>variables.pr.tfvars</code>.</li>
 <li>If the name <code>kv-buraco-de</code> is taken worldwide (Key Vault names are global), tell Claude.</li></ol>`],
 ['Add every runtime secret',`<ol>
