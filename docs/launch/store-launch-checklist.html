@@ -440,7 +440,7 @@ Or pick the personal address now and change it before launch: it is editable at 
 <li>Copy the client id (<code>…apps.googleusercontent.com</code>).</li>
 <li>It goes in three places:<ul>
 <li>Key Vault <code>google-client-id</code> in both vaults, later in the Azure phase;</li>
-<li><code>mobile/eas.json</code> → <code>EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID</code> in the preview and production profiles;</li>
+<li><code>mobile/eas.json</code> → <code>EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID</code> in the preview and production profiles (add an <code>"env": {}</code> block to each; never leave a value as <code>""</code>, or every <code>eas</code> command refuses the file);</li>
 <li><code>mobile/.env</code> for local runs.</li></ul> It is not a secret, so committing it in eas.json is fine.</li></ol>`],
 ['Create the Google OAuth client: iOS',`<ol>
 <li>Google Auth Platform → Clients → Create client → <b>iOS</b> → name <code>buraco-ios</code> → Bundle ID <code>com.buraco.app</code>. App Store ID and Team ID are optional.</li>
