@@ -19,7 +19,8 @@ export default function Button({ label, onPress, variant = 'primary', disabled, 
   const { c, space, radius, size, type } = useTheme();
   const colors = {
     primary: { bg: c.accent, fg: c.onAccent, border: c.accent },
-    secondary: { bg: c.surfaceRaised, fg: c.ink, border: c.line },
+    secondary: onTable ? { bg: c.tableRaised, fg: c.tableInk, border: c.tableLine }
+      : { bg: c.surfaceRaised, fg: c.ink, border: c.line },
     quiet: { bg: 'transparent', fg: onTable ? c.accent : c.accentInk, border: 'transparent' },
   }[variant];
   return (

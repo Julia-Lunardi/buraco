@@ -72,13 +72,26 @@ async def create(body: TableCreate, user: User = Depends(get_current_user), db: 
 
 @router.get("")
 async def mine(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> list[dict]:
-    """Home screen: unfinished tables, the ones waiting for you first."""
+    """Home screen: unfinished tables, the ones waiting for you first, with the scores
+    (seen from your team) and whose turn it is."""
     rows = await tables.tables_of(db, user)
-    return [{"id": str(t.id), "code": t.code, "status": t.status.value, "mode": t.mode.value,
-             "num_players": t.num_players,
-             "your_turn": t.current_seat is not None and
-             any(s.user_id == user.id and s.seat == t.current_seat for s in t.seats),
-             "players": [s.user.display_name if s.user else None for s in t.seats]} for t in rows]
+    return [await _summary(db, t, user) for t in rows]
+
+
+async def _summary(db: AsyncSession, t: GameTable, user: User) -> dict:
+    me = next(s.seat for s in t.seats if s.user_id == user.id)
+    scores = None
+    if t.status is not TableStatus.LOBBY:
+        totals = (await tables.load_match(db, t)).scores  # a replay: home lists are short
+        scores = [totals[me % 2], totals[1 - me % 2]]
+    turn = next((s for s in t.seats if s.seat == t.current_seat), None)
+    return {"id": str(t.id), "code": t.code, "status": t.status.value, "mode": t.mode.value,
+            "num_players": t.num_players, "preset": t.preset, "target_score": t.target_score,
+            "my_seat": me, "your_turn": turn is not None and turn.seat == me,
+            "turn_of": None if turn is None or turn.seat == me else
+            {"name": turn.user.display_name if turn.user else None, "bot": turn.user is None},
+            "scores": scores,
+            "players": [s.user.display_name if s.user else None for s in t.seats]}
 
 
 @router.post("/join")

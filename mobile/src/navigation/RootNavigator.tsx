@@ -52,8 +52,7 @@ export default function RootNavigator() {
                           options={{ title: t('newTable.title'), headerBackTitle: t('common.back') }} />
             <Stack.Screen name="Join" component={JoinScreen}
                           options={{ title: t('join.title'), headerBackTitle: t('common.back') }} />
-            <Stack.Screen name="Lobby" component={LobbyScreen}
-                          options={{ title: t('lobby.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="Lobby" component={LobbyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Table" component={TableScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Support" component={SupportScreen}
                           options={{ title: t('support.title'), headerBackTitle: t('common.back') }} />

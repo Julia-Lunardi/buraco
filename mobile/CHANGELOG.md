@@ -1,5 +1,16 @@
 # Mobile Changelog
 
+## 27.10.2026 (12)
+
+- The other designed screens are now in the app:
+  - **Sign in:** on the felt, with a small fan of cards and the wordmark. Apple's white button and Google's light button, the guest option as a link, and one line accepting the Terms and the Privacy policy.
+  - **Home:** a settings gear, "Nova mesa" and "Entrar com código" side by side, and "Suas mesas" as one grouped list. Each row shows the other players, the mode, rules and target, both scores, and a gold "Sua vez" pill or whose turn it is. A practice row follows. With no tables yet, it shows the first-time version.
+  - **New table:** grouped sections; the seats as a list with avatars, team marks and the partner "across from you"; chat as a card with a hint; a private-table note; and "Criar mesa e convidar" when friends are invited.
+  - **Lobby:** on the felt, seats around a face-down deck (you at the bottom, your partner across), live presence, the bot level on bot seats, a team legend, and share in the header.
+  - **Settings:** grouped cards (Cards and table, Screen, Account, About). The felt is chosen from two swatches, and "Ordenar a mão" is saved: the table's own Naipe/Valor toggle uses and updates it.
+- Secondary buttons have a felt variant (`onTable`).
+- New test: every literal `t('…')` key used in `src/` exists in pt-BR. It caught `table.pileHint`, which sat in the `join` block, so the Fechado hint would have shown a missing-translation string.
+
 ## 27.10.2026 (11)
 
 - The table follows Claude Design's "Jogo — mesa mínima". Their team's well is on top (avatars with card counts, score, a morto marker, chat with an unread dot), the stock and the spread lixo are in the middle, and your well (melds, score, morto, the "Naipe / Valor" sort) and your overlapping hand are below. There are no labels: the team to play has a gold inset line and the player to play a gold ring.

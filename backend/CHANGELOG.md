@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 27.10.2026 (6)
+
+- `GET /tables` (home list) rows now also carry `preset`, `target_score`, `my_seat`, `scores` (your team first; `null` in the lobby) and `turn_of` (`{name, bot}` when it isn't your turn). Scores come from a replay per row: home lists are short.
+
 ## 27.10.2026 (5)
 
 - **Fechado preset** (`docs/rules/fechado.md`, a draft for review): the pile can only be taken by using its top card at once, either in a new meld with at least two cards from the hand, or added to a team meld.

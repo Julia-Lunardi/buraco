@@ -20,6 +20,7 @@ import type { RootStackParamList } from '../navigation/types';
 import PushPrimer from '../notifications/PushPrimer';
 import { usePushOffer } from '../notifications/usePushOffer';
 import { useTableSocket } from '../realtime/useTableSocket';
+import { usePreferences } from '../settings/PreferencesContext';
 import { useTheme } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Table'>;
@@ -41,8 +42,10 @@ export default function TableScreen({ navigation, route }: Props) {
   const chat = useChat(tableId, liveChat, user?.id);
   const [chatOpen, setChatOpen] = useState(false);
   const [hintText, setHintText] = useState('');
-  const [sortBy, setSortBy] = useState<'suit' | 'rank'>('suit');
   const push = usePushOffer();
+  const prefs = usePreferences();
+  const sortBy = prefs.sort;
+  const setSortBy = (value: 'suit' | 'rank') => prefs.set('sort', value);
   const [picked, setPicked] = useState<number[]>([]);
 
   const game = table?.game ?? null;

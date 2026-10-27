@@ -12,7 +12,14 @@ export interface TableSummary {
   status: TableStatus;
   mode: PlayMode;
   num_players: 2 | 4;
+  preset: string;
+  target_score: number;
+  my_seat: number;
   your_turn: boolean;
+  /** Whose turn it is when it isn't yours (null in the lobby or on your turn). */
+  turn_of: { name: string | null; bot: boolean } | null;
+  /** [your team, the other team]; null in the lobby. */
+  scores: [number, number] | null;
   players: (string | null)[];
 }
 

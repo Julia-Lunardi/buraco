@@ -9,6 +9,7 @@ import { errorDetail } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { appleSignIn, googleReady, googleSignInAndroid, nativeGoogle } from '../auth/providers';
 import GoogleLogo from '../components/GoogleLogo';
+import Card from '../features/table/Card';
 import { GOOGLE_CLIENT_IDS, LEGAL_URLS } from '../config';
 import { t } from '../i18n';
 import { useTheme } from '../theme';
@@ -21,7 +22,7 @@ const PLACEHOLDER_CLIENT_ID = 'missing-client-id';
 const BUTTON_HEIGHT = 52;
 
 export default function SignInScreen() {
-  const { name, c, space, radius, type } = useTheme();
+  const { c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
   const { playAsGuest, signInWithGoogle, signInWithApple } = useAuth();
 
@@ -128,22 +129,35 @@ export default function SignInScreen() {
     justifyContent: 'center' as const, flexDirection: 'row' as const, gap: space.space2,
   };
 
+  const legal = (label: string, url: string) => url
+    ? <Text style={{ color: c.accent }} accessibilityRole="link" onPress={() => Linking.openURL(url)}>{label}</Text>
+    : <Text>{label}</Text>;
+
+  // On the felt (Claude Design "Entrar"): a small fan of cards, the wordmark, then the
+  // sign-in buttons in each brand's own colours and the guest option as a plain link.
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: c.surface }}
+      style={{ flex: 1, backgroundColor: c.table }}
       contentContainerStyle={{
-        flexGrow: 1, justifyContent: 'center', alignItems: 'center',
-        paddingHorizontal: space.space4, paddingTop: insets.top + space.space7, paddingBottom: insets.bottom + space.space5,
+        flexGrow: 1, alignItems: 'center', paddingHorizontal: space.space5,
+        paddingTop: insets.top + space.space5, paddingBottom: insets.bottom + space.space5,
       }}
     >
-      <View style={{ width: '100%', maxWidth: 420, gap: space.space3 }}>
-        <View style={{ alignItems: 'center', marginBottom: space.space6, gap: space.space2 }}>
-          <Text style={[type.wordmark, { color: c.ink }]} accessibilityRole="header">{t('appName')}</Text>
-          <Text style={[type.body, { color: c.inkSoft, textAlign: 'center' }]}>{t('signIn.tagline')}</Text>
+      <View style={{ flex: 1, width: '100%', maxWidth: 420, gap: space.space3 }}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.space6, minHeight: 320 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 104 }} importantForAccessibility="no-hide-descendants">
+            <Card faceDown size="pile" style={{ transform: [{ rotate: '-10deg' }, { translateY: 8 }] }} />
+            <Card label="AH" size="pile" style={{ marginLeft: -16 }} />
+            <Card label="2S" size="pile" style={{ marginLeft: -16, transform: [{ rotate: '10deg' }, { translateY: 8 }] }} />
+          </View>
+          <View style={{ alignItems: 'center', gap: 10 }}>
+            <Text style={[type.wordmark, { color: c.tableInk, textAlign: 'center' }]} accessibilityRole="header">{t('appName')}</Text>
+            <Text style={[type.body, { color: c.tableInkSoft, textAlign: 'center', maxWidth: 260 }]}>{t('signIn.tagline')}</Text>
+          </View>
         </View>
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={[type.body, { color: c.invalidInk, textAlign: 'center' }]}>
+          <Text accessibilityLiveRegion="polite" style={[type.body, { color: c.tableInk, textAlign: 'center' }]}>
             {error}
           </Text>
         ) : null}
@@ -154,9 +168,7 @@ export default function SignInScreen() {
             {appleWidth > 0 && (
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                buttonStyle={name === 'dark'
-                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
                 cornerRadius={radius.radiusMd}
                 style={{ width: appleWidth, height: BUTTON_HEIGHT }}
                 onPress={onApple}
@@ -171,14 +183,15 @@ export default function SignInScreen() {
             disabled={!!busy || (!nativeGoogle && !request)}
             accessibilityRole="button"
             style={({ pressed }) => [buttonBase, {
-              backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line,
+              // Google's light button: white, #747775 outline, #1F1F1F text.
+              backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#747775',
               opacity: pressed || busy === 'google' ? 0.7 : 1,
             }]}
           >
-            {busy === 'google' ? <ActivityIndicator color={c.inkSoft} /> : (
+            {busy === 'google' ? <ActivityIndicator color="#1F1F1F" /> : (
               <>
                 <GoogleLogo size={20} />
-                <Text style={[type.label, { color: c.ink }]}>{t('signIn.continueGoogle')}</Text>
+                <Text style={[type.label, { color: '#1F1F1F' }]}>{t('signIn.continueGoogle')}</Text>
               </>
             )}
           </Pressable>
@@ -188,27 +201,17 @@ export default function SignInScreen() {
           onPress={onGuest}
           disabled={!!busy}
           accessibilityRole="button"
-          style={({ pressed }) => [buttonBase, { opacity: pressed ? 0.6 : 1 }]}
+          accessibilityHint={t('signIn.guestHint')}
+          style={({ pressed }) => [buttonBase, { height: 44, opacity: pressed ? 0.6 : 1 }]}
         >
-          {busy === 'guest' ? <ActivityIndicator color={c.inkSoft} />
-            : <Text style={[type.label, { color: c.accentInk }]}>{t('signIn.guest')}</Text>}
+          {busy === 'guest' ? <ActivityIndicator color={c.tableInkSoft} />
+            : <Text style={[type.label, { color: c.tableInk }]}>{t('signIn.guest')}</Text>}
         </Pressable>
-        <Text style={[type.caption, { color: c.inkSoft, textAlign: 'center' }]}>{t('signIn.guestHint')}</Text>
 
-        {(LEGAL_URLS.privacy || LEGAL_URLS.terms) ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.space4, marginTop: space.space5 }}>
-            {LEGAL_URLS.privacy ? (
-              <Text style={[type.caption, { color: c.inkSoft }]} onPress={() => Linking.openURL(LEGAL_URLS.privacy)}>
-                {t('signIn.privacy')}
-              </Text>
-            ) : null}
-            {LEGAL_URLS.terms ? (
-              <Text style={[type.caption, { color: c.inkSoft }]} onPress={() => Linking.openURL(LEGAL_URLS.terms)}>
-                {t('signIn.terms')}
-              </Text>
-            ) : null}
-          </View>
-        ) : null}
+        <Text style={[type.caption, { color: c.tableInkSoft, textAlign: 'center' }]}>
+          {t('signIn.legalBefore')}{legal(t('signIn.termsLong'), LEGAL_URLS.terms)}{t('signIn.legalMiddle')}
+          {legal(t('signIn.privacyLong'), LEGAL_URLS.privacy)}{t('signIn.legalAfter')}
+        </Text>
       </View>
     </ScrollView>
   );

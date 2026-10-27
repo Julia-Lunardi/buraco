@@ -5,14 +5,17 @@ import { createContext, type ReactNode, useContext, useEffect, useMemo, useState
 export type ThemePref = 'system' | 'light' | 'dark';
 export type Felt = 'green' | 'blue';
 export type OrientationPref = 'auto' | 'portrait' | 'landscape';
+export type HandSort = 'suit' | 'rank';
 
 export interface Preferences {
   theme: ThemePref;
   felt: Felt;
   orientation: OrientationPref;
+  /** Default hand order at the table; the table's own toggle changes it too. */
+  sort: HandSort;
 }
 
-const DEFAULTS: Preferences = { theme: 'system', felt: 'green', orientation: 'auto' };
+const DEFAULTS: Preferences = { theme: 'system', felt: 'green', orientation: 'auto', sort: 'suit' };
 const STORAGE_KEY = 'preferences';
 
 const LOCKS: Record<OrientationPref, ScreenOrientation.OrientationLock> = {

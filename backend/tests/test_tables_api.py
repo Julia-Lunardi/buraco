@@ -84,6 +84,21 @@ async def test_home_lists_my_tables_with_my_turn_first(client, sessions, monkeyp
     assert (await client.get("/tables", headers=bearer(bia))).json() == []
 
 
+async def test_home_rows_carry_rules_scores_and_whose_turn(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["friend"], "preset": "stbl",
+                                                "target_score": 2000}, headers=bearer(ana))).json()
+    [row] = (await client.get("/tables", headers=bearer(ana))).json()
+    assert row["preset"] == "stbl" and row["target_score"] == 2000 and row["my_seat"] == 0
+    assert row["scores"] is None and row["turn_of"] is None  # still in the lobby
+    await client.post("/tables/join", json={"code": table["code"]}, headers=bearer(bia))
+    await client.post(f"/tables/{table['id']}/start", headers=bearer(ana))
+    [row] = (await client.get("/tables", headers=bearer(bia))).json()
+    assert row["my_seat"] == 1 and row["scores"] == [0, 0]
+    assert row["your_turn"] is False and row["turn_of"] == {"name": "Ana", "bot": False}
+
+
 async def test_strangers_cannot_see_a_table(client, sessions, monkeypatch):
     ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
     caio = await sign_in(client, monkeypatch, "g-caio", "Caio")

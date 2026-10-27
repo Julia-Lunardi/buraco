@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
@@ -12,10 +13,10 @@ import { LEGAL_URLS } from '../config';
 import type { RootStackParamList } from '../navigation/types';
 import { t } from '../i18n';
 import { usePreferences } from '../settings/PreferencesContext';
-import { useTheme } from '../theme';
+import { palette, useTheme } from '../theme';
 
 export default function SettingsScreen() {
-  const { c, space, radius, type } = useTheme();
+  const { name, c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
   const prefs = usePreferences();
   const { signOut, deleteAccount } = useAuth();
@@ -33,56 +34,91 @@ export default function SettingsScreen() {
     ]);
   }
 
-  const section = (title: string) => (
-    <Text style={[type.caption, { color: c.inkSoft, marginTop: space.space5, textTransform: 'uppercase',
-                                  letterSpacing: 0.6 }]}>{title}</Text>
+  // Grouped like the design ("Ajustes"): a small caps title, then a raised card of rows.
+  const group = (title: string, ...rows: React.ReactNode[]) => (
+    <View style={{ gap: space.space2 }}>
+      <Text style={[type.caption, { color: c.inkSoft, fontFamily: type.label.fontFamily, letterSpacing: 0.3,
+                                    textTransform: 'uppercase', paddingHorizontal: 4 }]} accessibilityRole="header">{title}</Text>
+      <View style={{ backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line, borderRadius: radius.radiusMd,
+                     paddingHorizontal: space.space4, paddingVertical: 4 }}>
+        {rows.filter(Boolean).map((r, i) => (
+          <View key={i} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>{r}</View>
+        ))}
+      </View>
+    </View>
   );
-  const label = (text: string) => <Text style={[type.bodyStrong, { color: c.ink }]}>{text}</Text>;
-  const row = (text: string, onPress: () => void, color = c.ink) => (
+  const item = (text: string, control: React.ReactNode) => (
+    <View style={{ gap: space.space2, paddingVertical: 12 }}>
+      <Text style={[type.body, { color: c.ink }]}>{text}</Text>
+      {control}
+    </View>
+  );
+  const link = (text: string, onPress: () => void, color = c.ink) => (
     <Pressable onPress={onPress} accessibilityRole="button"
-               style={({ pressed }) => ({ minHeight: 48, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+               style={({ pressed }) => ({ minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                          opacity: pressed ? 0.6 : 1 })}>
       <Text style={[type.body, { color }]}>{text}</Text>
+      <Ionicons name="chevron-forward" size={18} color={c.inkSoft} />
     </Pressable>
   );
+  const felt = (value: 'green' | 'blue', text: string) => {
+    const on = prefs.felt === value;
+    return (
+      <Pressable key={value} onPress={() => prefs.set('felt', value)} accessibilityRole="radio" accessibilityState={{ selected: on }}
+                 style={{ flex: 1, minHeight: 64, borderRadius: radius.radiusMd, borderWidth: 2, justifyContent: 'flex-end',
+                          paddingVertical: 8, paddingHorizontal: 10, borderColor: on ? c.accent : 'transparent',
+                          backgroundColor: value === 'green' ? palette(name, 'green').table : palette(name, 'blue').table }}>
+        <Text style={[type.caption, { fontFamily: type.label.fontFamily, color: c.tableInk }]}>{text}</Text>
+      </Pressable>
+    );
+  };
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: c.surface }}
                 contentContainerStyle={{ padding: space.space4, paddingBottom: insets.bottom + space.space6,
-                                         gap: space.space3, maxWidth: 600, width: '100%', alignSelf: 'center' }}>
-      {section(t('settings.appearance'))}
-      {label(t('settings.theme'))}
-      <SegmentedControl value={prefs.theme} onChange={(v) => prefs.set('theme', v)} accessibilityLabel={t('settings.theme')}
-        options={[{ value: 'system', label: t('settings.themeSystem') }, { value: 'light', label: t('settings.themeLight') },
-                  { value: 'dark', label: t('settings.themeDark') }]} />
-      {label(t('settings.felt'))}
-      <SegmentedControl value={prefs.felt} onChange={(v) => prefs.set('felt', v)} accessibilityLabel={t('settings.felt')}
-        options={[{ value: 'green', label: t('settings.feltGreen') }, { value: 'blue', label: t('settings.feltBlue') }]} />
-      <View style={{ flexDirection: 'row', gap: space.space2 }}>
-        {(['green', 'blue'] as const).map((felt) => (
-          <View key={felt} style={{ flex: 1, height: 28, borderRadius: radius.radiusXs,
-                                    backgroundColor: felt === 'green' ? c.table : c.tableAlt,
-                                    opacity: prefs.felt === felt ? 1 : 0.4 }} />
-        ))}
-      </View>
-      {label(t('settings.orientation'))}
-      <SegmentedControl value={prefs.orientation} onChange={(v) => prefs.set('orientation', v)}
-        accessibilityLabel={t('settings.orientation')}
-        options={[{ value: 'auto', label: t('settings.orientationAuto') },
-                  { value: 'portrait', label: t('settings.orientationPortrait') },
-                  { value: 'landscape', label: t('settings.orientationLandscape') }]} />
+                                         gap: space.space5, maxWidth: 600, width: '100%', alignSelf: 'center' }}>
+      {group(t('settings.cardsAndTable'),
+        item(t('settings.felt'), (
+          <View accessibilityRole="radiogroup" accessibilityLabel={t('settings.felt')} style={{ flexDirection: 'row', gap: 10 }}>
+            {felt('green', t('settings.feltGreen'))}
+            {felt('blue', t('settings.feltBlue'))}
+          </View>
+        )),
+        item(t('table.sortHand'), (
+          <SegmentedControl value={prefs.sort} onChange={(v) => prefs.set('sort', v)} accessibilityLabel={t('table.sortHand')}
+            options={[{ value: 'suit', label: t('table.sortSuit') }, { value: 'rank', label: t('table.sortRank') }]} />
+        )),
+      )}
 
-      {section(t('settings.account'))}
-      <NameField />
-      {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
-      {row(t('settings.signOut'), () => { void signOut(); })}
-      {row(t('settings.deleteAccount'), confirmDelete, c.invalidInk)}
+      {group(t('settings.screen'),
+        item(t('settings.orientation'), (
+          <SegmentedControl value={prefs.orientation} onChange={(v) => prefs.set('orientation', v)}
+            accessibilityLabel={t('settings.orientation')}
+            options={[{ value: 'auto', label: t('settings.orientationAuto') },
+                      { value: 'portrait', label: t('settings.orientationPortrait') },
+                      { value: 'landscape', label: t('settings.orientationLandscape') }]} />
+        )),
+        item(t('settings.appearance'), (
+          <SegmentedControl value={prefs.theme} onChange={(v) => prefs.set('theme', v)} accessibilityLabel={t('settings.appearance')}
+            options={[{ value: 'system', label: t('settings.themeSystem') }, { value: 'light', label: t('settings.themeLight') },
+                      { value: 'dark', label: t('settings.themeDark') }]} />
+        )),
+      )}
+
+      {group(t('settings.account'),
+        <View style={{ paddingVertical: 12 }}><NameField /></View>,
+        error ? <Text style={[type.body, { color: c.invalidInk, paddingVertical: 12 }]}>{error}</Text> : null,
+        link(t('settings.signOut'), () => { void signOut(); }),
+        link(t('settings.deleteAccount'), confirmDelete, c.invalidInk),
+      )}
 
       {/* The only way to the Support screen: no prompts anywhere else, never after a game. */}
-      {row(t('settings.support'), () => navigation.navigate('Support'), c.accentInk)}
-
-      {(LEGAL_URLS.privacy || LEGAL_URLS.terms) ? <View style={{ height: space.space4 }} /> : null}
-      {LEGAL_URLS.privacy ? row(t('settings.privacy'), () => Linking.openURL(LEGAL_URLS.privacy), c.accentInk) : null}
-      {LEGAL_URLS.terms ? row(t('settings.terms'), () => Linking.openURL(LEGAL_URLS.terms), c.accentInk) : null}
+      {group(t('settings.about'),
+        link(t('settings.support'), () => navigation.navigate('Support')),
+        LEGAL_URLS.privacy ? link(t('settings.privacy'), () => Linking.openURL(LEGAL_URLS.privacy)) : null,
+        LEGAL_URLS.terms ? link(t('settings.terms'), () => Linking.openURL(LEGAL_URLS.terms)) : null,
+      )}
+      <Text style={[type.caption, { color: c.inkSoft, textAlign: 'center' }]}>{t('settings.footer')}</Text>
     </ScrollView>
   );
 }
