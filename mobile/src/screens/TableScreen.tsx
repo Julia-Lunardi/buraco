@@ -4,8 +4,11 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MeldView, SeatView, TableView } from '../api/tables';
+import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
 import PlayingCard from '../components/PlayingCard';
+import ChatPanel from '../features/chat/ChatPanel';
+import { useChat } from '../features/chat/useChat';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import PushPrimer from '../notifications/PushPrimer';
@@ -24,7 +27,10 @@ export default function TableScreen({ navigation, route }: Props) {
   const { tableId } = route.params;
   const { c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
-  const { table, connected, error, act, nextRound } = useTableSocket(tableId);
+  const { table, connected, error, act, nextRound, chat: liveChat, say } = useTableSocket(tableId);
+  const { user } = useAuth();
+  const chat = useChat(tableId, liveChat, user?.id);
+  const [chatOpen, setChatOpen] = useState(false);
   const push = usePushOffer();
   const [picked, setPicked] = useState<number[]>([]);
 
@@ -40,6 +46,9 @@ export default function TableScreen({ navigation, route }: Props) {
     );
   }
 
+  // Chat only where there is someone to talk to (bot tables have none; guests can't chat).
+  const people = table.seats.filter((s) => !s.bot && !s.open).length;
+  const chatAvailable = people >= 2 && !user?.is_guest;
   const me = table.my_seat ?? 0;
   const myTeam = me % 2;
   const myTurn = game !== null && game.current === me && table.status === 'playing';
@@ -83,9 +92,20 @@ export default function TableScreen({ navigation, route }: Props) {
             </Text>
           ))}
         </View>
-        <Text style={[type.body, { color: myTurn ? c.accent : c.tableInkSoft }]} accessibilityLiveRegion="polite">
-          {connected ? turnLine() : t('table.reconnecting')}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3 }}>
+          <Text style={[type.body, { color: myTurn ? c.accent : c.tableInkSoft, flex: 1 }]} accessibilityLiveRegion="polite">
+            {connected ? turnLine() : t('table.reconnecting')}
+          </Text>
+          {chatAvailable ? (
+            <Pressable onPress={() => { chat.markSeen(); setChatOpen(true); }} accessibilityRole="button"
+                       accessibilityLabel={chat.unread ? `${t('chat.open')}, ${t('chat.unread', { n: chat.unread })}` : t('chat.open')}
+                       style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={[type.label, { color: c.tableInk }]}>{t('chat.title')}</Text>
+              {chat.unread ? <View style={{ position: 'absolute', top: 6, right: 0, width: 8, height: 8, borderRadius: 4,
+                                            backgroundColor: c.accent }} /> : null}
+            </Pressable>
+          ) : null}
+        </View>
         {table.seats.filter((s) => s.covered_by_bot).map((s) => (
           <Text key={s.seat} style={[type.caption, { color: c.tableInkSoft }]}>{t('table.botFor', { name: s.name ?? '' })}</Text>
         ))}
@@ -160,6 +180,10 @@ export default function TableScreen({ navigation, route }: Props) {
           <Button label={t('table.backHome')} variant="secondary" onPress={() => navigation.popToTop()} />
         ) : null}
       </ScrollView>
+      {chatAvailable ? (
+        <ChatPanel visible={chatOpen} onClose={() => { chat.markSeen(); setChatOpen(false); }} table={table} chat={chat}
+                   myUserId={user?.id} send={say} />
+      ) : null}
       <PushPrimer visible={push.visible} onAllow={() => { void push.allow(); }} onLater={() => { void push.later(); }} />
     </View>
   );

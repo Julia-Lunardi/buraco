@@ -162,6 +162,26 @@ const da: Messages = {
     D: "ruder",
     C: "klør",
   },
+  chat: {
+    title: "Chat",
+    open: "Åbn chat",
+    placeholder: "Besked",
+    send: "Send",
+    empty: "Ingen beskeder endnu.",
+    off: "Chatten er slået fra ved dette bord.",
+    turnOff: "Slå chat fra",
+    turnOn: "Slå chat til",
+    unread: "{{n}} nye beskeder",
+    actions: "Besked fra {{name}}",
+    mute: "Gør {{name}} lydløs",
+    unmute: "Hør {{name}} igen",
+    report: "Anmeld besked",
+    block: "Bloker {{name}}",
+    reported: "Beskeden er anmeldt. Tak fordi du sagde til.",
+    blocked: "{{name}} er blokeret. Du ser ikke længere deres beskeder.",
+    close: "Luk",
+    phrases: "Flot!|Godt spillet|Kom så 😅|Ups!|Held og lykke!|Tak!",
+  },
 };
 
 export default da;

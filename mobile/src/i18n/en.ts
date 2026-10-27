@@ -162,6 +162,26 @@ const en: Messages = {
     D: "diamonds",
     C: "clubs",
   },
+  chat: {
+    title: "Chat",
+    open: "Open chat",
+    placeholder: "Message",
+    send: "Send",
+    empty: "No messages yet.",
+    off: "Chat is turned off at this table.",
+    turnOff: "Turn chat off",
+    turnOn: "Turn chat on",
+    unread: "{{n}} new messages",
+    actions: "Message from {{name}}",
+    mute: "Mute {{name}}",
+    unmute: "Unmute {{name}}",
+    report: "Report message",
+    block: "Block {{name}}",
+    reported: "Message reported. Thanks for letting us know.",
+    blocked: "{{name}} is blocked. You won't see their messages any more.",
+    close: "Close",
+    phrases: "Nice!|Well played|Come on 😅|Oops!|Good luck!|Thanks!",
+  },
 };
 
 export default en;

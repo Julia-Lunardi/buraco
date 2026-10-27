@@ -162,6 +162,26 @@ const ptBR = {
     D: "ouros",
     C: "paus",
   },
+  chat: {
+    title: "Chat",
+    open: "Abrir chat",
+    placeholder: "Mensagem",
+    send: "Enviar",
+    empty: "Nenhuma mensagem ainda.",
+    off: "O chat está desligado nesta mesa.",
+    turnOff: "Desligar chat",
+    turnOn: "Ligar chat",
+    unread: "{{n}} mensagens novas",
+    actions: "Mensagem de {{name}}",
+    mute: "Silenciar {{name}}",
+    unmute: "Ouvir {{name}} de novo",
+    report: "Denunciar mensagem",
+    block: "Bloquear {{name}}",
+    reported: "Mensagem denunciada. Obrigado por avisar.",
+    blocked: "{{name}} foi bloqueado. Você não verá mais as mensagens dessa pessoa.",
+    close: "Fechar",
+    phrases: "Boa!|Bem jogado|Vai logo 😅|Ops!|Boa sorte!|Obrigado!",
+  },
 };
 
 export default ptBR;

@@ -1,5 +1,18 @@
 # Mobile Changelog
 
+## 27.10.2026 (4)
+
+- Chat panel on the table (`features/chat/`):
+  - It slides up over the table in table colours, with an unread dot on the "Chat" button.
+  - Six quick phrases per language ("Boa!", "Bem jogado", "Vai logo 😅"…), a 300-character limit, and team marks (● / ◆) on names.
+- Long-press a message for its actions, shown as an inline row (Android alerts can't show four buttons):
+  - **mute**: per player and per table, kept on this phone;
+  - **report**: hidden for you at once, and for everyone after two reports;
+  - **block**: account-wide, so their messages vanish at every table.
+- The host can turn chat off from the panel; everyone sees "O chat está desligado nesta mesa".
+- Chat shows only at tables with at least two people: bot tables have nobody to talk to, and guests can't chat.
+- History (REST) and live (socket) messages merge without duplicates. A muted player never lights the unread dot. 5 tests; 46 in total.
+
 ## 27.10.2026 (3)
 
 - The full flow works end to end:
