@@ -427,6 +427,11 @@ const HOW=[
 ['Configure the OAuth consent screen',`<ol>
 <li>In the <code>buraco</code> project: menu → <b>Google Auth Platform</b> → Get started.</li>
 <li><b>Branding:</b> app name "Buraco", your support email, developer contact email. Leave the logo out for now: a logo triggers Google's brand verification.</li>
+<li><b>Support email shows only your personal address?</b> The dropdown lists only the Google account you are signed in with and Google Groups you manage. To use the Salvia Code Labs address:<ul>
+<li>make it a Google account at accounts.google.com/signup → "Use your existing email" (no Gmail needed; skip this if it is already a Google Workspace account);</li>
+<li>add it as <b>Owner</b> of the project in IAM &amp; Admin → IAM, and accept the invite;</li>
+<li>sign in to the console with it, and it appears in the dropdown.</li></ul>
+Or pick the personal address now and change it before launch: it is editable at any time, but users see it on the sign-in screen. The developer contact email is free text, so the company address can go there right away.</li>
 <li><b>Audience:</b> External. Then press <b>Publish app</b> so the status says "In production". In "Testing" only listed test users can sign in, and store reviewers are not on that list.</li>
 <li><b>Data access:</b> add only <code>openid</code>, <code>.../auth/userinfo.email</code> and <code>.../auth/userinfo.profile</code>. These are non-sensitive, so no review is needed.</li>
 <li>Add the privacy policy URL here once it exists.</li></ol>`],
