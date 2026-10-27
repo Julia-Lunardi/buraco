@@ -1,5 +1,10 @@
 {
   "expo": {
-    "owner": "aloeju"
+    "owner": "aloeju",
+    "extra": {
+      "eas": {
+        "projectId": "7925770f-8a60-40df-92fe-9d9aa9c93a55"
+      }
+    }
   }
 }
