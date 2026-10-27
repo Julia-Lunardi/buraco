@@ -44,6 +44,7 @@ const en: Messages = {
     and: ' and ',
     waitingBot: 'Bot\'s turn',
     nobodyYet: 'Table {{code}}',
+    open: 'Open table',
     signInForFriends: 'Sign in with Apple or Google to play with friends.',
   },
   settings: {

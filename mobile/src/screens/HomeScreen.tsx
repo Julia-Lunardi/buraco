@@ -2,13 +2,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
 import { myTables, type TableSummary } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
+import TablePreview from '../features/home/TablePreview';
 import Card from '../features/table/Card';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
@@ -31,6 +32,9 @@ export default function HomeScreen({ navigation }: Props) {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const guest = !!user?.is_guest;
+  // iPad landscape (and other wide windows): the list on the left, the chosen table on the right.
+  const wide = useWindowDimensions().width >= 900;
+  const [chosen, setChosen] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -78,19 +82,25 @@ export default function HomeScreen({ navigation }: Props) {
     return <Text style={[type.caption, { color: c.inkSoft, maxWidth: 110, textAlign: 'right' }]} numberOfLines={2}>{text}</Text>;
   };
 
+  const others = (row: TableSummary) => row.players.filter((_, seat) => seat !== row.my_seat).map((p) => p ?? t('home.bot'));
+  const title = (row: TableSummary) => (others(row).length ? listOf(others(row)) : t('home.nobodyYet', { code: row.code }));
+  const selected = wide ? tables?.find((row) => row.id === chosen) ?? tables?.[0] : undefined;
+
   const tableRow = (row: TableSummary, i: number) => {
-    const others = row.players.filter((_, seat) => seat !== row.my_seat).map((p) => p ?? t('home.bot'));
+    const names = others(row);
     const meta = [row.mode === 'live' ? t('newTable.live') : t('newTable.async'), t(`newTable.${row.preset}`),
                   t('home.upTo', { n: fmt(row.target_score) })].join(' · ');
     const solo = row.num_players === 2;
     return (
-      <Pressable key={row.id} onPress={() => open(row)} accessibilityRole="button"
+      <Pressable key={row.id} onPress={() => (wide ? setChosen(row.id) : open(row))} accessibilityRole="button"
+                 accessibilityState={wide ? { selected: selected?.id === row.id } : undefined}
                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.space3, minHeight: 72,
+                                            backgroundColor: selected?.id === row.id ? c.surfaceSunken : 'transparent',
                                             paddingVertical: 14, paddingHorizontal: space.space4, opacity: pressed ? 0.7 : 1,
                                             borderTopWidth: i ? 1 : 0, borderTopColor: c.line })}>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <Text style={[type.bodyStrong, { color: c.ink }]} numberOfLines={1}>
-            {others.length ? listOf(others) : t('home.nobodyYet', { code: row.code })}
+            {title(row)}
           </Text>
           <Text style={[type.caption, { color: c.inkSoft }]} numberOfLines={1}>{meta}</Text>
           {row.scores ? (
@@ -102,7 +112,7 @@ export default function HomeScreen({ navigation }: Props) {
               <View style={{ width: 7, height: 7, marginLeft: 6, borderRadius: 1, transform: [{ rotate: '45deg' }],
                              backgroundColor: c.teamBInk }} />
               <Text style={[type.caption, { color: c.inkSoft, fontVariant: ['tabular-nums'] }]} numberOfLines={1}>
-                {solo && others[0] ? others[0] : t('table.them')} {fmt(row.scores[1])}
+                {solo && names[0] ? names[0] : t('table.them')} {fmt(row.scores[1])}
               </Text>
             </View>
           ) : null}
@@ -163,7 +173,7 @@ export default function HomeScreen({ navigation }: Props) {
     );
   }
 
-  return (
+  const list = (
     <ScrollView style={{ flex: 1, backgroundColor: c.surface }} contentContainerStyle={page} refreshControl={refresh}>
       {header}
       {!guest ? (
@@ -198,5 +208,12 @@ export default function HomeScreen({ navigation }: Props) {
         </Pressable>
       </View>
     </ScrollView>
+  );
+  if (!wide || !selected) return list;
+  return (
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.surface }}>
+      <View style={{ width: 440, borderRightWidth: 1, borderRightColor: c.line }}>{list}</View>
+      <TablePreview row={selected} title={title(selected)} onOpen={() => open(selected)} />
+    </View>
   );
 }

@@ -1,5 +1,11 @@
 # Mobile Changelog
 
+## 27.10.2026 (13)
+
+- iPad landscape (windows 900 pt or wider):
+  - **Home** puts the list on the left and a preview of the chosen table on the right: rules, round, both scores, whose turn, and each team's melds on the felt, with "Abrir mesa".
+  - **New table** puts the rules on the left and the seats with the create button on the right.
+
 ## 27.10.2026 (12)
 
 - The other designed screens are now in the app:

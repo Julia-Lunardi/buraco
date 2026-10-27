@@ -44,6 +44,7 @@ const ptBR = {
     and: ' e ',
     waitingBot: 'Vez do bot',
     nobodyYet: 'Mesa {{code}}',
+    open: 'Abrir mesa',
     signInForFriends: 'Entre com a Apple ou o Google para jogar com amigos.',
   },
   settings: {

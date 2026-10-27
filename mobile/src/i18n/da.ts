@@ -44,6 +44,7 @@ const da: Messages = {
     and: ' og ',
     waitingBot: 'Bottens tur',
     nobodyYet: 'Bord {{code}}',
+    open: 'Åbn bordet',
     signInForFriends: 'Log ind med Apple eller Google for at spille med venner.',
   },
   settings: {

@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ScrollView, Switch, Text, View } from 'react-native';
+import { ScrollView, Switch, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
@@ -23,6 +23,7 @@ const TARGETS = ['1500', '3000'] as const;
 export default function NewTableScreen({ navigation, route }: Props) {
   const { c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
+  const wide = useWindowDimensions().width >= 900;
   const { user } = useAuth();
   const guest = !!user?.is_guest;
   const practice = !!route.params?.practice || guest;
@@ -88,10 +89,8 @@ export default function NewTableScreen({ navigation, route }: Props) {
   );
   const myInitials = (user?.display_name || t('newTable.you')).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
-  return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.surface }}
-                contentContainerStyle={{ padding: space.space4, paddingBottom: insets.bottom + space.space6,
-                                         gap: 22, maxWidth: 600, width: '100%', alignSelf: 'center' }}>
+  const settingsCol = (
+    <>
       {section(
         <View key="l">{label(t('newTable.rules'))}</View>,
         <SegmentedControl key="c" value={preset} onChange={setPreset} accessibilityLabel={t('newTable.rules')}
@@ -119,6 +118,27 @@ export default function NewTableScreen({ navigation, route }: Props) {
           options={TARGETS.map((v) => ({ value: v, label: Number(v).toLocaleString('pt-BR') }))} />,
       )}
 
+      <View style={{ gap: space.space2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3,
+                       minHeight: 56, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line,
+                       borderRadius: radius.radiusMd, paddingHorizontal: space.space4, paddingVertical: space.space2 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={[type.body, { color: c.ink }]}>{t('newTable.chat')}</Text>
+            {hint(t('newTable.chatHint'))}
+          </View>
+          <Switch value={chat} onValueChange={setChat} accessibilityLabel={t('newTable.chat')}
+                  trackColor={{ true: c.accent, false: c.line }} />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name="lock-closed-outline" size={14} color={c.inkSoft} />
+          {hint(t('newTable.privateNote'))}
+        </View>
+      </View>
+
+    </>
+  );
+  const seatsCol = (
+    <>
       {section(
         <View key="l">{label(t('newTable.seats'))}</View>,
         <View key="list" style={{ borderWidth: 1, borderColor: c.line, borderRadius: radius.radiusMd, overflow: 'hidden' }}>
@@ -154,27 +174,23 @@ export default function NewTableScreen({ navigation, route }: Props) {
         botLevel === 'sharp' ? <View key="h">{hint(t('newTable.sharpHint'))}</View> : null,
       )}
 
-      <View style={{ gap: space.space2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3,
-                       minHeight: 56, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line,
-                       borderRadius: radius.radiusMd, paddingHorizontal: space.space4, paddingVertical: space.space2 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[type.body, { color: c.ink }]}>{t('newTable.chat')}</Text>
-            {hint(t('newTable.chatHint'))}
-          </View>
-          <Switch value={chat} onValueChange={setChat} accessibilityLabel={t('newTable.chat')}
-                  trackColor={{ true: c.accent, false: c.line }} />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="lock-closed-outline" size={14} color={c.inkSoft} />
-          {hint(t('newTable.privateNote'))}
-        </View>
-      </View>
-
       {needsName ? <NameField compact /> : null}
       {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
       <Button label={anyFriend && !guest ? t('newTable.createAndInvite') : t('newTable.create')} onPress={create} busy={busy}
               disabled={needsName} />
+    </>
+  );
+  const column = { gap: 22, flex: 1 };
+
+  // iPad landscape (Claude Design "Nova mesa · iPad paisagem"): the rules on the left, the seats
+  // and the create button on the right.
+  return (
+    <ScrollView style={{ flex: 1, backgroundColor: c.surface }}
+                contentContainerStyle={{ padding: space.space4, paddingBottom: insets.bottom + space.space6,
+                                         gap: 22, maxWidth: wide ? 1100 : 600, width: '100%', alignSelf: 'center',
+                                         flexDirection: wide ? 'row' : 'column' }}>
+      {wide ? <View style={column}>{settingsCol}</View> : settingsCol}
+      {wide ? <View style={column}>{seatsCol}</View> : seatsCol}
     </ScrollView>
   );
 }
