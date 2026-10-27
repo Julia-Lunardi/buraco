@@ -37,6 +37,8 @@ class GameTable(Base):
     num_players: Mapped[int] = mapped_column(Integer)
     mode: Mapped[PlayMode] = mapped_column(_enum(PlayMode, "play_mode"))
     chat_enabled: Mapped[bool] = mapped_column(default=True)
+    # relaxed | standard | sharp: for bot seats chosen at creation and open seats filled at start.
+    bot_level: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
     target_score: Mapped[int] = mapped_column(Integer)
     status: Mapped[TableStatus] = mapped_column(_enum(TableStatus, "table_status"), default=TableStatus.LOBBY)
     # Secret: whoever knows the seed knows every hand. Never sent to clients.

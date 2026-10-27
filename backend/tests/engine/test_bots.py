@@ -66,3 +66,36 @@ def test_goes_out_when_it_can():
                        melds=(["3S 4S 5S 6S 7S 8S 9S"], []), phase=Phase.PLAY)
     rnd.apply(0, bot.choose(rnd, 0))
     assert rnd.went_out == 0
+
+
+# --- levels -----------------------------------------------------------------------
+
+from hypothesis import given, settings  # noqa: E402
+from hypothesis import strategies as st  # noqa: E402
+
+from app.engine.bots import BOTS, RelaxedBot, SharpBot  # noqa: E402
+from app.engine.game import Round  # noqa: E402
+from app.engine.presets import ABERTO  # noqa: E402
+from app.engine.simulate import play_round  # noqa: E402
+
+
+def test_sharp_keeps_a_card_that_would_feed_the_opponents():
+    # KC-QC and 4D-3D are pairs worth keeping, so 5H is the only loose card: the standard bot
+    # throws it. But 5H extends the opponents' 6H-7H-8H, handing them the pile: sharp keeps it.
+    rnd = rigged_round(["5H KC QC 4D 3D", "5S 6S"], melds=([], ["6H 7H 8H"]), phase=Phase.PLAY)
+    assert labels(rnd, [GreedyBot().choose(rnd, 0).card_id]) == ["5H"]
+    assert labels(rnd, [SharpBot().choose(rnd, 0).card_id]) != ["5H"]
+
+
+@settings(max_examples=25, deadline=None)
+@given(seed=st.integers(0, 2**32), n=st.sampled_from([2, 4]),
+       levels=st.lists(st.sampled_from(sorted(BOTS)), min_size=4, max_size=4))
+def test_every_level_plays_legally_to_the_end(seed, n, levels):
+    rnd = play_round(Round(ABERTO, n, seed), bots=[BOTS[level] for level in levels[:n]])
+    assert rnd.phase is Phase.OVER
+
+
+def test_relaxed_bot_is_reproducible():
+    first = play_round(Round(ABERTO, 2, "relaxed-replay"), bots=[RelaxedBot(), RelaxedBot()])
+    second = play_round(Round(ABERTO, 2, "relaxed-replay"), bots=[RelaxedBot(), RelaxedBot()])
+    assert first.history == second.history

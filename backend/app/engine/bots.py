@@ -1,12 +1,20 @@
 """Bots are ordinary clients of the engine: they read their own hand plus public
 state and return one action at a time, which goes through the same `apply()`.
 
-GreedyBot is the phase-1 baseline (the future "standard" level). Relaxed/sharp
-levels and preset-specific strategy (STBL: avoid wilds, deny the pile) come later.
+Three levels (design: relaxed / standard / sharp):
+- GreedyBot ("standard"): melds what it can, keeps wilds for canastras, takes the pile only
+  for a card it can use at once.
+- SharpBot: standard, plus Aberto's key skill: never feed the opponents. Anyone may take
+  the whole discard pile at any time in Aberto, so a discard that fits an opponent meld
+  hands them the pile.
+- RelaxedBot: human slips (sometimes a loose discard, sometimes holding melds back), seeded
+  from the game state so a game is reproducible.
+STBL-specific strategy (avoid wilds, clean canastras) arrives with the STBL preset.
 """
 
 from __future__ import annotations
 
+import random
 from collections import defaultdict
 from collections.abc import Sequence
 
@@ -137,3 +145,54 @@ def _rank_gap(a: int, b: int) -> int:
     if ACE in (a, b):  # an ace also sits next to the king
         gap = min(gap, abs((14 if a == ACE else a) - (14 if b == ACE else b)))
     return gap
+
+
+class SharpBot(GreedyBot):
+    """Discards dead cards: a card that would extend an opponent's meld (or sits right next to
+    one) invites them to take the whole pile, so it is kept unless nothing else is left."""
+
+    FEEDS_OPPONENT = 8
+    NEAR_OPPONENT = 3
+
+    def _usefulness(self, rnd: Round, seat: int, card: Card) -> int:
+        score = super()._usefulness(rnd, seat, card)
+        for meld in rnd.teams[1 - rnd.team_of(seat)].melds:
+            if analyse(meld.cards + [card], rnd.preset, meld.shape.kind):
+                score += self.FEEDS_OPPONENT
+            elif meld.shape.kind.value == "sequence" and meld.shape.suit == (card.suit.value if card.suit else None):
+                lo, hi = meld.shape.low or 0, meld.shape.high or 0
+                rank = card.rank
+                if lo - 2 <= rank <= hi + 2:
+                    score += self.NEAR_OPPONENT
+        return score
+
+
+class RelaxedBot(GreedyBot):
+    """A gentle opponent: about a third of discards are a little careless, and it sometimes
+    waits a turn before laying down. Seeded per decision, so replays are identical."""
+
+    LOOSE_DISCARD = 0.35
+    HOLD_BACK = 0.3
+
+    def _rng(self, rnd: Round, seat: int, salt: str) -> random.Random:
+        return random.Random(f"{rnd.seed}/{rnd.turns}/{seat}/{len(rnd.hands[seat])}/{salt}")
+
+    def _meld(self, rnd: Round, seat: int) -> Action | None:
+        # Never hold back when the hand is getting small: a relaxed bot is not a stuck bot.
+        if len(rnd.hands[seat]) > 6 and self._rng(rnd, seat, "hold").random() < self.HOLD_BACK:
+            return None
+        return super()._meld(rnd, seat)
+
+    def _discard(self, rnd: Round, seat: int) -> Action:
+        hand = rnd.hands[seat]
+        rng = self._rng(rnd, seat, "discard")
+        if len(hand) > 1 and rng.random() < self.LOOSE_DISCARD:
+            pool = [c for c in hand if not c.can_be_wild] or hand
+            for card in rng.sample(pool, len(pool)):
+                action = Discard(card.id)
+                if rnd.is_legal(seat, action):
+                    return action
+        return super()._discard(rnd, seat)
+
+
+BOTS = {"relaxed": RelaxedBot(), "standard": GreedyBot(), "sharp": SharpBot()}

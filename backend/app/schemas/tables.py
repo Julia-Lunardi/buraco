@@ -12,6 +12,7 @@ class TableCreate(BaseModel):
     mode: PlayMode = PlayMode.LIVE
     preset: str = "aberto"
     chat_enabled: bool = True
+    bot_level: Literal["relaxed", "standard", "sharp"] = "standard"
     target_score: int | None = Field(default=None, ge=500, le=10000)
 
 

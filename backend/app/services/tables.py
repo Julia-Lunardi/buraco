@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.engine.bots import GreedyBot
+from app.engine.bots import BOTS
 from app.engine.game import IllegalMove, Phase
 from app.engine.match import Match
 from app.engine.presets import PRESETS
@@ -24,7 +24,6 @@ from app.models import GameAction, GameTable, PlayMode, TableSeat, TableStatus, 
 
 SeatKind = Literal["friend", "bot"]
 _CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I/L: codes are read aloud
-_BOTS = {"standard": GreedyBot()}  # relaxed / sharp come later; all map to the baseline now
 
 
 class TableError(Exception):
@@ -37,7 +36,7 @@ class TableError(Exception):
 
 async def create_table(db: AsyncSession, host: User, *, num_players: int, seats: list[SeatKind],
                        mode: PlayMode = PlayMode.LIVE, preset: str = "aberto", chat_enabled: bool = True,
-                       target_score: int | None = None) -> GameTable:
+                       target_score: int | None = None, bot_level: str = "standard") -> GameTable:
     """The host takes seat 0; `seats` describes seats 1..n-1. A table with only bots
     starts at once; otherwise it waits in the lobby for friends."""
     if preset not in PRESETS:
@@ -48,13 +47,16 @@ async def create_table(db: AsyncSession, host: User, *, num_players: int, seats:
         raise TableError(status.HTTP_403_FORBIDDEN, "account_required",
                          "Sign in with Apple or Google to play with friends.")
     target = target_score or PRESETS[preset].target_score
+    if bot_level not in BOTS:
+        raise TableError(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_bot_level", "Unknown bot level.")
     if not (500 <= target <= 10000 and target % 500 == 0):
         raise TableError(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_target", "Target score must be 500 to 10000.")
 
     table = GameTable(code=await _free_code(db), host_id=host.id, preset=preset, num_players=num_players,
-                      mode=mode, chat_enabled=chat_enabled, target_score=target, seed=secrets.token_hex(16))
+                      mode=mode, chat_enabled=chat_enabled, target_score=target, bot_level=bot_level,
+                      seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=0, user_id=host.id)] + [
-        TableSeat(seat=i, bot_level="standard" if kind == "bot" else None) for i, kind in enumerate(seats, 1)
+        TableSeat(seat=i, bot_level=bot_level if kind == "bot" else None) for i, kind in enumerate(seats, 1)
     ]
     db.add(table)
     await db.flush()
@@ -92,7 +94,7 @@ async def start(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTable:
         raise TableError(status.HTTP_409_CONFLICT, "already_started", "This game has already started.")
     for seat in table.seats:
         if seat.user_id is None and seat.bot_level is None:
-            seat.bot_level = "standard"
+            seat.bot_level = table.bot_level
     await _start(db, table)
     return table
 
@@ -176,6 +178,7 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "num_players": table.num_players,
         "mode": table.mode.value,
         "chat_enabled": table.chat_enabled,
+        "bot_level": table.bot_level,
         "target_score": table.target_score,
         "status": table.status.value,
         "is_host": table.host_id == user.id,
@@ -247,8 +250,9 @@ def _apply(db: AsyncSession, table: GameTable, match: Match, seat: int, action) 
 def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozenset[int] = frozenset()) -> None:
     rnd = match.round
     while rnd.phase is not Phase.OVER and _bot_controls(table, rnd.current, covered):
-        level = table.seats[rnd.current].bot_level or "standard"
-        _apply(db, table, match, rnd.current, _BOTS.get(level, _BOTS["standard"]).choose(rnd, rnd.current))
+        # A deleted player's or a dropped live player's seat plays at the table's level.
+        level = table.seats[rnd.current].bot_level or table.bot_level
+        _apply(db, table, match, rnd.current, BOTS.get(level, BOTS["standard"]).choose(rnd, rnd.current))
     if rnd.phase is Phase.OVER:
         match.finish_round()
         table.status = TableStatus.FINISHED if match.is_over else TableStatus.ROUND_OVER

@@ -216,3 +216,15 @@ async def test_seed_never_appears_in_a_player_view(sessions):
         table = await tables.create_table(db, ana, num_players=2, seats=["bot"])
         view = (await tables.load_match(db, table)).round.view_for(0)
         assert table.seed not in str(view)
+
+
+async def test_bot_level_applies_to_bot_seats_and_to_open_seats_at_start(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=4, seats=["bot", "friend", "friend"], bot_level="sharp")
+        assert table.seats[1].bot_level == "sharp"
+        await tables.start(db, ana, table.id)
+        assert [s.bot_level for s in table.seats] == [None, "sharp", "sharp", "sharp"]
+        with pytest.raises(TableError) as exc:
+            await tables.create_table(db, ana, num_players=2, seats=["bot"], bot_level="impossible")
+        assert exc.value.code == "bad_bot_level"

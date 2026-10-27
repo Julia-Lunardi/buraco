@@ -1,6 +1,7 @@
 """Bot-vs-bot simulator. Used by the property tests and runnable by hand:
 
     uv run python -m app.engine.simulate --games 200 --players 4
+    uv run python -m app.engine.simulate --games 400 --players 2 --team-a sharp --team-b standard
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ import argparse
 from collections import Counter
 from collections.abc import Callable
 
-from .bots import GreedyBot
+from .bots import BOTS, GreedyBot
 from .game import Action, Phase, Round
 from .match import Match
 from .presets import PRESETS, Preset
@@ -52,7 +53,11 @@ def main() -> None:
     parser.add_argument("--players", type=int, default=4, choices=(2, 4))
     parser.add_argument("--games", type=int, default=100)
     parser.add_argument("--seed", default="sim")
+    parser.add_argument("--team-a", default="standard", choices=sorted(BOTS), help="bot level for team A")
+    parser.add_argument("--team-b", default="standard", choices=sorted(BOTS), help="bot level for team B")
     args = parser.parse_args()
+    # Seats alternate teams (0, 2 = team A; 1, 3 = team B).
+    bots = [BOTS[args.team_a] if seat % 2 == 0 else BOTS[args.team_b] for seat in range(args.players)]
 
     wins, endings, rounds, turns = Counter(), Counter(), [], []
     for g in range(args.games):
@@ -61,11 +66,11 @@ def main() -> None:
                 endings["bater" if rnd.went_out is not None else "stock ran out"] += 1
                 turns.append(rnd.turns)
 
-        match = play_match(PRESETS[args.preset], args.players, f"{args.seed}/{g}", on_action=track)
+        match = play_match(PRESETS[args.preset], args.players, f"{args.seed}/{g}", bots=bots, on_action=track)
         wins[match.winner] += 1
         rounds.append(len(match.history))
 
-    print(f"{args.games} matches, {args.preset}, {args.players} players")
+    print(f"{args.games} matches, {args.preset}, {args.players} players, A={args.team_a} B={args.team_b}")
     print(f"  wins by team:     {dict(sorted(wins.items()))}")
     print(f"  rounds per match: avg {sum(rounds) / len(rounds):.1f}, max {max(rounds)}")
     print(f"  turns per round:  avg {sum(turns) / len(turns):.1f}, max {max(turns)}")

@@ -66,7 +66,7 @@ async def _push_joined(table_id: uuid.UUID, name: str) -> None:
 async def create(body: TableCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     table = await tables.create_table(db, user, num_players=body.num_players, seats=body.seats, mode=body.mode,
                                       preset=body.preset, chat_enabled=body.chat_enabled,
-                                      target_score=body.target_score)
+                                      target_score=body.target_score, bot_level=body.bot_level)
     return await _publish(db, table, await tables.load_match(db, table), user)
 
 

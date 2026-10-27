@@ -3,6 +3,7 @@ import { api } from './client';
 export type TableStatus = 'lobby' | 'playing' | 'round_over' | 'finished';
 export type PlayMode = 'live' | 'async';
 export type SeatKind = 'friend' | 'bot';
+export type BotLevel = 'relaxed' | 'standard' | 'sharp';
 
 /** One row of GET /tables: the home screen's list. */
 export interface TableSummary {
@@ -70,6 +71,7 @@ export interface TableView {
   num_players: 2 | 4;
   mode: PlayMode;
   chat_enabled: boolean;
+  bot_level: BotLevel;
   target_score: number;
   status: TableStatus;
   is_host: boolean;
@@ -88,6 +90,7 @@ export interface NewTable {
   seats: SeatKind[];
   mode: PlayMode;
   chat_enabled: boolean;
+  bot_level?: BotLevel;
   target_score?: number;
 }
 

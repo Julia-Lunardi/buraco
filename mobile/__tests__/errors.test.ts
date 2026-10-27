@@ -27,7 +27,7 @@ test('an unknown code falls back to the server detail, then to the fallback', ()
 });
 
 // Codes a player can't trigger through the app's own screens (validated client-side or internal).
-const INTERNAL = new Set(['bad_seats', 'bad_target', 'unknown_preset', 'no_such_message', 'no_such_user']);
+const INTERNAL = new Set(['bad_seats', 'bad_target', 'bad_bot_level', 'unknown_preset', 'no_such_message', 'no_such_user']);
 
 function backendCodes(): Set<string> {
   const root = join(__dirname, '../../backend/app');

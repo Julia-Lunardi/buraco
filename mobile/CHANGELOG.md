@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 27.10.2026 (6)
+
+- New table: "Nível dos bots" with Tranquilo, Normal and Esperto. Esperto shows the hint "Esperto não entrega o lixo de bandeja."
+
 ## 27.10.2026 (5)
 
 - Server errors are explained in the app's language instead of the server's English (`api/errors.ts`). This is the "why was that illegal?" text: rules explained, never blame. Example: "Um jogo precisa de 3 cartas seguidas do mesmo naipe, ou de 3 cartas iguais (trinca), com no máximo 1 curinga."

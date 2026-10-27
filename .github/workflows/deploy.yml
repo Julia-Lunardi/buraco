@@ -25,7 +25,7 @@ jobs:
     uses: ./.github/workflows/test.yml
 
   deploy:
-    name: Deploy (${{ github.ref == 'refs/heads/main' && 'pr' || 'de' }})
+    name: deploy
     needs: [test]
     if: vars.AZURE_READY == 'true'
     runs-on: ubuntu-latest

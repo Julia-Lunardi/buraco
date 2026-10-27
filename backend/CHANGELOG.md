@@ -1,5 +1,16 @@
 # Backend Changelog
 
+## 27.10.2026
+
+- Three bot levels (`engine/bots.py`), as the design asks:
+  - **Standard**: the existing GreedyBot.
+  - **Sharp**: also never feeds the opponents. In Aberto anyone may take the whole pile, so it keeps cards that would extend, or sit right next to, an opponent's meld.
+  - **Relaxed**: makes human slips, about a third of discards a little careless and sometimes waits before laying down. Seeded from the game state, so replays are identical.
+- Measured over 800 two-player matches per pairing (each side starting half of them): sharp beats standard 61%, standard beats relaxed 65%, sharp beats relaxed 72.5%. `simulate --team-a/--team-b` reproduces this.
+- `game_tables.bot_level` (migration `d05b9a14db05`, default `standard`) is used for the bot seats chosen at creation, for open seats filled at start, and for seats a bot covers. `POST /tables` takes `bot_level`.
+- `scripts/chat_reports.py --delete-user`: close an abusive account (terms §3). It works like in-app deletion and the report keeps its copy. The script's actions are now functions with tests.
+- Tests: legal play to the end for every mix of levels (property test), relaxed reproducibility, sharp keeping a card that standard would throw to the opponents, bot level on seats, moderation. 225 in total.
+
 ## 26.10.2026 (9)
 
 - Push notifications (`services/push.py`), ported from Woddie and made async.

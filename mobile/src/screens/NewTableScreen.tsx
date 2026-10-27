@@ -4,7 +4,7 @@ import { ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
-import { createTable, type PlayMode, type SeatKind } from '../api/tables';
+import { type BotLevel, createTable, type PlayMode, type SeatKind } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
 import SegmentedControl from '../components/SegmentedControl';
@@ -30,6 +30,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
   const [mode, setMode] = useState<PlayMode>('live');
   const [target, setTarget] = useState<(typeof TARGETS)[number]>('3000');
   const [chat, setChat] = useState(true);
+  const [botLevel, setBotLevel] = useState<BotLevel>('standard');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +45,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
     setError('');
     try {
       const table = await createTable({ num_players: count, seats: otherSeats, mode, chat_enabled: chat,
-                                        target_score: Number(target) });
+                                        bot_level: botLevel, target_score: Number(target) });
       navigation.replace(table.status === 'lobby' ? 'Lobby' : 'Table', { tableId: table.id });
     } catch (e) {
       setError(errorDetail(e, t('common.somethingWrong')));
@@ -83,6 +84,13 @@ export default function NewTableScreen({ navigation, route }: Props) {
         </View>
       ))}
       {guest ? hint(t('newTable.friendsNeedAccount')) : null}
+
+      {/* Friend seats left open also get a bot at start, so the level always matters. */}
+      {label(t('newTable.botLevel'))}
+      <SegmentedControl value={botLevel} onChange={setBotLevel} accessibilityLabel={t('newTable.botLevel')}
+        options={[{ value: 'relaxed', label: t('newTable.relaxed') }, { value: 'standard', label: t('newTable.standard') },
+                  { value: 'sharp', label: t('newTable.sharp') }]} />
+      {botLevel === 'sharp' ? hint(t('newTable.sharpHint')) : null}
 
       {label(t('newTable.mode'))}
       <SegmentedControl value={mode} onChange={setMode} accessibilityLabel={t('newTable.mode')}
