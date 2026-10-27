@@ -84,7 +84,10 @@ export interface TableView {
   game: GameView | null;
 }
 
+export type Preset = 'aberto' | 'stbl';
+
 export interface NewTable {
+  preset?: Preset;
   num_players: 2 | 4;
   /** Seats 1..n-1; the host sits at 0. */
   seats: SeatKind[];

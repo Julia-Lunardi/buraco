@@ -20,7 +20,8 @@ from collections.abc import Sequence
 
 from .cards import ACE, Card
 from .game import Action, AddToMeld, Discard, Draw, LayDown, Phase, Round, TakeDiscard
-from .melds import analyse
+from .melds import CanastraKind, analyse, canastra_kind
+from .presets import GoOutRequires
 from .scoring import card_points
 
 
@@ -70,8 +71,11 @@ class GreedyBot:
             if rnd.is_legal(seat, action):
                 return action
 
-        # 3. Spend a wild only to complete a canastra.
+        # 3. Spend a wild only to complete a canastra. In STBL a wild makes that canastra suja,
+        #    which can't take the team out: only do it once the team already has a clean one.
         size = rnd.preset.canastra_size
+        if rnd.preset.go_out_requires is GoOutRequires.CLEAN_CANASTRA and not _has_clean_canastra(rnd, seat):
+            return None
         for wild in (c for c in hand if c.can_be_wild):
             for meld in melds:
                 if len(meld.cards) == size - 1:
@@ -106,6 +110,11 @@ class GreedyBot:
             if analyse(meld.cards + [card], rnd.preset, meld.shape.kind):
                 score += 5
         return score
+
+
+def _has_clean_canastra(rnd: Round, seat: int) -> bool:
+    return any(canastra_kind(len(m.cards), m.shape, rnd.preset) in (CanastraKind.LIMPA, CanastraKind.REAL)
+               for m in rnd.teams[rnd.team_of(seat)].melds)
 
 
 def candidate_melds(cards: Sequence[Card], rnd: Round) -> list[list[Card]]:

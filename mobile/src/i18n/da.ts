@@ -91,6 +91,8 @@ const da: Messages = {
     rules: "Regler",
     aberto: "Aberto",
     abertoHint: "Du må tage kassebunken når som helst.",
+    stbl: "STBL",
+    stblHint: "Ingen trincas, og du kan kun gå ud med en ren canastra.",
     comingSoon: "kommer snart",
     botLevel: "Bot-niveau",
     relaxed: "Afslappet",

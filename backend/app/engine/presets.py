@@ -53,4 +53,12 @@ ABERTO = Preset(
     go_out_requires=GoOutRequires.ANY_CANASTRA,
 )
 
-PRESETS = {p.name: p for p in (ABERTO,)}
+# docs/rules/stbl.md: Aberto with no trincas, and only a clean canastra lets a team go out.
+STBL = Preset(
+    name="stbl",
+    trincas_allowed=False,
+    discard_pickup=DiscardPickup.FREE,
+    go_out_requires=GoOutRequires.CLEAN_CANASTRA,
+)
+
+PRESETS = {p.name: p for p in (ABERTO, STBL)}

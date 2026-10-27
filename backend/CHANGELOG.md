@@ -1,5 +1,12 @@
 # Backend Changelog
 
+## 27.10.2026 (3)
+
+- **STBL preset** (`docs/rules/stbl.md`, a draft for review): Aberto with no trincas, where only a clean canastra (limpa or real) lets a team go out. It's a pure configuration change, because the engine was built that way.
+- STBL bot strategy: a wild that completes a canastra makes it suja, which can't take the team out, so bots spend wilds only once their team already has a clean canastra. (Jogatina's reviews complain that its bots don't understand STBL.)
+- Tests: no trincas in STBL melds, going out only with a clean canastra (property test over every mix of bot levels), both sides of the wild decision, and an STBL table played through the API. A 200-match STBL simulation finished every game, with 16% of rounds ending on an empty stock.
+- Fechado is still "coming soon": its rule (taking the pile requires using its top card at once) needs the take-pile move to carry a meld.
+
 ## 27.10.2026 (2)
 
 - `GET /tables/{id}/hint` returns the sharp bot's move for your seat. Only at tables where every other seat is a bot (403 `hint_practice_only` otherwise), and only on your turn. Tests check the hint is always a legal move and is refused with friends.

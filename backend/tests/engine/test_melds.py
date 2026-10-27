@@ -123,3 +123,9 @@ def test_trinca_canastra():
 
 def test_canastra_real_is_clean_ace_to_ace():
     assert _kind("AH 2H 3H 4H 5H 6H 7H 8H 9H 10H JH QH KH AH") is CanastraKind.REAL
+
+
+def test_stbl_preset_has_no_trincas():
+    from app.engine.presets import STBL
+    assert shape("7H 7S 7D", STBL) is None
+    assert shape("7H 8H 9H", STBL) is not None

@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 27.10.2026 (8)
+
+- New table: rules are now Aberto or **STBL** ("Sem trinca e só bate com canastra limpa."). Fechado stays "em breve".
+
 ## 27.10.2026 (7)
 
 - Practice hint ("Dica"): on your turn at a table with only bots, it says in words what the sharp bot would play and pre-selects those cards. You still make the move. The backend refuses hints at any table with another person.

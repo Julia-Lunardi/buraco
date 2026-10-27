@@ -228,3 +228,12 @@ async def test_bot_level_applies_to_bot_seats_and_to_open_seats_at_start(session
         with pytest.raises(TableError) as exc:
             await tables.create_table(db, ana, num_players=2, seats=["bot"], bot_level="impossible")
         assert exc.value.code == "bad_bot_level"
+
+
+async def test_stbl_tables_play_with_stbl_rules(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], preset="stbl")
+        match = await tables.load_match(db, table)
+        assert table.preset == "stbl" and match.preset.trincas_allowed is False
+        await tables.act(db, ana, table.id, {"type": "draw"})  # plays like any other table

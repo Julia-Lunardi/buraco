@@ -99,3 +99,34 @@ def test_relaxed_bot_is_reproducible():
     first = play_round(Round(ABERTO, 2, "relaxed-replay"), bots=[RelaxedBot(), RelaxedBot()])
     second = play_round(Round(ABERTO, 2, "relaxed-replay"), bots=[RelaxedBot(), RelaxedBot()])
     assert first.history == second.history
+
+
+# --- STBL ---------------------------------------------------------------------------
+
+from app.engine.presets import STBL  # noqa: E402
+
+
+def test_stbl_bot_keeps_its_wild_until_the_team_has_a_clean_canastra():
+    rnd = rigged_round(["JK 9D KS", "5S 6S"], melds=(["3H 4H 5H 6H 7H 8H"], []), phase=Phase.PLAY, preset=STBL)
+    action = GreedyBot().choose(rnd, 0)
+    assert not (isinstance(action, AddToMeld) and labels(rnd, action.card_ids) == ["JK"])
+
+
+def test_stbl_bot_uses_the_wild_once_a_clean_canastra_exists():
+    rnd = rigged_round(["JK 9D KS", "5S 6S"], melds=(["3H 4H 5H 6H 7H 8H", "4D 5D 6D 7D 8D 9D 10D"], []),
+                       phase=Phase.PLAY, preset=STBL)
+    action = GreedyBot().choose(rnd, 0)
+    assert isinstance(action, AddToMeld) and labels(rnd, action.card_ids) == ["JK"]
+
+
+@settings(max_examples=25, deadline=None)
+@given(seed=st.integers(0, 2**32), n=st.sampled_from([2, 4]),
+       levels=st.lists(st.sampled_from(sorted(BOTS)), min_size=4, max_size=4))
+def test_stbl_rounds_end_and_going_out_is_always_clean(seed, n, levels):
+    rnd = play_round(Round(STBL, n, seed), bots=[BOTS[level] for level in levels[:n]])
+    assert rnd.phase is Phase.OVER
+    if rnd.went_out is not None:
+        melds = rnd.teams[rnd.team_of(rnd.went_out)].melds
+        assert any(len(m.cards) >= 7 and m.shape.wilds == 0 for m in melds)
+    for team in rnd.teams:
+        assert all(m.shape.kind.value == "sequence" for m in team.melds)  # no trincas

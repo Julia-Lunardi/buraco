@@ -91,6 +91,8 @@ const en: Messages = {
     rules: "Rules",
     aberto: "Aberto",
     abertoHint: "You may take the discard pile at any time.",
+    stbl: "STBL",
+    stblHint: "No trincas, and you can only go out with a clean canastra.",
     comingSoon: "coming soon",
     botLevel: "Bot level",
     relaxed: "Relaxed",

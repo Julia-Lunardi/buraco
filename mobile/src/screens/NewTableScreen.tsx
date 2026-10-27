@@ -4,7 +4,7 @@ import { ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
-import { type BotLevel, createTable, type PlayMode, type SeatKind } from '../api/tables';
+import { type BotLevel, createTable, type PlayMode, type Preset, type SeatKind } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
 import SegmentedControl from '../components/SegmentedControl';
@@ -31,6 +31,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
   const [target, setTarget] = useState<(typeof TARGETS)[number]>('3000');
   const [chat, setChat] = useState(true);
   const [botLevel, setBotLevel] = useState<BotLevel>('standard');
+  const [preset, setPreset] = useState<Preset>('aberto');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -44,7 +45,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
     setBusy(true);
     setError('');
     try {
-      const table = await createTable({ num_players: count, seats: otherSeats, mode, chat_enabled: chat,
+      const table = await createTable({ preset, num_players: count, seats: otherSeats, mode, chat_enabled: chat,
                                         bot_level: botLevel, target_score: Number(target) });
       navigation.replace(table.status === 'lobby' ? 'Lobby' : 'Table', { tableId: table.id });
     } catch (e) {
@@ -61,9 +62,9 @@ export default function NewTableScreen({ navigation, route }: Props) {
                 contentContainerStyle={{ padding: space.space4, paddingBottom: insets.bottom + space.space6,
                                          gap: space.space3, maxWidth: 600, width: '100%', alignSelf: 'center' }}>
       {label(t('newTable.rules'))}
-      <SegmentedControl value="aberto" onChange={() => {}} accessibilityLabel={t('newTable.rules')}
-        options={[{ value: 'aberto', label: t('newTable.aberto') }]} />
-      {hint(`${t('newTable.abertoHint')} Fechado, STBL: ${t('newTable.comingSoon')}.`)}
+      <SegmentedControl value={preset} onChange={setPreset} accessibilityLabel={t('newTable.rules')}
+        options={[{ value: 'aberto', label: t('newTable.aberto') }, { value: 'stbl', label: t('newTable.stbl') }]} />
+      {hint(`${preset === 'aberto' ? t('newTable.abertoHint') : t('newTable.stblHint')} Fechado: ${t('newTable.comingSoon')}.`)}
 
       {label(t('newTable.players'))}
       <SegmentedControl value={players} onChange={setPlayers} accessibilityLabel={t('newTable.players')}

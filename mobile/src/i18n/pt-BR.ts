@@ -91,6 +91,8 @@ const ptBR = {
     rules: "Regras",
     aberto: "Aberto",
     abertoHint: "Pode pegar o lixo a qualquer momento.",
+    stbl: "STBL",
+    stblHint: "Sem trinca e só bate com canastra limpa.",
     comingSoon: "em breve",
     botLevel: "Nível dos bots",
     relaxed: "Tranquilo",
