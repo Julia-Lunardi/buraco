@@ -1,0 +1,29 @@
+/* Colours and type from the Buraco design system (docs/design/tokens.json). */
+:root {
+  --surface: #f6f2ea; --raised: #fffcf6; --ink: #23201b; --ink-soft: #686156; --line: #ddd5c6;
+  --table: #1f3d32; --table-ink: #f1eee6; --accent-ink: #8a5d0c; --placeholder: #fbe7c4;
+  --sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  --display: "Fraunces", Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --surface: #141816; --raised: #1d2220; --ink: #eeeae2; --ink-soft: #a39d92; --line: #2f3633;
+          --table: #183129; --accent-ink: #f0c568; --placeholder: #4a3a12; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--surface); color: var(--ink); font: 17px/1.6 var(--sans); }
+header { background: var(--table); color: var(--table-ink); padding: 40px max(16px, env(safe-area-inset-left)) 32px; }
+header .wrap, main { max-width: 720px; margin: 0 auto; }
+header a { color: var(--table-ink); }
+.wordmark { font: 600 40px/1.1 var(--display); margin: 0; letter-spacing: -0.5px; }
+h1 { font: 700 30px/1.25 var(--sans); margin: 8px 0 0; text-wrap: balance; }
+main { padding: 24px max(16px, env(safe-area-inset-left)) 64px; }
+h2 { font: 700 20px/1.3 var(--sans); margin: 36px 0 8px; }
+h3 { font: 700 17px/1.4 var(--sans); margin: 20px 0 4px; }
+p, li { max-width: 65ch; }
+a { color: var(--accent-ink); }
+nav.lang { display: flex; gap: 16px; margin-top: 16px; font-size: 15px; }
+.meta { color: var(--ink-soft); font-size: 15px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 8px 0; }
+td, th { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-top: 1px solid var(--line); }
+.todo { background: var(--placeholder); padding: 0 4px; border-radius: 4px; font-weight: 700; }
+.lang-section + .lang-section { border-top: 2px solid var(--line); margin-top: 56px; padding-top: 8px; }
