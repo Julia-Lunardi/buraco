@@ -243,3 +243,63 @@ async def test_stbl_tables_play_with_stbl_rules(sessions):
                                     TakeDiscard(use_with=(4,), meld_id=5)])
 def test_fechado_pickups_round_trip(action):
     assert action_from_dict(action_to_dict(action)) == action
+
+
+# --- "Jogar de novo com o mesmo grupo" ----------------------------------------------
+
+async def finished_table(db, host, seats, *joiners):
+    table = await tables.create_table(db, host, num_players=len(seats) + 1, seats=seats, mode=PlayMode.ASYNC,
+                                      preset="stbl", target_score=2000, bot_level="sharp", chat_enabled=False)
+    for user in joiners:
+        await tables.join(db, user, table.code)
+    if table.status is TableStatus.LOBBY:
+        await tables.start(db, host, table.id)
+    table.status = TableStatus.FINISHED  # how it ended doesn't matter here
+    await db.flush()
+    return table
+
+
+async def test_rematch_seats_the_same_group_at_a_new_table(sessions):
+    async with sessions() as db:
+        ana, bia, caio = await make_user(db), await make_user(db, "Bia"), await make_user(db, "Caio")
+        old = await finished_table(db, ana, ["friend", "bot", "friend"], bia, caio)
+        new = await tables.rematch(db, bia, old.id)
+        assert new.id != old.id and new.code != old.code and old.rematch_id == new.id
+        assert new.status is TableStatus.LOBBY and new.host_id == bia.id  # whoever asked starts it
+        assert (new.preset, new.mode, new.num_players, new.target_score, new.bot_level, new.chat_enabled) == \
+            ("stbl", PlayMode.ASYNC, 4, 2000, "sharp", False)
+        assert [(s.seat, s.user_id, s.bot_level) for s in new.seats] == \
+            [(0, ana.id, None), (1, bia.id, None), (2, None, "sharp"), (3, caio.id, None)]  # same partners
+        assert (await tables.rematch(db, caio, old.id)).id == new.id  # one rematch, whoever asks
+
+
+async def test_rematch_against_bots_starts_at_once(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        old = await finished_table(db, ana, ["bot"])
+        new = await tables.rematch(db, ana, old.id)
+        assert new.status is TableStatus.PLAYING and new.seed != old.seed
+
+
+async def test_rematch_only_after_the_game_and_only_for_players(sessions):
+    async with sessions() as db:
+        ana, caio = await make_user(db), await make_user(db, "Caio")
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"])
+        with pytest.raises(TableError) as exc:
+            await tables.rematch(db, ana, table.id)
+        assert exc.value.code == "not_finished"
+        table.status = TableStatus.FINISHED
+        await db.flush()
+        with pytest.raises(TableError) as exc:
+            await tables.rematch(db, caio, table.id)
+        assert exc.value.code == "not_seated"
+
+
+async def test_rematch_seats_a_bot_where_a_player_left(sessions):
+    async with sessions() as db:
+        ana, bia = await make_user(db), await make_user(db, "Bia")
+        old = await finished_table(db, ana, ["friend"], bia)
+        old.seats[1].user_id = None  # Bia deleted her account
+        await db.flush()
+        new = await tables.rematch(db, ana, old.id)
+        assert new.status is TableStatus.PLAYING and new.seats[1].bot_level == "sharp"

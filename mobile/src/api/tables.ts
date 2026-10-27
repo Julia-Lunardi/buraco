@@ -88,6 +88,8 @@ export interface TableView {
   scores: [number, number];
   rounds: [TeamScore, TeamScore][];
   winner: 0 | 1 | null;
+  /** Set once someone at a finished table asked to play again with the same group. */
+  rematch_id: string | null;
   game: GameView | null;
 }
 
@@ -142,4 +144,9 @@ export async function getHint(id: string): Promise<Action> {
 
 export async function nextRound(id: string): Promise<TableView> {
   return (await api.post<TableView>(`/tables/${id}/next-round`)).data;
+}
+
+/** "Jogar de novo com o mesmo grupo": the new table (the same one whoever asks). */
+export async function rematch(id: string): Promise<TableView> {
+  return (await api.post<TableView>(`/tables/${id}/rematch`)).data;
 }

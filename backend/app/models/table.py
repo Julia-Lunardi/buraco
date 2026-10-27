@@ -46,6 +46,8 @@ class GameTable(Base):
     rounds_started: Mapped[int] = mapped_column(Integer, default=0)
     # Denormalised from the replay so "your turn" lists and pushes need no replay.
     current_seat: Mapped[int | None] = mapped_column(Integer)
+    # "Jogar de novo com o mesmo grupo": the table that continues this group, once someone asks.
+    rematch_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("game_tables.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(),
                                                  onupdate=func.now())

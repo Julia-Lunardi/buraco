@@ -137,6 +137,18 @@ async def next_round(table_id: uuid.UUID, user: User = Depends(get_current_user)
     return await _publish(db, table, match, user, before)
 
 
+@router.post("/{table_id}/rematch")
+async def rematch(table_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Play again with the same group: returns the new table (the same one for everyone)."""
+    new = await tables.rematch(db, user, table_id)
+    view = await _publish(db, new, await tables.load_match(db, new), user)
+    # Everyone still on the game-over screen learns where the group went.
+    old = await tables.refreshed(db, await db.get(GameTable, table_id))
+    old_match = await tables.load_match(db, old)
+    await hub.broadcast(old, old_match, viewer(old, old_match))
+    return view
+
+
 # --- chat -----------------------------------------------------------------------------
 
 async def _deliver_chat(db: AsyncSession, message) -> dict:

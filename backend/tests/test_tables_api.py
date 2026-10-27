@@ -14,6 +14,7 @@ from app.db import session as db_session
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+from app.models import GameTable, TableStatus
 from app.services import oauth
 
 from .test_oauth import GOOGLE_CLAIMS
@@ -284,3 +285,18 @@ async def test_no_hints_when_playing_with_friends(client, sessions, monkeypatch)
     await client.post(f"/tables/{table['id']}/start", headers=bearer(ana))
     res = await client.get(f"/tables/{table['id']}/hint", headers=bearer(ana))
     assert res.status_code == 403 and res.json()["code"] == "hint_practice_only"
+
+
+async def test_rematch_endpoint_points_the_old_table_to_the_new_one(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    res = await client.post(f"/tables/{table['id']}/rematch", headers=bearer(ana))
+    assert res.status_code == 409 and res.json()["code"] == "not_finished"
+    async with sessions() as db:
+        old = await db.get(GameTable, uuid.UUID(table["id"]))
+        old.status = TableStatus.FINISHED
+        await db.commit()
+    new = (await client.post(f"/tables/{table['id']}/rematch", headers=bearer(ana))).json()
+    assert new["id"] != table["id"] and new["status"] == "playing" and new["rematch_id"] is None
+    old_view = (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).json()
+    assert old_view["rematch_id"] == new["id"]

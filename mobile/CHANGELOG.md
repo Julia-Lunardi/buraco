@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 27.10.2026 (14)
+
+- Game over: "Jogar de novo com o mesmo grupo" now works at every table, not only practice ones. It asks the server for the group's new table. Once someone has asked, the others' button reads "O grupo está numa nova mesa: entrar" and takes them there.
+
 ## 27.10.2026 (13)
 
 - iPad landscape (windows 900 pt or wider):

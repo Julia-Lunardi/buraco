@@ -99,6 +99,34 @@ async def start(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTable:
     return table
 
 
+async def rematch(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTable:
+    """A finished table's group plays again: a new table with the same settings and everyone
+    in the same seat (so the same partners), hosted by whoever asked. Asking twice, or by
+    another player, returns the same new table. Seats whose player left get a bot."""
+    old = await _locked(db, table_id)
+    me = _seat_of(old, user)
+    if me is None:
+        raise TableError(status.HTTP_403_FORBIDDEN, "not_seated", "You are not playing at this table.")
+    if old.status is not TableStatus.FINISHED:
+        raise TableError(status.HTTP_409_CONFLICT, "not_finished", "This game is still going.")
+    if old.rematch_id is not None:
+        existing = await db.get(GameTable, old.rematch_id)
+        if existing is not None:
+            return existing
+
+    table = GameTable(code=await _free_code(db), host_id=user.id, preset=old.preset, num_players=old.num_players,
+                      mode=old.mode, chat_enabled=old.chat_enabled, target_score=old.target_score,
+                      bot_level=old.bot_level, seed=secrets.token_hex(16))
+    table.seats = [TableSeat(seat=s.seat, user_id=s.user_id, bot_level=None if s.user_id else (s.bot_level or old.bot_level))
+                   for s in old.seats]
+    db.add(table)
+    await db.flush()
+    old.rematch_id = table.id
+    if not any(s.user_id and s.user_id != user.id for s in table.seats):
+        await _start(db, table)  # only bots besides you: nobody to wait for
+    return table
+
+
 async def act(db: AsyncSession, user: User, table_id: uuid.UUID, action: dict,
               covered: frozenset[int] = frozenset()) -> tuple[GameTable, Match]:
     """Apply one player action, then let bots play until a person's turn or the round ends.
@@ -213,6 +241,7 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "scores": list(match.scores),
         "rounds": [[{**dataclasses.asdict(t), "total": t.total} for t in r] for r in match.history],
         "winner": match.winner,
+        "rematch_id": str(table.rematch_id) if table.rematch_id else None,
         "game": match.round.view_for(me) if match.round is not None and me is not None else None,
     }
 

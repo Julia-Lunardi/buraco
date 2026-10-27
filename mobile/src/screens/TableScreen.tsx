@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { createTable, getHint, type Preset, type SeatKind, type TableView } from '../api/tables';
+import { getHint, getTable, rematch, type TableView } from '../api/tables';
 import { describeError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
 import SegmentedControl from '../components/SegmentedControl';
@@ -52,6 +52,16 @@ export default function TableScreen({ navigation, route }: Props) {
   // Derived, not synced: after any new state, only cards still in the hand stay selected.
   const selected = picked.filter((id) => game?.hand.some((card) => card.id === id));
 
+  // Same group, same seats: the server makes one new table and everyone is pointed at it.
+  async function playAgain(done: TableView) {
+    try {
+      const next = done.rematch_id ? await getTable(done.rematch_id) : await rematch(done.id);
+      navigation.replace(next.status === 'lobby' ? 'Lobby' : 'Table', { tableId: next.id });
+    } catch {
+      navigation.popToTop();
+    }
+  }
+
   if (!table) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.table }}>
@@ -61,8 +71,7 @@ export default function TableScreen({ navigation, route }: Props) {
   }
 
   if (table.status === 'finished') {
-    return <GameOver table={table} onHome={() => navigation.popToTop()}
-                     onAgain={isPractice(table) ? () => { void playAgain(table); } : undefined} />;
+    return <GameOver table={table} onHome={() => navigation.popToTop()} onAgain={() => { void playAgain(table); }} />;
   }
   if (table.status === 'round_over') return <RoundSummary table={table} onNext={nextRound} />;
 
@@ -99,17 +108,6 @@ export default function TableScreen({ navigation, route }: Props) {
       else if (hint.type === 'discard') setPicked([hint.card]);
     } catch {
       setHintText('');
-    }
-  }
-
-  async function playAgain(done: TableView) {
-    const seats: SeatKind[] = done.seats.filter((s) => !s.is_you).map(() => 'bot');
-    try {
-      const next = await createTable({ preset: done.preset as Preset, num_players: done.num_players, seats, mode: done.mode,
-                                       chat_enabled: false, bot_level: done.bot_level, target_score: done.target_score });
-      navigation.replace(next.status === 'lobby' ? 'Lobby' : 'Table', { tableId: next.id });
-    } catch {
-      navigation.popToTop();
     }
   }
 

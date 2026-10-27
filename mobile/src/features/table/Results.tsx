@@ -152,7 +152,7 @@ export function GameOver({ table, onAgain, onHome }: { table: TableView; onAgain
         ))}
       </View>
       <View style={{ gap: space.space2 }}>
-        {onAgain ? <Button label={t('table.playAgain')} onPress={onAgain} /> : null}
+        {onAgain ? <Button label={table.rematch_id ? t('table.joinRematch') : t('table.playAgain')} onPress={onAgain} /> : null}
         <Button label={t('table.backHome')} variant={onAgain ? 'quiet' : 'primary'} onPress={onHome} />
       </View>
     </Sheet>

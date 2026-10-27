@@ -1,5 +1,13 @@
 # Backend Changelog
 
+## 27.10.2026 (7)
+
+- **Play again with the same group:** `POST /tables/{id}/rematch` on a finished table.
+  - It creates one new table with the same settings and everyone in the same seat, so the partners stay the same. The player who asked hosts it.
+  - A second request, from anyone at the table, returns the same new table. A seat whose player left gets a bot. If only bots remain besides the host, it starts at once.
+  - The old table's view gains `rematch_id`, and its subscribers get the update, so their game-over screens can follow.
+  - New error `not_finished` (409). Migration `e4a1c9b2d7f3` adds `game_tables.rematch_id`.
+
 ## 27.10.2026 (6)
 
 - `GET /tables` (home list) rows now also carry `preset`, `target_score`, `my_seat`, `scores` (your team first; `null` in the lobby) and `turn_of` (`{name, bot}` when it isn't your turn). Scores come from a replay per row: home lists are short.
