@@ -5,6 +5,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { t } from '../i18n';
 import HomeScreen from '../screens/HomeScreen';
+import SupportScreen from '../features/support/SupportScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import { useTheme } from '../theme';
@@ -40,6 +41,8 @@ export default function RootNavigator() {
             <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Settings" component={SettingsScreen}
                           options={{ title: t('settings.title'), headerBackTitle: t('common.back') }} />
+            <Stack.Screen name="Support" component={SupportScreen}
+                          options={{ title: t('support.title'), headerBackTitle: t('common.back') }} />
           </>
         )}
       </Stack.Navigator>

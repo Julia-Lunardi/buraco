@@ -1,3 +1,5 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +8,7 @@ import { errorDetail } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import SegmentedControl from '../components/SegmentedControl';
 import { LEGAL_URLS } from '../config';
+import type { RootStackParamList } from '../navigation/types';
 import { t } from '../i18n';
 import { usePreferences } from '../settings/PreferencesContext';
 import { useTheme } from '../theme';
@@ -16,6 +19,7 @@ export default function SettingsScreen() {
   const prefs = usePreferences();
   const { user, signOut, deleteAccount } = useAuth();
   const [error, setError] = useState('');
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   function confirmDelete() {
     // In-app account deletion is an App Store requirement.
@@ -71,6 +75,9 @@ export default function SettingsScreen() {
       {error ? <Text style={[type.body, { color: c.invalidInk }]}>{error}</Text> : null}
       {row(t('settings.signOut'), () => { void signOut(); })}
       {row(t('settings.deleteAccount'), confirmDelete, c.invalidInk)}
+
+      {/* The only way to the Support screen: no prompts anywhere else, never after a game. */}
+      {row(t('settings.support'), () => navigation.navigate('Support'), c.accentInk)}
 
       {(LEGAL_URLS.privacy || LEGAL_URLS.terms) ? <View style={{ height: space.space4 }} /> : null}
       {LEGAL_URLS.privacy ? row(t('settings.privacy'), () => Linking.openURL(LEGAL_URLS.privacy), c.accentInk) : null}

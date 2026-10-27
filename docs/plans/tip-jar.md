@@ -1,6 +1,6 @@
 # Plan: tip jar ("Apoie o app")
 
-Status: **planned and approved (26.10.2026): expo-iap.** Price tiers default to USD 0.99 / 2.99 / 4.99 (Apple and Google set the local prices; in Brazil roughly R$ 5 / 15 / 25). Julia sets the actual tiers when she creates the products. No code yet: it is built during the mobile phase, after the app foundation (Expo app, theme, i18n, Settings) exists. Julia's original brief is kept verbatim at the end of this file and is the source of truth.
+Status: **built (27.10.2026) on expo-iap 6.3.0, pinned exactly; includes the OpenIAP #528 consume fix.** Still to prove: one EAS iOS build on the current Xcode (needs `eas init`). Approved 26.10.2026. Price tiers default to USD 0.99 / 2.99 / 4.99 (Apple and Google set the local prices; in Brazil roughly R$ 5 / 15 / 25). Julia sets the actual tiers when she creates the products. No code yet: it is built during the mobile phase, after the app foundation (Expo app, theme, i18n, Settings) exists. Julia's original brief is kept verbatim at the end of this file and is the source of truth.
 
 ## What it is
 

@@ -55,6 +55,21 @@ const ptBR = {
     privacy: 'Política de privacidade',
     terms: 'Termos de uso',
   },
+  support: {
+    title: 'Apoie o app',
+    body: 'O Buraco é gratuito e sem anúncios. As contribuições ajudam a pagar os servidores que mantêm as mesas funcionando. São opcionais e não desbloqueiam nada.',
+    tip_small: 'Apoio pequeno',
+    tip_medium: 'Apoio médio',
+    tip_large: 'Apoio grande',
+    loading: 'Carregando…',
+    unavailable: 'As contribuições não estão disponíveis no momento.',
+    thanks: 'Obrigado! Isso ajuda a manter as mesas funcionando.',
+    pending: 'Sua contribuição está aguardando aprovação. Obrigado!',
+    failed: 'A contribuição não foi concluída. Tente de novo mais tarde.',
+    done: 'Fechar',
+    storeNote_ios: 'Pagamento processado pela App Store.',
+    storeNote_android: 'Pagamento processado pelo Google Play.',
+  },
 };
 
 export default ptBR;

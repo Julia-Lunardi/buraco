@@ -55,6 +55,21 @@ const en: Messages = {
     privacy: 'Privacy policy',
     terms: 'Terms of use',
   },
+  support: {
+    title: 'Support the app',
+    body: "Buraco is free and has no ads. Contributions help pay for the servers that keep the tables running. They're optional and unlock nothing.",
+    tip_small: 'Small contribution',
+    tip_medium: 'Medium contribution',
+    tip_large: 'Large contribution',
+    loading: 'Loading…',
+    unavailable: "Contributions aren't available right now.",
+    thanks: 'Thank you! This helps keep the tables running.',
+    pending: 'Your contribution is waiting for approval. Thank you!',
+    failed: "The contribution didn't go through. Please try again later.",
+    done: 'Close',
+    storeNote_ios: 'Payment is handled by the App Store.',
+    storeNote_android: 'Payment is handled by Google Play.',
+  },
 };
 
 export default en;

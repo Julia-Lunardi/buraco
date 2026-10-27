@@ -70,6 +70,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ['expo-screen-orientation', { initialOrientation: 'DEFAULT' }],
     // Permission is asked only after the player's first table, never at launch.
     'expo-notifications',
+    // Store billing for the optional contributions (adds Android's BILLING permission).
+    'expo-iap',
     // Sign in with Apple: iOS only. Native Google Sign-In: Android only (iOS uses
     // expo-auth-session; see also package.json expo.autolinking.ios.exclude).
     ...(platform !== 'android' ? ['expo-apple-authentication'] : []),

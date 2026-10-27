@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthContext';
+import { TipJarProvider } from './src/features/support/useTipJar';
 import RootNavigator from './src/navigation/RootNavigator';
 import { PreferencesProvider } from './src/settings/PreferencesContext';
 import { fonts } from './src/theme/fonts';
@@ -27,8 +28,10 @@ export default function App() {
       <SafeAreaProvider>
         <PreferencesProvider>
           <AuthProvider>
-            <StatusBar style="auto" />
-            <RootNavigator />
+            <TipJarProvider>
+              <StatusBar style="auto" />
+              <RootNavigator />
+            </TipJarProvider>
           </AuthProvider>
         </PreferencesProvider>
       </SafeAreaProvider>

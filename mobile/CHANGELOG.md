@@ -1,5 +1,24 @@
 # Mobile Changelog
 
+## 27.10.2026 (2)
+
+- The "Apoie o app" (Support the app) screen, reached only from Settings: contributions toward the server costs (`docs/plans/tip-jar.md`).
+  - Three equally weighted buttons showing the store's own localised prices.
+  - A cancel shows nothing; a thank-you is one quiet line.
+  - The payment line is keyed by platform, so iOS never shows the words "Google Play".
+- `src/features/support/`:
+  - `tipJar.ts` is the **only** file that imports the billing library, `expo-iap` pinned to exactly 6.3.0, which includes the OpenIAP #528 fix: a refused Android consume now throws instead of reporting success.
+  - `controller.ts` holds the behaviour without React or a store.
+  - `useTipJar` is the thin hook the screen uses.
+  - `tipJar.mock.ts` is a pretend store, used in Expo Go, with `EXPO_PUBLIC_TIP_JAR_MOCK=1`, and in tests.
+- Robust consumables:
+  - The provider starts **at app launch**, so purchases completed while the screen was closed, or after a restart, are recovered and finished.
+  - Every tip is finished with `isConsumable: true`: consumed on Android, transaction finished on iOS.
+  - A refused consume is shown as a failure and retried at the next launch, never as a thank-you.
+  - Pending purchases are left alone until they complete.
+- No analytics, no logging of payment details, no backend.
+- 12 tests covering products load, success, cancel, failure, pending, unavailable (both kinds), refused consume, recovery at launch, background completion, double tap and mock-mode selection. 29 in total.
+
 ## 27.10.2026
 
 - New Expo SDK 57 app (TypeScript), set up from the start with every native-config lesson from Woddie and Salvie:

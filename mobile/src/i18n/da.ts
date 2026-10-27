@@ -55,6 +55,21 @@ const da: Messages = {
     privacy: 'Privatlivspolitik',
     terms: 'Vilkår for brug',
   },
+  support: {
+    title: 'Støt appen',
+    body: 'Buraco er gratis og uden reklamer. Bidrag hjælper med at betale for de servere, der holder bordene kørende. De er frivillige og låser ikke op for noget.',
+    tip_small: 'Lille bidrag',
+    tip_medium: 'Mellem bidrag',
+    tip_large: 'Stort bidrag',
+    loading: 'Indlæser…',
+    unavailable: 'Bidrag er ikke tilgængelige lige nu.',
+    thanks: 'Tak! Det hjælper med at holde bordene kørende.',
+    pending: 'Dit bidrag venter på godkendelse. Tak!',
+    failed: 'Bidraget blev ikke gennemført. Prøv igen senere.',
+    done: 'Luk',
+    storeNote_ios: 'Betalingen håndteres af App Store.',
+    storeNote_android: 'Betalingen håndteres af Google Play.',
+  },
 };
 
 export default da;
