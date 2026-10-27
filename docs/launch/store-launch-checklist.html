@@ -146,6 +146,7 @@ body.hide-done li.step.done{display:none}
     <button type="button" id="btn-manual" aria-pressed="false">Only manual steps</button>
     <button type="button" id="btn-done" aria-pressed="false">Hide done</button>
     <span class="progress" id="progress" aria-live="polite"></span>
+    <span class="progress" id="sync" style="color:var(--ink-faint)"></span>
   </div>
 
   <div id="phases" style="display:flex;flex-direction:column;gap:12px"></div>
@@ -391,6 +392,7 @@ const DONE={
   17:'Done by Claude · 26 Oct 2026 · REST + WebSocket; a bot covers a dropped live player after 20 s',
   27:'Done by Claude · 27 Oct 2026 · expo-doctor 21/21; iOS and Android bundles build',
   28:'Done by Claude · 27 Oct 2026',
+  29:'Half done by Julia · 27 Oct 2026 · eas init ran (project 7925770f, commit 1073323); EXPO_TOKEN not yet in the GitHub environments',
   30:'Done by Claude · 27 Oct 2026 · env values stay empty until the client ids and the backend URL exist',
   31:'Done by Claude · 27 Oct 2026 · code only: verify on a device build',
   32:'Done by Claude · 27 Oct 2026 · code only: verify on a device build',
@@ -476,7 +478,8 @@ Or pick the personal address now and change it before launch: it is editable at 
 ['Run <code>eas init</code>',`<ol>
 <li>Terminal: <code>cd ~/Development/buraco/mobile &amp;&amp; eas login</code> with account <code>aloeju</code>, the same as Salvie.</li>
 <li><code>eas init</code> → create a new project "buraco". It writes <code>extra.eas.projectId</code> into <code>app.json</code>; commit that change.</li>
-<li>Token for CI: expo.dev → Account settings → <b>Access tokens</b> → Create, named <code>github-buraco</code>. Copy it now (it is shown once) and save it as the GitHub secret <code>EXPO_TOKEN</code> in the Azure phase.</li></ol>`],
+<li>Token for CI: expo.dev → Account settings → <b>Access tokens</b> → Create, named <code>github-buraco</code>. Copy it now (it is shown once) and save it as the GitHub secret <code>EXPO_TOKEN</code> in the Azure phase.</li>
+<li><code>eas init</code> creates no signing keys. <code>eas credentials</code> still comes later, at three steps: <b>iOS signing</b> (needs the Apple Developer account and the registered bundle id; the first iOS <code>eas build</code> can do it for you), <b>the Android keystore SHA-1</b> (possible any time) and <b>the push keys</b> (after Firebase).</li></ol>`],
 ['Create two OIDC app registrations',`<ol>
 <li>portal.azure.com → <b>Microsoft Entra ID</b> → App registrations → New registration → name <code>gh-buraco-de</code> → Register. Note its <b>Application (client) ID</b> and <b>Directory (tenant) ID</b>.</li>
 <li>In it: Certificates &amp; secrets → <b>Federated credentials</b> → Add → scenario "GitHub Actions deploying Azure resources" → organisation <code>Julia-Lunardi</code>, repository <code>buraco</code>, entity type <b>Environment</b>, environment <code>de</code> → Add.</li>
@@ -558,8 +561,8 @@ psql "host=psql-woddie-de.postgres.database.azure.com dbname=postgres sslmode=re
 <li>Silent refresh: leave the app for more than an hour, then reopen. You should still be signed in, with no prompt.</li>
 <li>Also try "Jogar contra bots sem conta", and then sign in: you keep the same account.</li></ol>`],
 ['SHA-1 of the EAS Android keystore',`<ol>
-<li>The keystore is created by the first Android build. Run <code>eas build --profile development --platform android</code> once and accept "Generate a new keystore".</li>
-<li><code>cd mobile &amp;&amp; eas credentials -p android</code> → development (or production) → <b>Keystore</b>. The SHA-1 fingerprint is printed. Copy it: this is <code>SHA1_UPLOAD</code>.</li>
+<li>No build needed, and nothing else has to exist first: <code>cd mobile &amp;&amp; eas credentials -p android</code> → production → <b>Keystore</b> → <b>Set up a new keystore</b> (EAS generates it). The first Android build would also offer to generate one.</li>
+<li>Same menu again: the keystore's <b>SHA-1</b> fingerprint is printed. Copy it: this is <code>SHA1_UPLOAD</code>.</li>
 <li>Exit without changing anything.</li></ol>`],
 ['Create Android OAuth client #1',`<ol>
 <li>Google Auth Platform (project <code>buraco</code>) → Clients → Create client → <b>Android</b> → name <code>buraco-android-eas</code>.</li>
@@ -710,6 +713,12 @@ const KEY='buraco-runbook-v1';
 let state={done:{},open:{}};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) state=Object.assign(state,s); }catch(e){}
 const save=()=>{ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} };
+// Ticks live in the artifact's database (collection "ticks", one doc per step: s<n> → {done}),
+// so they survive reloads, devices and republishes. Browser storage is only a fallback.
+let ticks=null;
+const syncNote=t=>{ document.getElementById('sync').textContent=t; };
+const applyTick=(id,on)=>{ const li=document.querySelector(`li.step[data-id="${id}"]`); if(!li) return;
+  li.querySelector('input').checked=on; li.classList.toggle('done',on); };
 const LABEL={manual:'✋ Manual · you',claude:'Claude Code',ci:'Automated · CI'};
 
 const root=document.getElementById('phases');
@@ -730,7 +739,10 @@ PHASES.forEach((p,pi)=>{
         <label class="stitle" for="${id}">${title}</label><span class="badge ${kind}">${LABEL[kind]}</span></div>
       <div class="sbody"><span class="where">${where}</span>${DONE[n]?`<span class="donenote">✓ ${DONE[n]}</span>`:''}${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}${howFor(kind,title)}</div>`;
     const cb=li.querySelector('input'); cb.checked=state.done[id] ?? !!DONE[n]; li.classList.toggle('done',cb.checked);
-    cb.addEventListener('change',()=>{ state.done[id]=cb.checked; li.classList.toggle('done',cb.checked); save(); refresh(); });
+    cb.addEventListener('change',async()=>{ const on=cb.checked; state.done[id]=on; li.classList.toggle('done',on); save(); refresh();
+      if(!ticks) return;
+      try{ syncNote('Saving…'); await ticks.doc(id).set({done:on}); syncNote('Ticks saved'); }
+      catch(e){ syncNote('Not saved: '+(e&&e.code||'error')); } });
     ol.appendChild(li);
   });
   det.addEventListener('toggle',()=>{ state.open[pi]=det.open; save(); });
@@ -749,6 +761,15 @@ function refresh(){
   document.getElementById('progress').textContent=`${done} of ${all} steps done`;
 }
 refresh();
+
+(async()=>{
+  const db=window.claude&&await window.claude.use('db').catch(()=>null);
+  if(!db){ syncNote('Ticks saved in this browser only'); return; }
+  ticks=db.collection('ticks');
+  ticks.onSnapshot(q=>{ q.docs.forEach(d=>{ const v=d.data(); if(v&&typeof v.done==='boolean'){ state.done[d.id]=v.done; applyTick(d.id,v.done); } });
+    refresh(); syncNote('Ticks saved'); },
+    e=>syncNote('Sync stopped: '+(e&&e.code||'error')));
+})();
 
 document.getElementById('btn-expand').onclick=()=>document.querySelectorAll('details.phase').forEach(d=>d.open=true);
 document.getElementById('btn-collapse').onclick=()=>document.querySelectorAll('details.phase').forEach(d=>d.open=false);
