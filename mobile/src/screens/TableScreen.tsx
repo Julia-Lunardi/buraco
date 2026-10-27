@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { MeldView, SeatView, TableView } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
+import { describeError } from '../api/errors';
 import Button from '../components/Button';
 import PlayingCard from '../components/PlayingCard';
 import ChatPanel from '../features/chat/ChatPanel';
@@ -158,7 +159,8 @@ export default function TableScreen({ navigation, route }: Props) {
                 </View>
               </View>
             ) : null}
-            {error ? <Text style={[type.body, { color: c.invalid }]} accessibilityLiveRegion="polite">{error.detail}</Text> : null}
+            {error ? <Text style={[type.body, { color: c.invalid }]} accessibilityLiveRegion="polite">
+              {describeError(error.code, error.detail, t('common.somethingWrong'), game.phase)}</Text> : null}
 
             {/* Hand */}
             {myTurn && game.phase === 'play' && !selected.length

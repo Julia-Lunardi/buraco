@@ -1,5 +1,13 @@
 # Mobile Changelog
 
+## 27.10.2026 (5)
+
+- Server errors are explained in the app's language instead of the server's English (`api/errors.ts`). This is the "why was that illegal?" text: rules explained, never blame. Example: "Um jogo precisa de 3 cartas seguidas do mesmo naipe, ou de 3 cartas iguais (trinca), com no máximo 1 curinga."
+  - `wrong_phase` reads "draw first" or "you already drew" depending on the phase.
+  - An unknown code still shows the server's own reason, so nothing fails silently.
+  - A test scans `backend/app` for every error code and fails if the app can't explain one, except a short explicit list of codes players can't trigger.
+- Tapping a notification opens its table, both while the app is running and when the tap launches it.
+
 ## 27.10.2026 (4)
 
 - Chat panel on the table (`features/chat/`):

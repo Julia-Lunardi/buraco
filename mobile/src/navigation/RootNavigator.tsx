@@ -4,6 +4,7 @@ import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '../auth/AuthContext';
 import { t } from '../i18n';
+import { useNotificationTaps } from '../notifications/useNotificationTaps';
 import HomeScreen from '../screens/HomeScreen';
 import JoinScreen from '../screens/JoinScreen';
 import LobbyScreen from '../screens/LobbyScreen';
@@ -13,6 +14,7 @@ import SupportScreen from '../features/support/SupportScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import SignInScreen from '../screens/SignInScreen';
 import { useTheme } from '../theme';
+import { navigationRef } from './ref';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -20,6 +22,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootNavigator() {
   const { status } = useAuth();
   const { name, c } = useTheme();
+  useNotificationTaps(status === 'signedIn');
 
   if (status === 'loading') {
     return (
@@ -36,7 +39,7 @@ export default function RootNavigator() {
   };
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       <Stack.Navigator screenOptions={{ headerShadowVisible: false }}>
         {status === 'signedOut' ? (
           <Stack.Screen name="SignIn" component={SignInScreen} options={{ headerShown: false }} />

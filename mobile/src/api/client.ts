@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import { createRefresher, isSessionEnded, KEYS, type TokenPair } from '../auth/session';
 import { API_URL } from '../config';
+import { describeHttpError } from './errors';
 
 // eslint-disable-next-line import/no-named-as-default-member -- axios.create is axios's documented API
 export const api = axios.create({ baseURL: API_URL, timeout: 15000 });
@@ -43,9 +44,8 @@ api.interceptors.response.use(undefined, async (error: AxiosError) => {
   return api(original);
 });
 
-/** The backend's own reason ("Invalid Google token.", "Slow down a little."): a generic
- * message made Salvie's store-review sign-in failures impossible to diagnose. */
+/** The player-facing reason for a failed call: a translated explanation for known error
+ * codes, otherwise the backend's own `detail`, otherwise `fallback` (see api/errors.ts). */
 export function errorDetail(error: unknown, fallback: string): string {
-  const detail = (error as AxiosError<{ detail?: string }>)?.response?.data?.detail;
-  return typeof detail === 'string' && detail ? detail : fallback;
+  return describeHttpError(error, fallback);
 }
