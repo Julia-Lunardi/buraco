@@ -1,15 +1,20 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getHint, type MeldView, type SeatView, type TableView } from '../api/tables';
-import { useAuth } from '../auth/AuthContext';
+import { createTable, getHint, type Preset, type SeatKind, type TableView } from '../api/tables';
 import { describeError } from '../api/errors';
-import Button from '../components/Button';
-import PlayingCard from '../components/PlayingCard';
+import { useAuth } from '../auth/AuthContext';
+import SegmentedControl from '../components/SegmentedControl';
 import ChatPanel from '../features/chat/ChatPanel';
 import { useChat } from '../features/chat/useChat';
+import Hand from '../features/table/Hand';
+import MeldRow from '../features/table/MeldRow';
+import { DiscardPile, Stock } from '../features/table/Piles';
+import { GameOver, RoundSummary } from '../features/table/Results';
+import TeamWell from '../features/table/TeamWell';
+import { analyse, RULES, sortHand } from '../game/melds';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import PushPrimer from '../notifications/PushPrimer';
@@ -20,19 +25,23 @@ import { useTheme } from '../theme';
 type Props = NativeStackScreenProps<RootStackParamList, 'Table'>;
 
 /**
- * A FUNCTIONAL table, so the whole flow can be played on a device now. The designed table
- * (Claude Design: portrait and landscape, phone and tablet, motion) replaces this layout;
- * the data flow (useTableSocket, card ids, actions) stays.
+ * The table, as designed ("Jogo — mesa mínima"): their team's well on top, the stock and the
+ * spread lixo in the middle, your well and your hand below. Everything is tap-to-select, then
+ * tap a target: the stock draws, "Pegar" takes the lixo, your area lays the selection down,
+ * one of your melds takes it, the lixo takes a single selected card as the discard.
+ * Landscape (and tablets) put the wells in a left column and the piles and hand on the right.
  */
 export default function TableScreen({ navigation, route }: Props) {
   const { tableId } = route.params;
-  const { c, space, radius, type } = useTheme();
+  const { c, space, type } = useTheme();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
   const { table, connected, error, act, nextRound, chat: liveChat, say } = useTableSocket(tableId);
   const { user } = useAuth();
   const chat = useChat(tableId, liveChat, user?.id);
   const [chatOpen, setChatOpen] = useState(false);
   const [hintText, setHintText] = useState('');
+  const [sortBy, setSortBy] = useState<'suit' | 'rank'>('suit');
   const push = usePushOffer();
   const [picked, setPicked] = useState<number[]>([]);
 
@@ -48,18 +57,32 @@ export default function TableScreen({ navigation, route }: Props) {
     );
   }
 
+  if (table.status === 'finished') {
+    return <GameOver table={table} onHome={() => navigation.popToTop()}
+                     onAgain={isPractice(table) ? () => { void playAgain(table); } : undefined} />;
+  }
+  if (table.status === 'round_over') return <RoundSummary table={table} onNext={nextRound} />;
+
   // Chat only where there is someone to talk to (bot tables have none; guests can't chat).
   const people = table.seats.filter((s) => !s.bot && !s.open).length;
   const chatAvailable = people >= 2 && !user?.is_guest;
-  const practice = people === 1; // only bots besides you: hints allowed
+  const practice = isPractice(table); // only bots besides you: hints allowed
   const me = table.my_seat ?? 0;
   const myTeam = me % 2;
   const myTurn = game !== null && game.current === me && table.status === 'playing';
+  const drawing = myTurn && game.phase === 'draw';
+  const playing = myTurn && game.phase === 'play';
   // Fechado: the pile can only be taken by using its top card in a meld right away.
   const fechado = table.preset === 'fechado';
-  const canTakeIntoMeld = myTurn && fechado && game?.phase === 'draw' && !!game.discard.length;
-  const teamName = (team: number) => (team === myTeam ? t('table.us') : t('table.them'));
-  const seatName = (seat: SeatView) => seat.is_you ? t('newTable.you') : seat.bot ? t('newTable.bot') : seat.name ?? '—';
+  const rules = RULES[table.preset] ?? RULES.aberto;
+
+  const labelOf = (id: number) => game?.hand.find((card) => card.id === id)?.label ?? '';
+  const selectedLabels = selected.map(labelOf);
+  const newMeldValid = selected.length >= 3 && analyse(selectedLabels, rules) !== null;
+  const top = game?.discard[game.discard.length - 1];
+  // Fechado pickup into a new meld: the top card plus the selection must make one.
+  const pickupValid = fechado && !!top && selected.length >= 2 && analyse([top.label, ...selectedLabels], rules) !== null;
+
   const toggle = (id: number) => setPicked(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
   const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setHintText(''); };
 
@@ -76,142 +99,124 @@ export default function TableScreen({ navigation, route }: Props) {
     }
   }
 
-  const turnLine = () => {
-    if (!game || table.status !== 'playing') return '';
-    if (myTurn) return game.phase === 'draw' ? t('table.drawFirst') : t('table.meldOrDiscard');
-    return t('table.turnOf', { name: seatName(table.seats[game.current]) });
-  };
+  async function playAgain(done: TableView) {
+    const seats: SeatKind[] = done.seats.filter((s) => !s.is_you).map(() => 'bot');
+    try {
+      const next = await createTable({ preset: done.preset as Preset, num_players: done.num_players, seats, mode: done.mode,
+                                       chat_enabled: false, bot_level: done.bot_level, target_score: done.target_score });
+      navigation.replace(next.status === 'lobby' ? 'Lobby' : 'Table', { tableId: next.id });
+    } catch {
+      navigation.popToTop();
+    }
+  }
 
-  const meldRow = (meld: MeldView, mine: boolean) => (
-    <Pressable key={meld.id}
-               disabled={!mine || !myTurn || !(canTakeIntoMeld || (game?.phase === 'play' && selected.length > 0))}
-               onPress={() => run(canTakeIntoMeld
-                 ? { type: 'take_discard', meld: meld.id, ...(selected.length ? { use_with: selected } : {}) }
-                 : { type: 'add_to_meld', meld: meld.id, cards: selected })}
-               accessibilityRole={mine ? 'button' : undefined}
-               accessibilityHint={mine && selected.length ? t('table.addTo') : undefined}
-               style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, padding: space.space1,
-                        borderRadius: radius.radiusMd, backgroundColor: c.tableRaised,
-                        borderWidth: meld.canastra ? 2 : 0, borderStyle: meld.canastra === 'suja' ? 'dashed' : 'solid',
-                        borderColor: meld.canastra ? (mine ? c.teamA : c.teamB) : 'transparent' }}>
-      {meld.cards.map((card) => <PlayingCard key={card.id} label={card.label} size="table" />)}
-      {meld.canastra ? (
-        <Text style={[type.caption, { color: c.tableInk, alignSelf: 'center', marginLeft: space.space1 }]}>
-          {t(`table.canastra_${meld.canastra}`)}
-        </Text>
-      ) : null}
+  const team = (n: number) => table.seats.filter((s) => s.team === n);
+  const landscape = width > height;
+  const gutter = space.space3;
+  const rightWidth = landscape ? Math.min(width * 0.55, 620) : width;
+  const handWidth = rightWidth - gutter * 2 - (landscape ? insets.right : 0);
+
+  const melds = (n: number) => game?.teams[n].melds.map((meld) => {
+    const mine = n === myTeam;
+    const takeInto = mine && drawing && fechado && !!top;
+    const addTo = mine && playing && selected.length > 0;
+    const fits = takeInto ? analyse([...meld.cards.map((x) => x.label), top.label, ...selectedLabels], rules, meld.kind) !== null
+      : addTo && analyse([...meld.cards.map((x) => x.label), ...selectedLabels], rules, meld.kind) !== null;
+    return (
+      <MeldRow key={meld.id} meld={meld} target={fits}
+               onPress={takeInto ? () => run({ type: 'take_discard', meld: meld.id, ...(selected.length ? { use_with: selected } : {}) })
+                 : addTo ? () => run({ type: 'add_to_meld', meld: meld.id, cards: selected }) : undefined} />
+    );
+  });
+
+  const chatButton = chatAvailable ? (
+    <Pressable onPress={() => { chat.markSeen(); setChatOpen(true); }} accessibilityRole="button"
+               accessibilityLabel={chat.unread ? `${t('chat.open')}, ${t('chat.unread', { n: chat.unread })}` : t('chat.open')}
+               style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.table, alignItems: 'center', justifyContent: 'center' }}>
+      <ChatGlyph color={c.tableInk} />
+      {chat.unread ? <View style={{ position: 'absolute', top: 2, right: 2, width: 9, height: 9, borderRadius: 5,
+                                    backgroundColor: c.accent }} /> : null}
     </Pressable>
+  ) : null;
+
+  const theirWell = game ? (
+    <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]}
+              mortoWaiting={game.teams[1 - myTeam].morto_waiting} active={game.current % 2 !== myTeam}
+              meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} />
+  ) : null;
+
+  const myWell = game ? (
+    <TeamWell seats={team(myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[myTeam]}
+              mortoWaiting={game.teams[myTeam].morto_waiting} active={game.current % 2 === myTeam}
+              meldsFirst melds={melds(myTeam)} areaLabel={t('table.yourArea')}
+              onPressArea={playing && selected.length >= 3 ? () => run({ type: 'lay_down', cards: selected }) : undefined}
+              trailing={
+                <SegmentedControl onTable value={sortBy} onChange={setSortBy} accessibilityLabel={t('table.sortHand')}
+                                  options={[{ value: 'suit', label: t('table.sortSuit') }, { value: 'rank', label: t('table.sortRank') }]} />
+              } />
+  ) : null;
+
+  const piles = game ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
+      <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
+      <DiscardPile cards={game.discard} width={Math.min(270, handWidth - 100)}
+                   takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
+                   onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
+                   target={playing && selected.length === 1}
+                   onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
+    </View>
+  ) : null;
+
+  // One quiet line under the piles: errors first, then the hint, then guidance.
+  const notice = !connected ? { text: t('table.reconnecting'), color: c.tableInkSoft }
+    : error && game ? { text: describeError(error.code, error.detail, t('common.somethingWrong'), game.phase), color: c.invalidInk }
+    : hintText ? { text: hintText, color: c.tableInk }
+    : playing && newMeldValid ? { text: t('table.canMeld'), color: c.valid }
+    : drawing && fechado && game.discard.length ? { text: t('table.pileHint'), color: c.tableInkSoft }
+    : null;
+  const noticeRow = (
+    <View style={{ minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+      {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
+                      accessibilityLiveRegion="polite">{notice.text}</Text> : null}
+      {practice && myTurn && !hintText ? (
+        <Pressable onPress={() => { void showHint(); }} accessibilityRole="button" hitSlop={10}>
+          <Text style={[type.label, { color: c.accent }]}>{t('table.hint')}</Text>
+        </Pressable>
+      ) : null}
+    </View>
   );
 
+  const hand = game ? (
+    <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
+          selectionValid={newMeldValid || pickupValid} onToggle={toggle} />
+  ) : null;
+
   return (
-    <View style={{ flex: 1, backgroundColor: c.table, paddingTop: insets.top }}>
-      <ScrollView contentContainerStyle={{ padding: space.space3, gap: space.space3, paddingBottom: space.space6 }}>
-        {/* Scores and turn */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          {[myTeam, 1 - myTeam].map((team) => (
-            <Text key={team} style={[type.score, { color: team === 0 ? c.teamA : c.teamB, fontVariant: ['tabular-nums'] }]}>
-              {team === 0 ? '● ' : '◆ '}{teamName(team)} {table.scores[team].toLocaleString('pt-BR')}
-            </Text>
-          ))}
+    <View style={{ flex: 1, backgroundColor: c.table, paddingTop: insets.top + space.space2,
+                   paddingBottom: insets.bottom + space.space3, paddingLeft: insets.left, paddingRight: insets.right }}>
+      {landscape ? (
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: gutter, gap: 10 }}>
+            {theirWell}
+            {myWell}
+          </ScrollView>
+          <View style={{ width: rightWidth - (insets.right || 0), paddingHorizontal: gutter, gap: 10, justifyContent: 'flex-end' }}>
+            <View style={{ flex: 1, justifyContent: 'center' }}>{piles}</View>
+            {noticeRow}
+            {hand}
+          </View>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3 }}>
-          <Text style={[type.body, { color: myTurn ? c.accent : c.tableInkSoft, flex: 1 }]} accessibilityLiveRegion="polite">
-            {connected ? turnLine() : t('table.reconnecting')}
-          </Text>
-          {chatAvailable ? (
-            <Pressable onPress={() => { chat.markSeen(); setChatOpen(true); }} accessibilityRole="button"
-                       accessibilityLabel={chat.unread ? `${t('chat.open')}, ${t('chat.unread', { n: chat.unread })}` : t('chat.open')}
-                       style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={[type.label, { color: c.tableInk }]}>{t('chat.title')}</Text>
-              {chat.unread ? <View style={{ position: 'absolute', top: 6, right: 0, width: 8, height: 8, borderRadius: 4,
-                                            backgroundColor: c.accent }} /> : null}
-            </Pressable>
-          ) : null}
-        </View>
-        {table.seats.filter((s) => s.covered_by_bot).map((s) => (
-          <Text key={s.seat} style={[type.caption, { color: c.tableInkSoft }]}>{t('table.botFor', { name: s.name ?? '' })}</Text>
-        ))}
-
-        {game ? (
-          <>
-            {/* Melds, per team */}
-            {[myTeam, 1 - myTeam].map((team) => (
-              <View key={team} style={{ gap: space.space2 }}>
-                <Text style={[type.label, { color: team === 0 ? c.teamA : c.teamB }]}>
-                  {team === 0 ? '● ' : '◆ '}{teamName(team)} · {game.teams[team].morto_waiting
-                    ? t('table.mortoWaiting') : t('table.mortoTaken')}
-                </Text>
-                {game.teams[team].melds.map((meld) => meldRow(meld, team === myTeam))}
-              </View>
-            ))}
-
-            {/* Stock and pile */}
-            <View style={{ flexDirection: 'row', gap: space.space3, alignItems: 'center' }}>
-              <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.stock', { n: game.stock_size })}</Text>
-              {game.discard.length ? (
-                <>
-                  <PlayingCard label={game.discard[game.discard.length - 1].label} size="table" />
-                  <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.pile', { n: game.discard.length })}</Text>
-                </>
-              ) : <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.emptyPile')}</Text>}
-            </View>
-
-            {practice && myTurn ? (
-              <View style={{ gap: space.space1 }}>
-                <Button label={t('table.hint')} variant="quiet" onTable onPress={() => { void showHint(); }} />
-                {hintText ? <Text style={[type.body, { color: c.tableInk }]} accessibilityLiveRegion="polite">{hintText}</Text> : null}
-              </View>
-            ) : null}
-
-            {/* Actions */}
-            {myTurn && game.phase === 'draw' ? (
-              <View style={{ flexDirection: 'row', gap: space.space2 }}>
-                <View style={{ flex: 1 }}><Button label={t('table.draw')} onPress={() => run({ type: 'draw' })} /></View>
-                {game.discard.length ? (
-                  <View style={{ flex: 1 }}>
-                    <Button variant="secondary" label={t('table.takePile', { n: game.discard.length })}
-                            disabled={fechado && selected.length < 2}
-                            onPress={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })} />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-            {canTakeIntoMeld ? <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.pileHint')}</Text> : null}
-            {myTurn && game.phase === 'play' ? (
-              <View style={{ flexDirection: 'row', gap: space.space2 }}>
-                <View style={{ flex: 1 }}>
-                  <Button variant="secondary" label={t('table.layDown')} disabled={selected.length < 3}
-                          onPress={() => run({ type: 'lay_down', cards: selected })} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button label={t('table.discard')} disabled={selected.length !== 1}
-                          onPress={() => run({ type: 'discard', card: selected[0] })} />
-                </View>
-              </View>
-            ) : null}
-            {error ? <Text style={[type.body, { color: c.invalid }]} accessibilityLiveRegion="polite">
-              {describeError(error.code, error.detail, t('common.somethingWrong'), game.phase)}</Text> : null}
-
-            {/* Hand */}
-            {myTurn && game.phase === 'play' && !selected.length
-              ? <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.select')}</Text> : null}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.space1, paddingTop: space.space3 }}>
-              {game.hand.map((card) => (
-                <PlayingCard key={card.id} label={card.label} selected={selected.includes(card.id)}
-                             onPress={() => toggle(card.id)} />
-              ))}
-            </View>
-          </>
-        ) : null}
-
-        {table.status === 'round_over' || table.status === 'finished' ? (
-          <RoundSummary table={table} myTeam={myTeam} teamName={teamName} />
-        ) : null}
-        {table.status === 'round_over' ? <Button label={t('table.nextRound')} onPress={nextRound} /> : null}
-        {table.status === 'finished' ? (
-          <Button label={t('table.backHome')} variant="secondary" onPress={() => navigation.popToTop()} />
-        ) : null}
-      </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}>
+          {theirWell}
+          <View style={{ flexGrow: 1, minHeight: space.space3 }} />
+          {piles}
+          {noticeRow}
+          <View style={{ flexGrow: 1, minHeight: space.space2 }} />
+          {myWell}
+          {hand}
+        </ScrollView>
+      )}
       {chatAvailable ? (
         <ChatPanel visible={chatOpen} onClose={() => { chat.markSeen(); setChatOpen(false); }} table={table} chat={chat}
                    myUserId={user?.id} send={say} />
@@ -221,20 +226,15 @@ export default function TableScreen({ navigation, route }: Props) {
   );
 }
 
-function RoundSummary({ table, myTeam, teamName }: { table: TableView; myTeam: number; teamName(team: number): string }) {
-  const { c, space, radius, type } = useTheme();
-  const last = table.rounds[table.rounds.length - 1];
+const isPractice = (table: TableView) => table.seats.filter((s) => !s.bot && !s.open).length === 1;
+
+/** A speech bubble, drawn with views (no icon font on the felt). */
+function ChatGlyph({ color }: { color: string }) {
   return (
-    <View style={{ backgroundColor: c.tableRaised, borderRadius: radius.radiusMd, padding: space.space4, gap: space.space2 }}>
-      <Text style={[type.heading, { color: c.tableInk }]}>
-        {table.status === 'finished' && table.winner !== null
-          ? t('table.winner', { team: teamName(table.winner) }) : t('table.roundOver')}
-      </Text>
-      {last ? [myTeam, 1 - myTeam].map((team) => (
-        <Text key={team} style={[type.body, { color: c.tableInk, fontVariant: ['tabular-nums'] }]}>
-          {teamName(team)}: {last[team].total.toLocaleString('pt-BR')} · {table.scores[team].toLocaleString('pt-BR')} {t('table.points')}
-        </Text>
-      )) : null}
+    <View>
+      <View style={{ width: 18, height: 14, borderRadius: 5, borderWidth: 1.8, borderColor: color }} />
+      <View style={{ position: 'absolute', left: 3, bottom: -3, width: 6, height: 6, borderLeftWidth: 1.8, borderBottomWidth: 1.8,
+                     borderColor: color, transform: [{ rotate: '-20deg' }] }} />
     </View>
   );
 }

@@ -1,5 +1,20 @@
 # Mobile Changelog
 
+## 27.10.2026 (11)
+
+- The table follows Claude Design's "Jogo — mesa mínima". Their team's well is on top (avatars with card counts, score, a morto marker, chat with an unread dot), the stock and the spread lixo are in the middle, and your well (melds, score, morto, the "Naipe / Valor" sort) and your overlapping hand are below. There are no labels: the team to play has a gold inset line and the player to play a gold ring.
+- Every move is a tap on a target:
+  - tap the stock to draw;
+  - tap "Pegar" to take the lixo (in Fechado, after selecting the cards that go with the top card, or tap one of your melds);
+  - tap your area to lay down;
+  - tap a meld to add to it;
+  - tap the lixo to discard a single selected card.
+  A selection that makes a valid meld turns green ("Pode baixar"), and melds it fits get a dashed outline. The check runs on the client (`src/game/melds.ts`, the same cases as the engine's tests), so the server stays the authority.
+- Cards use the design system's classic faces (Vector Playing Cards 1.3, public domain): one sprite with a large index over the corner and the wild notch. Canastras lie with one card crosswise (the wild for suja).
+- Landscape puts the wells in a left column and the piles and the hand on the right. Tablets (shortest side 600 or more) get the large card sizes.
+- The round summary and the game over screen follow the design: points per item for both teams, totals with progress towards the target, and every round. Practice tables offer "Jogar de novo com o mesmo grupo" (a fresh table with the same bots and settings).
+- Tokens were refreshed from the design canvas: a new felt, a slate card back, and large card sizes.
+
 ## 27.10.2026 (10)
 
 - Fechado is selectable. At the table, select the cards that go with the top card and tap "Pegar o lixo", or tap one of your melds to add the top card to it. A hint that suggests taking the pile pre-selects those cards.
