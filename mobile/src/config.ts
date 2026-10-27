@@ -10,7 +10,7 @@ export const GOOGLE_CLIENT_IDS = {
 };
 
 export const LEGAL_URLS = {
-  // No domain yet (runbook): set these once privacy and terms are published.
-  privacy: process.env.EXPO_PUBLIC_PRIVACY_URL || '',
-  terms: process.env.EXPO_PUBLIC_TERMS_URL || '',
+  // Published on the Salvia Code Labs site (repo privacy_policy/website, Legal tab).
+  privacy: process.env.EXPO_PUBLIC_PRIVACY_URL || 'https://salviacodelabs.com/buraco/privacy',
+  terms: process.env.EXPO_PUBLIC_TERMS_URL || 'https://salviacodelabs.com/buraco/terms',
 };

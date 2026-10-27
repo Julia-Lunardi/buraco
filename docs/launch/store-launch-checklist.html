@@ -405,8 +405,9 @@ const DONE={
   39:'Done by Claude · 26 Oct 2026 · terraform validate passes; shared server, registry and CAE; max_replicas 1',
   43:'Done by Claude · 26 Oct 2026 · off until AZURE_READY=true; health check at the end',
   62:'Done by Claude · 26 Oct 2026 · your turn (async), friend joined, round/game over; pt-BR/en/da',
-  63:'Drafted by Claude · 27 Oct 2026 · website/privacy.html (pt-BR + en); fill the highlighted placeholders',
-  64:'Drafted by Claude · 27 Oct 2026 · website/terms.html (pt-BR + en); fill the highlighted placeholders',
+  2:'Decided by Julia · 27 Oct 2026 · salviacodelabs.com, Legal tab: /buraco/privacy and /buraco/terms',
+  63:'Done by Claude · 27 Oct 2026 · salviacodelabs.com/buraco/privacy (pt-BR + en), branch buraco-legal of the site repo',
+  64:'Done by Claude · 27 Oct 2026 · salviacodelabs.com/buraco/terms (pt-BR + en), branch buraco-legal of the site repo',
   66:'Done by Claude · 26 Oct 2026 · 18 tests',
   67:'Done by Claude · 27 Oct 2026 · mute is per table on the phone; report and block go to the server',
 };
@@ -604,9 +605,9 @@ eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services
 <li><code>eas credentials -p ios</code> → production → <b>Push Notifications</b> → let EAS create an APNs key.</li>
 <li>Delete the downloaded JSON from Downloads: it is a credential.</li></ol>`],
 ['Review both documents and publish',`<ol>
-<li>Read Claude's drafts in <code>website/privacy.html</code> and <code>website/terms.html</code>. Check that every data item and processor is true.</li>
-<li>Push to <code>de</code>: Cloudflare Pages publishes them. Open both URLs in a private window.</li>
-<li>Put the URLs into <code>mobile/eas.json</code> as <code>EXPO_PUBLIC_PRIVACY_URL</code> and <code>EXPO_PUBLIC_TERMS_URL</code>, the Google consent screen, App Store Connect and the Play listing.</li></ol>`],
+<li>They live on the Salvia Code Labs site: <code>~/Development/privacy_policy/website/src/pages/buraco/privacy.astro</code> and <code>terms.astro</code>, under the <b>Legal</b> tab. Check that every data item and processor is true.</li>
+<li>Merge the site's <code>buraco-legal</code> branch and deploy it the way the site is deployed. Open <code>salviacodelabs.com/buraco/privacy</code> and <code>/buraco/terms</code> in a private window.</li>
+<li>The app already links there (<code>mobile/src/config.ts</code>). Put the same URLs into the Google consent screen, App Store Connect and the Play listing.</li></ol>`],
 ['review chat reports',`<ol>
 <li>Production, from your Mac:
 <pre>az containerapp exec -n ca-buraco-pr -g rg-buraco-pr --command "uv run --no-dev python -m scripts.chat_reports"</pre></li>

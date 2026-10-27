@@ -1,17 +1,14 @@
 # Buraco website
 
-Static pages for Cloudflare Pages (build output directory `website`, no build step):
-`index.html`, `privacy.html` and `terms.html`, each in pt-BR and English, styled with the
-design-system colours (`style.css`).
+Buraco's privacy policy and terms of use are published on the Salvia Code Labs site, under
+its **Legal** tab:
 
-**Drafts.** Fill every highlighted placeholder before publishing. To list them:
+- https://salviacodelabs.com/buraco/privacy
+- https://salviacodelabs.com/buraco/terms
 
-```bash
-grep -n 'class="todo"' website/*.html
-```
-
-The placeholders are the data controller's name and address, the contact email and the
-"effective from" date.
+Source: `~/Development/privacy_policy/website/src/pages/buraco/` (repo
+`Julia-Lunardi/salvia_code_labs`). The app links to them from `mobile/src/config.ts`.
 
 The privacy policy describes what the code does. When data handling changes (a new
-processor, a new kind of data, other retention), update `privacy.html` in the same change.
+processor, a new kind of data, other retention), update `privacy.astro` there in the same
+change.
