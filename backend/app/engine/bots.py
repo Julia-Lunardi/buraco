@@ -21,7 +21,7 @@ from collections.abc import Sequence
 from .cards import ACE, Card
 from .game import Action, AddToMeld, Discard, Draw, LayDown, Phase, Round, TakeDiscard
 from .melds import CanastraKind, analyse, canastra_kind
-from .presets import GoOutRequires
+from .presets import DiscardPickup, GoOutRequires
 from .scoring import card_points
 
 
@@ -34,9 +34,29 @@ class GreedyBot:
     # --- draw ---------------------------------------------------------------
 
     def _draw(self, rnd: Round, seat: int) -> Action:
-        if rnd.discard and self._fits(rnd, seat, rnd.discard[-1]):
+        if not rnd.discard:
+            return Draw()
+        top = rnd.discard[-1]
+        if rnd.preset.discard_pickup is DiscardPickup.MUST_USE_TOP_CARD:
+            # Fechado: the move itself says how the top card is used.
+            for action in self._fechado_pickups(rnd, seat, top):
+                if rnd.is_legal(seat, action):
+                    return action
+            return Draw()
+        if self._fits(rnd, seat, top):
             return TakeDiscard()
         return Draw()
+
+    def _fechado_pickups(self, rnd: Round, seat: int, top: Card):
+        if top.can_be_wild:
+            return
+        for meld in rnd.teams[rnd.team_of(seat)].melds:
+            extended = analyse(meld.cards + [top], rnd.preset, meld.shape.kind)
+            if extended and extended.wilds == meld.shape.wilds:
+                yield TakeDiscard(meld_id=meld.id)
+        for group in sorted(candidate_melds(rnd.hands[seat] + [top], rnd), key=len, reverse=True):
+            if top in group:
+                yield TakeDiscard(use_with=tuple(c.id for c in group if c is not top))
 
     def _fits(self, rnd: Round, seat: int, card: Card) -> bool:
         """Only take the pile for a natural card we can meld right away. Besides being

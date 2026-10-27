@@ -61,4 +61,12 @@ STBL = Preset(
     go_out_requires=GoOutRequires.CLEAN_CANASTRA,
 )
 
-PRESETS = {p.name: p for p in (ABERTO, STBL)}
+# docs/rules/fechado.md: Aberto, but the pile can only be taken by using its top card at once.
+FECHADO = Preset(
+    name="fechado",
+    trincas_allowed=True,
+    discard_pickup=DiscardPickup.MUST_USE_TOP_CARD,
+    go_out_requires=GoOutRequires.ANY_CANASTRA,
+)
+
+PRESETS = {p.name: p for p in (ABERTO, FECHADO, STBL)}

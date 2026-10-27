@@ -286,3 +286,41 @@ def test_view_shows_only_own_hand():
     assert view["hand_sizes"] == [11, 11, 11, 11]
     assert "hands" not in view and "stock" not in view
     assert view["stock_size"] == len(rnd.stock)
+
+
+# --- Fechado: the pile only by using its top card (R-PILE-F) ------------------------
+
+from app.engine.presets import FECHADO  # noqa: E402
+
+
+def test_fechado_refuses_a_plain_pickup():
+    rnd = rigged_round(["5H 6H KC", "5S 6S"], discard="QD 7H", preset=FECHADO)
+    illegal(rnd, 0, TakeDiscard(), "must_use_top_card")
+
+
+def test_fechado_pickup_with_a_new_meld():
+    rnd = rigged_round(["5H 6H KC", "5S 6S"], discard="QD 7H", preset=FECHADO)
+    rnd.apply(0, TakeDiscard(use_with=ids(rnd, 0, "5H 6H")))
+    [meld] = rnd.teams[0].melds
+    assert sorted(c.label for c in meld.cards) == ["5H", "6H", "7H"]
+    assert sorted(c.label for c in rnd.hands[0]) == ["KC", "QD"]  # the rest of the pile joins the hand
+    assert rnd.discard == [] and rnd.phase is Phase.PLAY
+
+
+def test_fechado_pickup_extending_a_team_meld():
+    rnd = rigged_round(["KC QS", "5S 6S"], discard="QD 7H", melds=(["4H 5H 6H"], []), preset=FECHADO)
+    meld = rnd.teams[0].melds[0]
+    rnd.apply(0, TakeDiscard(meld_id=meld.id))
+    assert len(meld.cards) == 4 and sorted(c.label for c in rnd.hands[0]) == ["KC", "QD", "QS"]
+
+
+def test_fechado_top_card_must_actually_fit():
+    rnd = rigged_round(["5H 9H KC", "5S 6S"], discard="QD 7H", melds=([], ["4D 5D 6D"]), preset=FECHADO)
+    illegal(rnd, 0, TakeDiscard(use_with=ids(rnd, 0, "5H 9H")), "invalid_meld")
+    illegal(rnd, 0, TakeDiscard(meld_id=rnd.teams[1].melds[0].id), "not_your_meld")
+    assert rnd.discard and rnd.phase is Phase.DRAW  # nothing moved
+
+
+def test_aberto_pickup_takes_no_meld():
+    rnd = rigged_round(["5H 6H KC", "5S 6S"], discard="QD 7H")
+    illegal(rnd, 0, TakeDiscard(use_with=ids(rnd, 0, "5H 6H")), "pile_is_free")

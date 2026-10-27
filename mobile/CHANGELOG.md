@@ -1,5 +1,10 @@
 # Mobile Changelog
 
+## 27.10.2026 (10)
+
+- Fechado is selectable. At the table, select the cards that go with the top card and tap "Pegar o lixo", or tap one of your melds to add the top card to it. A hint that suggests taking the pile pre-selects those cards.
+- The new error codes `must_use_top_card` and `pile_is_free` are explained in all three languages.
+
 ## 27.10.2026 (9)
 
 - "Seu nome" can be edited in Settings. Creating a table with friend seats, or joining one, asks for a name first if the account has none, so nobody shows up as "—" in the lobby or chat.

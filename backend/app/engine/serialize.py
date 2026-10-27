@@ -9,8 +9,13 @@ def action_to_dict(action: Action) -> dict:
     match action:
         case Draw():
             return {"type": "draw"}
-        case TakeDiscard():
-            return {"type": "take_discard"}
+        case TakeDiscard(use_with=use_with, meld_id=meld_id):
+            out: dict = {"type": "take_discard"}
+            if use_with:
+                out["use_with"] = list(use_with)
+            if meld_id is not None:
+                out["meld"] = meld_id
+            return out
         case LayDown(card_ids=ids):
             return {"type": "lay_down", "cards": list(ids)}
         case AddToMeld(meld_id=meld, card_ids=ids):
@@ -27,7 +32,8 @@ def action_from_dict(data: dict) -> Action:
         if kind == "draw":
             return Draw()
         if kind == "take_discard":
-            return TakeDiscard()
+            meld = data.get("meld")
+            return TakeDiscard(tuple(_ids(data.get("use_with", []))), None if meld is None else _int(meld))
         if kind == "lay_down":
             return LayDown(tuple(_ids(data["cards"])))
         if kind == "add_to_meld":

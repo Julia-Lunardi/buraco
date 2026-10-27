@@ -39,7 +39,11 @@ class Draw:
 
 @dataclass(frozen=True)
 class TakeDiscard:
-    pass
+    """Take the whole pile. In Fechado the top card must be used at once: `use_with` are hand
+    cards that form a new meld with it, or `meld_id` is a team meld it extends (optionally
+    with `use_with` cards too). In Aberto and STBL both stay empty."""
+    use_with: tuple[int, ...] = ()
+    meld_id: int | None = None
 
 
 @dataclass(frozen=True)
@@ -81,8 +85,6 @@ class Round:
     def __init__(self, preset: Preset, num_players: int, seed: int | str, first_seat: int = 0) -> None:
         if num_players not in (2, 4):
             raise ValueError("buraco is played by 2 or 4 players")
-        if preset.discard_pickup is not DiscardPickup.FREE:
-            raise NotImplementedError(f"discard pickup {preset.discard_pickup.value!r} is not implemented yet")
         self.preset = preset
         self.num_players = num_players
         self.seed = seed
@@ -185,14 +187,54 @@ class Round:
             self.hands[seat].append(self.stock.pop())
             self.phase = Phase.PLAY
 
-    def _take_discard(self, seat: int, _: TakeDiscard, commit: bool) -> None:
+    def _take_discard(self, seat: int, action: TakeDiscard, commit: bool) -> None:
         self._require_turn(seat, Phase.DRAW)
         if not self.discard:
             raise IllegalMove("discard_empty", "The discard pile is empty. Draw from the stock.")
-        if commit:
-            self.hands[seat].extend(self.discard)
-            self.discard = []
-            self.phase = Phase.PLAY
+        if self.preset.discard_pickup is DiscardPickup.FREE:
+            if action.use_with or action.meld_id is not None:
+                raise IllegalMove("pile_is_free", "In this mode you take the pile without using its top card.")
+            if commit:
+                self.hands[seat].extend(self.discard)
+                self.discard = []
+                self.phase = Phase.PLAY
+            return
+
+        # Fechado (R-PILE-F): the top card goes straight into a meld, validated before anything moves.
+        team = self.team_of(seat)
+        top = self.discard[-1]
+        if not action.use_with and action.meld_id is None:
+            raise IllegalMove("must_use_top_card", "To take the pile, use its top card in a meld right away.")
+        hand_cards = self._pick(seat, action.use_with) if action.use_with else []
+        cards = [top] + hand_cards
+        if action.meld_id is not None:
+            meld = self.find_meld(action.meld_id)
+            if meld is None or meld.team != team:
+                raise IllegalMove("not_your_meld", "You can only add cards to your own team's melds.")
+            shape = analyse(meld.cards + cards, self.preset, meld.shape.kind)
+            if shape is None:
+                raise IllegalMove("cannot_extend", "The top card doesn't fit this meld.")
+            after = [(len(meld.cards) + len(cards), shape) if m.id == meld.id else (len(m.cards), m.shape)
+                     for m in self.teams[team].melds]
+        else:
+            shape = analyse(cards, self.preset)
+            if shape is None:
+                raise IllegalMove("invalid_meld", "The top card and your cards don't form a meld.")
+            after = self._team_shapes(team) + [(len(cards), shape)]
+        remaining = len(self.hands[seat]) + len(self.discard) - len(cards)
+        self._check_hand_after_meld(seat, remaining, after)
+        if not commit:
+            return
+        self.hands[seat].extend(self.discard[:-1])  # the rest of the pile joins the hand
+        self.discard = []
+        self._remove_from_hand(seat, hand_cards)
+        if action.meld_id is not None:
+            meld.cards = meld.cards + cards
+            meld.shape = shape
+        else:
+            self._add_meld(team, cards, shape)
+        self.phase = Phase.PLAY
+        self._after_meld(seat)
 
     def _lay_down(self, seat: int, action: LayDown, commit: bool) -> None:
         self._require_turn(seat, Phase.PLAY)

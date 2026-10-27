@@ -66,8 +66,9 @@ export default function NewTableScreen({ navigation, route }: Props) {
                                          gap: space.space3, maxWidth: 600, width: '100%', alignSelf: 'center' }}>
       {label(t('newTable.rules'))}
       <SegmentedControl value={preset} onChange={setPreset} accessibilityLabel={t('newTable.rules')}
-        options={[{ value: 'aberto', label: t('newTable.aberto') }, { value: 'stbl', label: t('newTable.stbl') }]} />
-      {hint(`${preset === 'aberto' ? t('newTable.abertoHint') : t('newTable.stblHint')} Fechado: ${t('newTable.comingSoon')}.`)}
+        options={[{ value: 'aberto', label: t('newTable.aberto') }, { value: 'fechado', label: t('newTable.fechado') },
+                  { value: 'stbl', label: t('newTable.stbl') }]} />
+      {hint({ aberto: t('newTable.abertoHint'), fechado: t('newTable.fechadoHint'), stbl: t('newTable.stblHint') }[preset])}
 
       {label(t('newTable.players'))}
       <SegmentedControl value={players} onChange={setPlayers} accessibilityLabel={t('newTable.players')}

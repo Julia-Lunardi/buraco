@@ -130,3 +130,12 @@ def test_stbl_rounds_end_and_going_out_is_always_clean(seed, n, levels):
         assert any(len(m.cards) >= 7 and m.shape.wilds == 0 for m in melds)
     for team in rnd.teams:
         assert all(m.shape.kind.value == "sequence" for m in team.melds)  # no trincas
+
+
+@settings(max_examples=25, deadline=None)
+@given(seed=st.integers(0, 2**32), n=st.sampled_from([2, 4]),
+       levels=st.lists(st.sampled_from(sorted(BOTS)), min_size=4, max_size=4))
+def test_fechado_rounds_end_with_every_bot_level(seed, n, levels):
+    from app.engine.presets import FECHADO
+    rnd = play_round(Round(FECHADO, n, seed), bots=[BOTS[level] for level in levels[:n]])
+    assert rnd.phase is Phase.OVER

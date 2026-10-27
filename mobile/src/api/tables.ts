@@ -84,7 +84,7 @@ export interface TableView {
   game: GameView | null;
 }
 
-export type Preset = 'aberto' | 'stbl';
+export type Preset = 'aberto' | 'fechado' | 'stbl';
 
 export interface NewTable {
   preset?: Preset;
@@ -99,7 +99,7 @@ export interface NewTable {
 
 export type Action =
   | { type: 'draw' }
-  | { type: 'take_discard' }
+  | { type: 'take_discard'; use_with?: number[]; meld?: number }
   | { type: 'lay_down'; cards: number[] }
   | { type: 'add_to_meld'; meld: number; cards: number[] }
   | { type: 'discard'; card: number };

@@ -1,5 +1,13 @@
 # Backend Changelog
 
+## 27.10.2026 (5)
+
+- **Fechado preset** (`docs/rules/fechado.md`, a draft for review): the pile can only be taken by using its top card at once, either in a new meld with at least two cards from the hand, or added to a team meld.
+  - `TakeDiscard` now carries `use_with` and/or `meld_id`. The whole move is validated before anything moves, and the hand rule applies.
+  - Aberto and STBL reject a pickup that carries a meld (`pile_is_free`).
+- Bots under Fechado generate pickups that extend a team meld or form the best new meld with the top card. Property tests cover every mix of bot levels. A 200-match simulation finished every game.
+- All three rule sets now exist: Aberto, Fechado and STBL.
+
 ## 27.10.2026 (4)
 
 - `PATCH /users/me` changes the display name. Whitespace is collapsed, 1–40 characters, and the chat word filter applies, because a name is user content other players see. Apple sends a name only on the first sign-in and guests have none, so the app asks for one.

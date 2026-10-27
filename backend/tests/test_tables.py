@@ -106,7 +106,7 @@ async def test_only_the_host_starts_and_open_seats_become_bots(sessions):
 
 @pytest.mark.parametrize("bad", [{"num_players": 3, "seats": ["bot", "bot"]},
                                  {"num_players": 2, "seats": ["bot", "bot"]},
-                                 {"num_players": 2, "seats": ["bot"], "preset": "fechado"},
+                                 {"num_players": 2, "seats": ["bot"], "preset": "canastra-de-mentira"},
                                  {"num_players": 2, "seats": ["bot"], "target_score": 1234}])
 async def test_invalid_table_settings(sessions, bad):
     async with sessions() as db:
@@ -237,3 +237,9 @@ async def test_stbl_tables_play_with_stbl_rules(sessions):
         match = await tables.load_match(db, table)
         assert table.preset == "stbl" and match.preset.trincas_allowed is False
         await tables.act(db, ana, table.id, {"type": "draw"})  # plays like any other table
+
+
+@pytest.mark.parametrize("action", [TakeDiscard(use_with=(1, 2)), TakeDiscard(meld_id=3),
+                                    TakeDiscard(use_with=(4,), meld_id=5)])
+def test_fechado_pickups_round_trip(action):
+    assert action_from_dict(action_to_dict(action)) == action

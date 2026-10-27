@@ -55,6 +55,9 @@ export default function TableScreen({ navigation, route }: Props) {
   const me = table.my_seat ?? 0;
   const myTeam = me % 2;
   const myTurn = game !== null && game.current === me && table.status === 'playing';
+  // Fechado: the pile can only be taken by using its top card in a meld right away.
+  const fechado = table.preset === 'fechado';
+  const canTakeIntoMeld = myTurn && fechado && game?.phase === 'draw' && !!game.discard.length;
   const teamName = (team: number) => (team === myTeam ? t('table.us') : t('table.them'));
   const seatName = (seat: SeatView) => seat.is_you ? t('newTable.you') : seat.bot ? t('newTable.bot') : seat.name ?? '—';
   const toggle = (id: number) => setPicked(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
@@ -66,6 +69,7 @@ export default function TableScreen({ navigation, route }: Props) {
       setHintText(t(`table.hint_${hint.type}`));
       // Pre-select the cards the hint uses; the player still makes the move.
       if (hint.type === 'lay_down' || hint.type === 'add_to_meld') setPicked(hint.cards);
+      else if (hint.type === 'take_discard' && hint.use_with) setPicked(hint.use_with);
       else if (hint.type === 'discard') setPicked([hint.card]);
     } catch {
       setHintText('');
@@ -79,8 +83,11 @@ export default function TableScreen({ navigation, route }: Props) {
   };
 
   const meldRow = (meld: MeldView, mine: boolean) => (
-    <Pressable key={meld.id} disabled={!mine || !myTurn || game?.phase !== 'play' || selected.length === 0}
-               onPress={() => run({ type: 'add_to_meld', meld: meld.id, cards: selected })}
+    <Pressable key={meld.id}
+               disabled={!mine || !myTurn || !(canTakeIntoMeld || (game?.phase === 'play' && selected.length > 0))}
+               onPress={() => run(canTakeIntoMeld
+                 ? { type: 'take_discard', meld: meld.id, ...(selected.length ? { use_with: selected } : {}) }
+                 : { type: 'add_to_meld', meld: meld.id, cards: selected })}
                accessibilityRole={mine ? 'button' : undefined}
                accessibilityHint={mine && selected.length ? t('table.addTo') : undefined}
                style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 2, padding: space.space1,
@@ -163,11 +170,13 @@ export default function TableScreen({ navigation, route }: Props) {
                 {game.discard.length ? (
                   <View style={{ flex: 1 }}>
                     <Button variant="secondary" label={t('table.takePile', { n: game.discard.length })}
-                            onPress={() => run({ type: 'take_discard' })} />
+                            disabled={fechado && selected.length < 2}
+                            onPress={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })} />
                   </View>
                 ) : null}
               </View>
             ) : null}
+            {canTakeIntoMeld ? <Text style={[type.caption, { color: c.tableInkSoft }]}>{t('table.pileHint')}</Text> : null}
             {myTurn && game.phase === 'play' ? (
               <View style={{ flexDirection: 'row', gap: space.space2 }}>
                 <View style={{ flex: 1 }}>
