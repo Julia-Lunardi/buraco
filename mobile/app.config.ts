@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+
 import type { ConfigContext, ExpoConfig } from 'expo/config';
 
 // Native projects (ios/, android/) are never committed: EAS runs `expo prebuild` from this
@@ -11,6 +13,12 @@ const platform = process.env.EAS_BUILD_PLATFORM; // set by EAS; undefined locall
 // URL scheme, expo-auth-session never gets an idToken and /auth/google is never called.
 const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '';
 const reversedIosClientId = iosClientId ? iosClientId.split('.').reverse().join('.') : null;
+
+// Firebase config for Android push (FCM). The file is gitignored, so EAS builds get it from
+// the file variable GOOGLE_SERVICES_JSON (`eas env:create --type file`); local builds use a
+// copy in mobile/. Without either, the build still works, just without Android pushes.
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON
+  ?? (existsSync('./google-services.json') ? './google-services.json' : undefined);
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -40,6 +48,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     package: BUNDLE_ID,
+    ...(googleServicesFile ? { googleServicesFile } : {}),
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',

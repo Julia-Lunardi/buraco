@@ -94,6 +94,16 @@ li.step.done .sbody{opacity:.6}
 .where{font-size:12.5px;color:var(--ink-faint)}
 .donenote{font:600 12.5px var(--font-body);color:var(--felt)}
 li.step.done .sbody .donenote{opacity:1}
+.how{border:1px solid var(--line-hi);border-radius:6px;background:var(--bg)}
+.how summary{cursor:pointer;padding:7px 10px;font:600 13px var(--font-body);color:var(--manual);display:block;list-style:none}
+.how summary::-webkit-details-marker{display:none}
+.how summary::before{content:"▸ ";display:inline-block;transition:transform .15s}
+.how[open] summary::before{content:"▾ "}
+.how summary:focus-visible{outline:2px solid var(--felt);outline-offset:2px}
+.howbody{padding:0 12px 10px;color:var(--ink);font-size:14px}
+.howbody ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.howbody ul{margin:4px 0 0}
+.howbody pre{margin:6px 0 0}
 .lesson{background:var(--warn-wash);color:var(--ink);border-radius:6px;padding:8px 10px;font-size:13.5px}
 .lesson b{color:var(--warn);font-weight:600}
 pre{margin:0;background:var(--felt-wash);color:var(--ink);padding:8px 10px;border-radius:6px;overflow-x:auto;font:12.5px/1.5 var(--font-mono)}
@@ -394,6 +404,292 @@ const DONE={
   62:'Done by Claude · 26 Oct 2026 · your turn (async), friend joined, round/game over; pt-BR/en/da',
   66:'Done by Claude · 26 Oct 2026 · 18 tests',
 };
+// "How to do it" for manual steps, matched by a unique piece of the step title (stable when
+// steps are inserted). Instructions follow the consoles as of October 2026; menu names drift,
+// so each one says what you are looking for, not only where it is.
+const HOW=[
+['is free before registering it',`<ol>
+<li><b>Apple:</b> developer.apple.com → Certificates, Identifiers &amp; Profiles → Identifiers → <b>+</b> → App IDs → App. Type <code>com.buraco.app</code> as an explicit Bundle ID. If it is taken, Apple says so on Continue.</li>
+<li><b>Google:</b> open <code>play.google.com/store/apps/details?id=com.buraco.app</code>. A page means it is taken. A "not found" is a good sign, but unpublished apps don't show there, so the final answer comes with the first upload.</li>
+<li>If either is taken, tell Claude: the id lives in <code>mobile/app.config.ts</code>, <code>backend/app/config.py</code>, <code>infra/variables.tf</code> and the rules for the Google clients.</li></ol>`],
+['Choose where the privacy policy',`<ol>
+<li>Simplest free option: Cloudflare dashboard → Workers &amp; Pages → Create → Pages → <b>Connect to Git</b> → pick the <code>buraco</code> repo.</li>
+<li>Build settings: framework "None", build output directory <code>website</code> (Claude will put the two pages there).</li>
+<li>The site gets a free <code>buraco.pages.dev</code> address. A custom domain can be added later without changing the app, as long as the old URLs keep redirecting.</li></ol>`],
+['Create a Google Cloud project',`<ol>
+<li>console.cloud.google.com → the project picker at the top → <b>New project</b>.</li>
+<li>Name <code>buraco</code>, no organisation needed → Create, then select it in the picker.</li>
+<li>Note the <b>project number</b> (Dashboard → Project info): it starts every OAuth client id.</li></ol>`],
+['Configure the OAuth consent screen',`<ol>
+<li>In the <code>buraco</code> project: menu → <b>Google Auth Platform</b> → Get started.</li>
+<li><b>Branding:</b> app name "Buraco", your support email, developer contact email. Leave the logo out for now: a logo triggers Google's brand verification.</li>
+<li><b>Audience:</b> External. Then press <b>Publish app</b> so the status says "In production". In "Testing" only listed test users can sign in, and store reviewers are not on that list.</li>
+<li><b>Data access:</b> add only <code>openid</code>, <code>.../auth/userinfo.email</code> and <code>.../auth/userinfo.profile</code>. These are non-sensitive, so no review is needed.</li>
+<li>Add the privacy policy URL here once it exists.</li></ol>`],
+['Create the Google OAuth client: Web',`<ol>
+<li>Google Auth Platform → <b>Clients</b> → Create client → Application type <b>Web application</b> → name <code>buraco-web</code>. No redirect URIs are needed.</li>
+<li>Copy the client id (<code>…apps.googleusercontent.com</code>).</li>
+<li>It goes in three places:<ul>
+<li>Key Vault <code>google-client-id</code> in both vaults, later in the Azure phase;</li>
+<li><code>mobile/eas.json</code> → <code>EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID</code> in the preview and production profiles;</li>
+<li><code>mobile/.env</code> for local runs.</li></ul> It is not a secret, so committing it in eas.json is fine.</li></ol>`],
+['Create the Google OAuth client: iOS',`<ol>
+<li>Google Auth Platform → Clients → Create client → <b>iOS</b> → name <code>buraco-ios</code> → Bundle ID <code>com.buraco.app</code>. App Store ID and Team ID are optional.</li>
+<li>Copy the client id into:<ul>
+<li>Key Vault <code>google-ios-client-id</code>, in both vaults;</li>
+<li><code>eas.json</code> → <code>EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID</code>;</li>
+<li><code>mobile/.env</code>.</li></ul></li>
+<li>Nothing else to do: <code>app.config.ts</code> derives the reversed-client-id URL scheme from this value at build time.</li></ol>`],
+['Register the bundle id in the Apple Developer portal',`<ol>
+<li>developer.apple.com → Certificates, Identifiers &amp; Profiles → Identifiers → <b>+</b> → App IDs → App → Continue.</li>
+<li>Description "Buraco", Bundle ID <b>Explicit</b> <code>com.buraco.app</code>.</li>
+<li>Under Capabilities, tick <b>Sign In with Apple</b> and keep "Enable as a primary App ID". In-App Purchase is on by default; leave it.</li>
+<li>Also tick <b>Push Notifications</b> (needed for "your turn" on async tables).</li>
+<li>Continue → Register.</li></ol>`],
+['Create the app in the Play Console',`<ol>
+<li>play.google.com/console → <b>Create app</b>.</li>
+<li>App name "Buraco", default language Portuguese (Brazil) – pt-BR, <b>Game</b>, <b>Free</b>.</li>
+<li>Tick the declarations and press Create app. The package name is fixed by the first uploaded build, not here.</li></ol>`],
+['sign the Paid Apps agreement',`<ol>
+<li>appstoreconnect.apple.com → <b>Business</b> (this used to be "Agreements, Tax, and Banking"). You must be the Account Holder.</li>
+<li>Paid Apps → View and Agree to Terms.</li>
+<li>Add a <b>bank account</b> and complete the <b>tax forms</b>. A non-US individual fills in the W-8BEN; add the Danish tax info if asked.</li>
+<li>Wait until the status reads <b>Active</b>. This can take from hours to a few days, and sandbox purchases don't work before then.</li>
+<li>If you did this for Woddie or Salvie, it is already done: it covers the whole account.</li></ol>`],
+['Small Business Program',`<ol>
+<li>developer.apple.com/app-store/small-business-program → <b>Enroll</b>, signed in as the Account Holder.</li>
+<li>List any associated developer accounts (none, if all your apps are in this one) → Submit.</li>
+<li>Once approved, the commission drops to 15%. It covers every app in the account, so skip this if Woddie already enrolled.</li></ol>`],
+['set up the Play payments profile',`<ol>
+<li>Play Console → <b>Settings</b> → Payments profile. Create one (or link the existing one) with your bank account, so Google can pay you out.</li>
+<li>For the 15% fee: in recent Play Consoles it applies automatically to the first USD 1M per year. If the Console shows an <b>account group / service fee</b> prompt, complete it.</li>
+<li>All of this is per developer account, so check what's already there from Woddie or Salvie.</li></ol>`],
+['Run <code>eas init</code>',`<ol>
+<li>Terminal: <code>cd ~/Development/buraco/mobile &amp;&amp; eas login</code> with account <code>aloeju</code>, the same as Salvie.</li>
+<li><code>eas init</code> → create a new project "buraco". It writes <code>extra.eas.projectId</code> into <code>app.json</code>; commit that change.</li>
+<li>Token for CI: expo.dev → Account settings → <b>Access tokens</b> → Create, named <code>github-buraco</code>. Copy it now (it is shown once) and save it as the GitHub secret <code>EXPO_TOKEN</code> in the Azure phase.</li></ol>`],
+['Create two OIDC app registrations',`<ol>
+<li>portal.azure.com → <b>Microsoft Entra ID</b> → App registrations → New registration → name <code>gh-buraco-de</code> → Register. Note its <b>Application (client) ID</b> and <b>Directory (tenant) ID</b>.</li>
+<li>In it: Certificates &amp; secrets → <b>Federated credentials</b> → Add → scenario "GitHub Actions deploying Azure resources" → organisation <code>Julia-Lunardi</code>, repository <code>buraco</code>, entity type <b>Environment</b>, environment <code>de</code> → Add.</li>
+<li>Subscriptions → your subscription → Access control (IAM) → Add role assignment → <b>Contributor</b> → members: <code>gh-buraco-de</code> → Review + assign.</li>
+<li>Its <b>service principal object id</b> (not the app registration's own object id!):
+<pre>az ad sp show --id &lt;application-client-id&gt; --query id -o tsv</pre>
+Put it in <code>infra/variables/variables.de.tfvars</code> → <code>github_actions_sp_object_id</code>.</li>
+<li>Repeat everything for <code>gh-buraco-pr</code> with environment <code>pr</code> and <code>variables.pr.tfvars</code>. Commit both tfvars files on <code>de</code>.</li></ol>`],
+['User Access Administrator',`<ol>
+<li><pre>ACR=$(az acr show -n acrwoddiede --query id -o tsv)
+for SP in &lt;de-sp-object-id&gt; &lt;pr-sp-object-id&gt;; do
+  az role assignment create --assignee-object-id $SP --assignee-principal-type ServicePrincipal \\
+    --role "User Access Administrator" --scope $ACR
+done</pre></li>
+<li>Why: Contributor cannot create role assignments, and Terraform must grant the app's identity AcrPull on the shared registry. Salvie's first deploy failed without this.</li></ol>`],
+['Create the GitHub environments',`<ol>
+<li>github.com/Julia-Lunardi/buraco → Settings → <b>Environments</b> → New environment <code>de</code>, and another named <code>pr</code>.</li>
+<li>In each environment, add <b>secrets</b>:<ul>
+<li><code>AZURE_CLIENT_ID</code>: that environment's Application (client) ID;</li>
+<li><code>AZURE_TENANT_ID</code>;</li>
+<li><code>AZURE_SUBSCRIPTION_ID</code>;</li>
+<li><code>EXPO_TOKEN</code>.</li></ul></li>
+<li>Settings → Secrets and variables → Actions → <b>Variables</b> (repository level): <code>ACR_NAME</code> = <code>acrwoddiede</code>.</li>
+<li>Optional for <code>pr</code>: add yourself under "Required reviewers", so production deploys wait for your click.</li></ol>`],
+['Create the Key Vaults with a targeted apply',`<ol>
+<li><pre>cd ~/Development/buraco/infra &amp;&amp; az login
+ME=$(az ad signed-in-user show --query id -o tsv)
+terraform init -backend-config=variables/backend.config.de.tfvars
+terraform apply -var-file=variables/variables.tfvars -var-file=variables/variables.de.tfvars \\
+  -var terraform_operator_object_id=$ME \\
+  -target=module.resource_group -target=module.key_vault \\
+  -target=azurerm_role_assignment.terraform_kv_secrets_officer</pre></li>
+<li>Read the plan: only <code>rg-buraco-de</code>, <code>kv-buraco-de</code> and one role assignment should be created. Then type <code>yes</code>.</li>
+<li>For production: <code>terraform init -reconfigure -backend-config=variables/backend.config.pr.tfvars</code>, then the same apply with <code>variables.pr.tfvars</code>.</li>
+<li>If the name <code>kv-buraco-de</code> is taken worldwide (Key Vault names are global), tell Claude.</li></ol>`],
+['Add every runtime secret',`<ol>
+<li>For each vault (<code>kv-buraco-de</code>, then <code>kv-buraco-pr</code>):
+<pre>V=kv-buraco-de
+az keyvault secret set --vault-name $V --name secret-key --value "$(openssl rand -hex 32)"
+az keyvault secret set --vault-name $V --name google-client-id --value "&lt;WEB client id&gt;"
+az keyvault secret set --vault-name $V --name google-ios-client-id --value "&lt;iOS client id&gt;"
+az keyvault secret set --vault-name $V --name google-android-client-id --value "pending"</pre></li>
+<li>Use a <b>different</b> <code>secret-key</code> in de and pr: it signs the login tokens.</li>
+<li>Replace <code>pending</code> with the Android client id once it exists (a later step).</li></ol>`],
+['AZURE_READY=true',`<ol>
+<li>github.com/Julia-Lunardi/buraco → Settings → Secrets and variables → Actions → Variables → New repository variable: <code>AZURE_READY</code> = <code>true</code>.</li>
+<li>Actions → <b>deploy</b> → Run workflow on <code>de</code>, or push anything to <code>de</code>.</li>
+<li>Expected: the first run fails at "Health check" (see the next step).</li></ol>`],
+['non-admin</b> Entra principal',`<ol>
+<li>You are already an Entra admin on <code>psql-woddie-de</code> from the Salvie setup. If not, Salvie's CONSOLIDATION_PLAN §0.2 shows the one <code>az rest</code> call.</li>
+<li><pre>OID=$(az identity show -g rg-buraco-de -n ca-buraco-de-id --query principalId -o tsv)
+export PGPASSWORD=$(az account get-access-token --resource https://ossrdbms-aad.database.windows.net --query accessToken -o tsv)
+psql "host=psql-woddie-de.postgres.database.azure.com dbname=postgres sslmode=require user=&lt;your Entra admin name&gt;" \\
+  -v identity=ca-buraco-de-id -v oid="$OID" -v db=buraco_de \\
+  -f ~/Development/buraco/infra/scripts/managed_identity_db_grants.sql</pre></li>
+<li>The last query must show <code>ca-buraco-de-id</code> as the owner. Then re-run the deploy workflow; this time the health check passes.</li></ol>`],
+['Bind the custom domain',`<ol>
+<li><span class="cond">Only once you have a domain.</span> Until then the app uses the Container App's own <code>*.azurecontainerapps.io</code> address (shown in the deploy summary).</li>
+<li>Cloudflare DNS: <code>CNAME api → &lt;container app fqdn&gt;</code> set to <b>DNS only</b> (grey cloud), plus <code>TXT asuid.api</code> with the verification id from Azure.</li>
+<li>Azure portal → <code>ca-buraco-de</code> → Custom domains → Add → Managed certificate → Validate → Add. Issuing takes about 10 minutes.</li></ol>`],
+['Run <code>eas credentials</code> for iOS',`<ol>
+<li>Nothing to run separately: the first <code>eas build</code> for iOS asks you to log in with your Apple ID. Answer <b>yes</b> to letting EAS generate and manage the distribution certificate and provisioning profile.</li>
+<li>To check later: <code>cd mobile &amp;&amp; eas credentials -p ios</code>.</li></ol>`],
+['Build <code>development-device</code> for iOS',`<ol>
+<li>Register your iPhone once: <code>cd mobile &amp;&amp; eas device:create</code>, then open the link on the iPhone and install the profile.</li>
+<li><code>eas build --profile development-device --platform ios</code>. It takes about 15 minutes in the cloud; follow the link and install it on the iPhone from there.</li>
+<li>iPhone: Settings → Privacy &amp; Security → <b>Developer Mode</b> on (it asks once).</li>
+<li>Mac: <code>npx expo start --dev-client</code>, then open the Buraco dev app on the phone. The phone and the Mac must be on the same Wi-Fi.</li></ol>`],
+['Test on the iPhone: Apple sign-in',`<ol>
+<li>Sign in with Apple, then sign out, then sign in with Google. Both should land on Home.</li>
+<li>If Apple fails with error 1000, the Sign In with Apple capability or the entitlement is missing (see the Apple portal step). If Google shows a 400, check that the iOS client's bundle id is <code>com.buraco.app</code>.</li>
+<li>Silent refresh: leave the app for more than an hour, then reopen. You should still be signed in, with no prompt.</li>
+<li>Also try "Jogar contra bots sem conta", and then sign in: you keep the same account.</li></ol>`],
+['SHA-1 of the EAS Android keystore',`<ol>
+<li>The keystore is created by the first Android build. Run <code>eas build --profile development --platform android</code> once and accept "Generate a new keystore".</li>
+<li><code>cd mobile &amp;&amp; eas credentials -p android</code> → development (or production) → <b>Keystore</b>. The SHA-1 fingerprint is printed. Copy it: this is <code>SHA1_UPLOAD</code>.</li>
+<li>Exit without changing anything.</li></ol>`],
+['Create Android OAuth client #1',`<ol>
+<li>Google Auth Platform (project <code>buraco</code>) → Clients → Create client → <b>Android</b> → name <code>buraco-android-eas</code>.</li>
+<li>Package name <code>com.buraco.app</code>, SHA-1 = <code>SHA1_UPLOAD</code> → Create.</li>
+<li>Put the client id in both Key Vaults (<code>google-android-client-id</code>, replacing "pending") and in <code>eas.json</code> → <code>EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID</code>. The app itself signs in with the <b>web</b> id; this client only tells Google that the app's signature is allowed.</li>
+<li>Wait about 5 minutes before testing.</li></ol>`],
+['Build the Android development or preview APK',`<ol>
+<li><code>eas build --profile development --platform android</code> → open the build link on the phone → install the APK (allow installs from the browser).</li>
+<li><code>npx expo start --dev-client</code> on the Mac, then open the app on the phone.</li>
+<li>Google sign-in should open the native account picker. <code>DEVELOPER_ERROR</code> (code 10) means the SHA-1 or the package name in the Android client is wrong.</li></ol>`],
+['Create the 3 consumable in-app purchases',`<ol>
+<li>Needs: the Paid Apps agreement <b>Active</b>, and the app record in App Store Connect. If it doesn't exist yet: Apps → <b>+</b> → New App → iOS, name Buraco, primary language Portuguese (Brazil), bundle id <code>com.buraco.app</code>, SKU <code>buraco</code>.</li>
+<li>The app → Monetization → <b>In-App Purchases</b> → <b>+</b> → type <b>Consumable</b> → reference name "Apoio pequeno", Product ID <code>tip_small</code>.</li>
+<li>In the purchase:<ul>
+<li>Availability: all countries.</li>
+<li>Price schedule: your tier (default plan USD 0.99, 2.99 and 4.99).</li>
+<li>App Store Localization: add pt-BR, English (U.K./U.S.) and Danish with the names and descriptions from <code>docs/plans/tip-jar.md</code>.</li>
+<li>Review information: a screenshot of the Support screen and the note "Optional contributions toward the app's server costs. They unlock no content or features."</li></ul></li>
+<li>Repeat for <code>tip_medium</code> and <code>tip_large</code>. They show "Ready to Submit" and go out with the first app version.</li></ol>`],
+['Create a Sandbox tester',`<ol>
+<li>App Store Connect → Users and Access → <b>Sandbox</b> → Test Accounts → <b>+</b>. Use a fresh email you can receive mail on (a <code>+sandbox</code> alias works), and set the region to Brazil to see BRL prices.</li>
+<li>On the iPhone: Settings → Developer → <b>Sandbox Apple Account</b> → sign in with it. On older iOS it is under Settings → App Store. Your real Apple ID stays signed in.</li></ol>`],
+['buy each tip, cancel one',`<ol>
+<li>Settings → Apoie o app: three buttons with BRL prices.</li>
+<li>Buy <code>tip_small</code>: the sandbox sheet, then the thank-you line. Then buy it <b>again</b>; a second purchase working proves the first was finished.</li>
+<li>Start a purchase and cancel: no message appears.</li>
+<li>Pending: in App Store Connect → Sandbox → your tester → turn on <b>Ask to Buy</b>. Buy again: you get the "waiting for approval" line.</li></ol>`],
+['Add Firebase to the <b>same</b> Google Cloud project',`<ol>
+<li>console.firebase.google.com → Add project → <b>choose the existing Google Cloud project <code>buraco</code></b> (don't create a new one: Salvie's split projects caused trouble). Decline Analytics.</li>
+<li>Project settings → Your apps → Add app → <b>Android</b> → package <code>com.buraco.app</code> → Register → download <code>google-services.json</code>.</li>
+<li>It is gitignored, so hand it to EAS as a file variable:
+<pre>cd mobile
+eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services.json --environment development --environment preview --environment production --visibility secret</pre>
+<code>app.config.ts</code> picks it up from <code>GOOGLE_SERVICES_JSON</code>. Keep a local copy in <code>mobile/</code> for local builds.</li>
+<li>Skip the iOS app in Firebase: iOS pushes go through APNs (next step).</li></ol>`],
+['Upload the FCM V1 service account key',`<ol>
+<li>Firebase → Project settings → <b>Service accounts</b> → Generate new private key → a JSON file downloads.</li>
+<li><code>cd mobile &amp;&amp; eas credentials -p android</code> → production → Google Service Account → <b>Manage your Google Service Account Key for Push Notifications (FCM V1)</b> → upload that JSON. Repeat for development if you test pushes there.</li>
+<li><code>eas credentials -p ios</code> → production → <b>Push Notifications</b> → let EAS create an APNs key.</li>
+<li>Delete the downloaded JSON from Downloads: it is a credential.</li></ol>`],
+['Review both documents and publish',`<ol>
+<li>Read Claude's drafts in <code>website/privacy.html</code> and <code>website/terms.html</code>. Check that every data item and processor is true.</li>
+<li>Push to <code>de</code>: Cloudflare Pages publishes them. Open both URLs in a private window.</li>
+<li>Put the URLs into <code>mobile/eas.json</code> as <code>EXPO_PUBLIC_PRIVACY_URL</code> and <code>EXPO_PUBLIC_TERMS_URL</code>, the Google consent screen, App Store Connect and the Play listing.</li></ol>`],
+['review chat reports',`<ol>
+<li>Production, from your Mac:
+<pre>az containerapp exec -n ca-buraco-pr -g rg-buraco-pr --command "uv run --no-dev python -m scripts.chat_reports"</pre></li>
+<li>Hide a bad message: add <code>--hide &lt;message id&gt;</code>. Mark a report done: add <code>--resolve &lt;report id&gt;</code>.</li>
+<li>A calendar reminder works: daily in launch week, then weekly.</li></ol>`],
+['Grant the identity on <code>buraco_pr</code>',`<ol>
+<li>The same as the de grant, with pr values: <code>-g rg-buraco-pr -n ca-buraco-pr-id</code>, <code>-v identity=ca-buraco-pr-id -v db=buraco_pr</code>.</li>
+<li>Then re-run the deploy on <code>main</code>.</li></ol>`],
+['is the web ID',`<ol>
+<li><pre>az keyvault secret show --vault-name kv-buraco-pr --name google-client-id --query value -o tsv</pre></li>
+<li>It must equal the <b>Web</b> client id (the client of type "Web application"), not the iOS or Android one. If not: <code>az keyvault secret set</code> with the right value, then <code>az containerapp revision restart</code> or redeploy.</li></ol>`],
+['Build and upload the iOS production build',`<ol>
+<li>Fill in <code>eas.json</code> → <code>production.env</code>: the API URL (the pr deploy summary) and the three Google client ids. Commit.</li>
+<li><pre>cd mobile
+eas build --platform ios --profile production
+eas submit --platform ios --latest</pre>
+<code>eas submit</code> asks for your Apple ID and uploads to App Store Connect. The build appears in TestFlight after Apple's processing (10–30 minutes).</li></ol>`],
+['TestFlight on a real device',`<ol>
+<li>App Store Connect → TestFlight → the build → add yourself as an internal tester → install from the TestFlight app.</li>
+<li>Go through the check list in the step title. Each must work exactly as on the dev build, because this is the binary Apple reviews.</li></ol>`],
+['Create the App Store Connect record',`<ol>
+<li>The app (create it as in the in-app purchases step if needed) → <b>App Information</b>: name "Buraco" (or the final name), subtitle, category <b>Games → Card</b>, Privacy Policy URL.</li>
+<li>Version page (1.0): description, keywords, support URL (a <code>mailto</code> is not accepted; use the website), copyright "2026 Salvia Code Labs".</li>
+<li>Write the texts in pt-BR first, then add English and Danish localisations.</li></ol>`],
+['App Privacy answers',`<ol>
+<li>The app → <b>App Privacy</b> → Get Started. "Do you collect data?" → Yes.</li>
+<li>Declare:<ul>
+<li><b>Contact Info</b>: Name and Email (linked to the user, used for app functionality);</li>
+<li><b>Identifiers</b>: User ID;</li>
+<li><b>User Content</b>: Other User Content (chat messages).</li></ul>
+None of them is used for tracking.</li>
+<li>Don't declare Purchases: Apple processes them, and the app stores nothing about them.</li>
+<li><b>Age rating:</b> answer the questionnaire honestly. Gambling and simulated gambling: <b>none</b> (no stakes or casino mechanics). User-generated content and messaging: <b>yes</b>.</li></ol>`],
+['Upload screenshots for iPhone',`<ol>
+<li>Sizes: iPhone 6.9" (1320×2868 or 1290×2796) and iPad 13" (2064×2752), portrait or landscape.</li>
+<li>Easiest: run the dev build in the iOS Simulator (an iPhone 17 Pro Max and an iPad Pro 13") and press ⌘S. Seed a nice table first.</li>
+<li>Upload 3–6 per size on the version page. Include at least one landscape table on iPad.</li></ol>`],
+['Write review notes',`<ol>
+<li>Version page → App Review Information → Notes, for example:<br>
+<i>"Tap 'Jogar contra bots sem conta' on the first screen to play a full game against bots with no account. Friends tables need Sign in with Apple; any Apple ID works. Chat is between invited friends only and has report and block on every message."</i></li>
+<li>Sign-in required: <b>No</b>, because the guest path covers the app.</li></ol>`],
+['attach the 3 in-app purchases',`<ol>
+<li>Version page → section <b>In-App Purchases and Subscriptions</b> → Select → tick the three tips → Done.</li>
+<li>Check that each has its review screenshot and note, or Apple sends them back.</li></ol>`],
+['Submit for review',`<ol>
+<li>Version page → Add for Review → Submit. Answer export compliance: the app uses only standard HTTPS (<code>ITSAppUsesNonExemptEncryption</code> is already false).</li>
+<li>Typical review time is 1–3 days. Rejections arrive in Resolution Center; paste them to Claude.</li></ol>`],
+['Create the Play service account',`<ol>
+<li>console.cloud.google.com (project <code>buraco</code>) → IAM &amp; Admin → <b>Service accounts</b> → Create → <code>play-publisher</code> → no roles → Done → Keys → Add key → JSON.</li>
+<li>Play Console → <b>Users and permissions</b> → Invite new users → the service account's email → app Buraco → permissions to release to testing tracks and production.</li>
+<li>Save the JSON as <code>mobile/google-play-service-account.json</code>. It is gitignored; never commit it.</li></ol>`],
+['Build and upload the Android production build',`<ol>
+<li><code>cd mobile &amp;&amp; eas build --platform android --profile production</code> → download the <code>.aab</code> from the build page.</li>
+<li><b>The very first upload must be manual</b>, because Google's API can't create an app's first release. Play Console → Test and release → Testing → <b>Internal testing</b> → Create new release → upload the .aab → accept Play App Signing → Save → Review → Roll out.</li>
+<li>From then on: <code>eas submit --platform android --latest</code> uploads to the internal track automatically.</li></ol>`],
+['Play App Signing SHA-1',`<ol>
+<li>Play Console → Test and release → Setup → <b>App integrity</b> → App signing tab.</li>
+<li>Under <b>App signing key certificate</b>, copy the SHA-1. This is <code>SHA1_PLAY</code>, different from the EAS upload key.</li></ol>`],
+['Create Android OAuth client #2',`<ol>
+<li>Google Auth Platform → Clients → Create client → Android → <code>buraco-android-play</code> → package <code>com.buraco.app</code>, SHA-1 = <code>SHA1_PLAY</code>.</li>
+<li>No need to put this id anywhere: Android uses the web id at runtime. Its existence is what makes Play installs work.</li>
+<li>Wait about 5 minutes, then sign in with Google from an internal-testing install.</li></ol>`],
+['one-time (consumable) products',`<ol>
+<li>Play Console → the app → <b>Monetize with Play</b> → Products → <b>One-time products</b> → Create.</li>
+<li>Product id <code>tip_small</code>, name and description in pt-BR (add en and da translations), price, then <b>Activate</b>.</li>
+<li>Repeat for <code>tip_medium</code> and <code>tip_large</code>. Consumption is handled by the app (expo-iap consumes each purchase), so there is no setting for that here.</li></ol>`],
+['add license testers',`<ol>
+<li>Play Console → Settings → <b>License testing</b> → add your Gmail address(es) → Save. Testers aren't charged.</li>
+<li>Join the internal test through its opt-in link on the phone, install from Play, and buy a tip <b>twice</b>. The second purchase only works if the first was consumed.</li></ol>`],
+['Complete the listing',`<ol>
+<li>Grow → Store presence → <b>Main store listing</b>: short and full description (pt-BR first), icon and graphics.</li>
+<li>Policy → <b>App content</b>:<ul>
+<li>Privacy policy URL.</li>
+<li>Ads: No.</li>
+<li>App access: "All functionality is available without special access" (the guest mode). Mention that friends tables need Google sign-in.</li>
+<li>Content rating (IARC): category Game; users can interact or communicate: Yes; no gambling.</li>
+<li>Target audience: <b>13+</b>, which keeps the app out of the Families programme. Chat between strangers is impossible, since tables are private.</li>
+<li>Data safety: collects name, email, user IDs and in-app messages; encrypted in transit; users can request deletion (in the app).</li></ul></li></ol>`],
+['Add the graphics',`<ol>
+<li>Icon 512×512 PNG; feature graphic 1024×500.</li>
+<li>Phone screenshots, plus 7" and 10" tablet ones. Aspect ratio at most 2:1; Salvie's 2.06:1 images were rejected.</li>
+<li>Android emulator screenshots work: Pixel 9 plus Pixel Tablet.</li></ol>`],
+['closed test with at least 12 testers',`<ol>
+<li>Check: Play Console → Dashboard. If it shows "Apply for production" with a 12-testers / 14-days requirement, this applies to you.</li>
+<li>Test and release → Testing → <b>Closed testing</b> → Create track → testers = a Google Group or an email list of at least 12 friends → release the same build.</li>
+<li>Each tester must <b>opt in</b> through the link and keep the app installed for 14 days in a row. Then Dashboard → Apply for production, answering the questions about the test.</li></ol>`],
+['Promote to production',`<ol>
+<li>Test and release → <b>Production</b> → Create new release → "Add from library" (the tested build) → release notes → Review → start the rollout (100%, or staged).</li>
+<li>Google's review takes from a few days up to a week for a new app.</li></ol>`],
+['Sign-in: Apple (iOS)',`<ol><li>On the store builds (TestFlight and the Play internal track): sign in with each method, close the app, and reopen it after more than an hour. You stay signed in.</li></ol>`],
+['A full game against bots',`<ol><li>Play a full match against bots. Play one round with a friend on another phone. During a live game, put one phone in flight mode for 30 seconds: the other phone sees "Bot jogando por …", and when you reconnect you take your seat back.</li></ol>`],
+['Chat: send, mute',`<ol><li>With a friend: send messages and quick phrases, mute them, report a message (it disappears for you), block them (their messages vanish everywhere), and let the host switch chat off.</li></ol>`],
+['Account deletion removes',`<ol><li>Settings → Excluir conta → confirm: you're back on the sign-in screen, and signing in again creates a fresh account. Tap the privacy and terms links.</li></ol>`],
+['Tip jar on store builds',`<ol><li>Prices appear in the store's currency. A purchase shows one thank-you line, and a cancel shows nothing. Play a whole game and confirm that no tip prompt appears anywhere.</li></ol>`],
+['Safe areas, dark mode',`<ol><li>Try a notched iPhone, an iPad (portrait and landscape) and an Android phone. Switch the system dark mode and turn on Reduce Motion (iOS: Accessibility → Motion). Nothing should overlap or animate.</li></ol>`],
+];
+
+function howFor(kind,title){
+  if(kind!=='manual') return '';
+  const hit=HOW.find(([k])=>title.includes(k));
+  return hit?`<details class="how"><summary>How to do it</summary><div class="howbody">${hit[1]}</div></details>`:'';
+}
 const KEY='buraco-runbook-v1';
 let state={done:{},open:{}};
 try{ const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s) state=Object.assign(state,s); }catch(e){}
@@ -416,7 +712,7 @@ PHASES.forEach((p,pi)=>{
     li.innerHTML=`<input type="checkbox" id="${id}" aria-label="Mark step ${n} done">
       <div class="shead"><span class="sn">${String(n).padStart(2,'0')}</span>
         <label class="stitle" for="${id}">${title}</label><span class="badge ${kind}">${LABEL[kind]}</span></div>
-      <div class="sbody"><span class="where">${where}</span>${DONE[n]?`<span class="donenote">✓ ${DONE[n]}</span>`:''}${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}</div>`;
+      <div class="sbody"><span class="where">${where}</span>${DONE[n]?`<span class="donenote">✓ ${DONE[n]}</span>`:''}${body||''}${lesson?`<div class="lesson"><b>Learned the hard way:</b> ${lesson}</div>`:''}${howFor(kind,title)}</div>`;
     const cb=li.querySelector('input'); cb.checked=state.done[id] ?? !!DONE[n]; li.classList.toggle('done',cb.checked);
     cb.addEventListener('change',()=>{ state.done[id]=cb.checked; li.classList.toggle('done',cb.checked); save(); refresh(); });
     ol.appendChild(li);
