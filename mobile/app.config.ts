@@ -49,11 +49,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: BUNDLE_ID,
     ...(googleServicesFile ? { googleServicesFile } : {}),
+    // Launchers show only the middle 72 of the 108 dp layer and mask it to a circle or squircle.
+    // The foreground is the artwork at 88% on the felt (farthest corner 29.5% from the centre,
+    // inside the 30.6% safe circle); a full-bleed foreground came out zoomed and cropped in
+    // Salvie and Woddie.
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
-      backgroundColor: '#1f3d32',
+      backgroundColor: '#275243',
     },
     predictiveBackGestureEnabled: false,
     // Request only what is used: extra permissions trigger Play declarations (Salvie).
@@ -75,10 +79,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ],
       },
     ],
-    ['expo-splash-screen', { backgroundColor: '#1f3d32', image: './assets/splash-icon.png', imageWidth: 120 }],
+    ['expo-splash-screen', { backgroundColor: '#275243', image: './assets/splash-icon.png', imageWidth: 200 }],
     ['expo-screen-orientation', { initialOrientation: 'DEFAULT' }],
     // Permission is asked only after the player's first table, never at launch.
-    'expo-notifications',
+    // Android draws the small notification icon as a white silhouette; without one it is a grey square.
+    ['expo-notifications', { icon: './assets/notification-icon.png', color: '#275243' }],
     // Store billing for the optional contributions (adds Android's BILLING permission).
     'expo-iap',
     // Sign in with Apple: iOS only. Native Google Sign-In: Android only (iOS uses

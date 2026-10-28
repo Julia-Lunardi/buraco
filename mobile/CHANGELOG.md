@@ -4,6 +4,7 @@
 
 - The app is now called **Buraco Lounge**: the home-screen name, the Home header, and the sign-in wordmark (on two lines, as designed). Notification titles change too.
 - Card backs are the final "Ardósia" design: the Salvia Code Labs leaf mark in cream replaces the diamond. The lobby's deck shows the full back with the Salvia wordmark under the mark.
+- New app icon (two cards, a heart and a club, with sage leaves on the felt), from the final icon set. Android: the artwork sits at 88% on the felt, inside the launcher's safe circle, so it isn't zoomed or cropped as Salvie's and Woddie's first icons were. The themed (monochrome) icon, the launch screen, the favicon and a white notification icon come from the same set; the icon, launch screen and notification colour are the icon's felt, `#275243`.
 
 ## 27.10.2026 (14)
 
