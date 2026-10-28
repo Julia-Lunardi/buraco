@@ -12,15 +12,13 @@ const SPRITE = require('../../../assets/cards/classic.webp');
 const SPRITE_SUITS = ['S', 'H', 'D', 'C'];
 const COLS = 14;
 const ROWS = 4;
-// Card back "Ardósia" (design system, 28.10.2026): the Salvia Code Labs leaf mark in cream on
-// slate blue. Small backs show the mark only; the large back adds the wordmark (back.svg,
-// rasterised to back-full.png).
-const BACK_MARK = require('../../../assets/cards/back-mark.png');
+// Card back "Ardósia" (design system, 28.10.2026): the Salvia Code Labs leaf mark and the
+// "SALVIA CODE LABS" wordmark in cream on slate blue, on every back at every size (Julia's
+// call, over the design system's mark-only small backs). back.svg rasterised to back-full.png.
 const BACK_FULL = require('../../../assets/cards/back-full.png');
-const MARK_RATIO = 240 / 204;
 
-/** The full card back with the Salvia wordmark, for the one large face-down card on a screen
- * (the lobby's deck). `width` in points; the height follows the 5:7 card shape. */
+/** The card back at any width, for a face-down card outside the fixed card sizes (the lobby's
+ * deck). `width` in points; the height follows the 5:7 card shape. */
 export function CardBack({ width, style }: { width: number; style?: ViewStyle }) {
   const { shadow } = useTheme();
   return (
@@ -51,14 +49,9 @@ export default function Card({ label, size = 'hand', faceDown, selected, disable
 
   if (faceDown || !label) {
     return (
-      <View style={[{
-        width: w, height: h, borderRadius: corner, backgroundColor: c.cardBack, borderWidth: 1, borderColor: c.cardEdge,
-        padding: size === 'table' ? 3 : 4, boxShadow: shadow.shadowCard }, style]}>
-        <View style={{ flex: 1, borderRadius: corner - 2, borderWidth: 1, borderColor: c.cardBackPattern,
-                       alignItems: 'center', justifyContent: 'center' }}>
-          <Image source={BACK_MARK} accessibilityIgnoresInvertColors
-                 style={{ width: w * 0.56, height: (w * 0.56) / MARK_RATIO, opacity: 0.85 }} />
-        </View>
+      <View style={[{ width: w, height: h, borderRadius: corner, backgroundColor: c.cardBack, boxShadow: shadow.shadowCard,
+                      overflow: 'hidden' }, style]}>
+        <Image source={BACK_FULL} accessibilityIgnoresInvertColors resizeMode="stretch" style={{ width: w, height: h }} />
       </View>
     );
   }
