@@ -7,6 +7,11 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ca-buraco-de.salmonsky-b4df37a6.northeurope.azurecontainerapps.io",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1064177722134-32vrvquqefofbj2o73gc7pseh4cmsmj8.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "1064177722134-nh9neqv5siol5k1kpj1ebvvg1ivbjtjh.apps.googleusercontent.com"
+      },
       "ios": {
         "simulator": true
       },
@@ -22,6 +27,11 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ca-buraco-de.salmonsky-b4df37a6.northeurope.azurecontainerapps.io",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "1064177722134-32vrvquqefofbj2o73gc7pseh4cmsmj8.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "1064177722134-nh9neqv5siol5k1kpj1ebvvg1ivbjtjh.apps.googleusercontent.com"
+      },
       "android": {
         "buildType": "apk"
       }
