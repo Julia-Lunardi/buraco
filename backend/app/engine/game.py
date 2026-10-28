@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .cards import Card, build_deck
-from .melds import CanastraKind, MeldShape, analyse, canastra_kind
+from .melds import CanastraKind, MeldShape, analyse, canastra_kind, in_order
 from .presets import DiscardPickup, GoOutRequires, Preset
 
 
@@ -158,7 +158,7 @@ class Round:
                 {
                     "morto_waiting": t.morto is not None,
                     "took_morto": t.took_morto,
-                    "melds": [{"id": m.id, "cards": cards(m.cards), "kind": m.shape.kind.value,
+                    "melds": [{"id": m.id, "cards": cards(in_order(m.cards, m.shape)), "kind": m.shape.kind.value,
                                "wilds": m.shape.wilds,
                                "canastra": (k.value if (k := canastra_kind(len(m.cards), m.shape, self.preset))
                                             else None)} for m in t.melds],

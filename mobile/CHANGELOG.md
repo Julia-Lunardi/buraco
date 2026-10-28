@@ -2,8 +2,11 @@
 
 ## 28.10.2026
 
-- Bots play at a person's pace: their moves are shown one by one, with a pause to draw (~0.9 s), a beat for each meld, and a pause to discard (each varied by up to 15%). When a bot ends the round, the table stays up a moment before the summary. Pacing lives in `realtime/pacing.ts`.
-- Cards move smoothly: a card glides to its new place when the hand is sorted or a card leaves it, cards drawn drop into the hand from above, cards on the lixo and in melds fade in, and the selection lift eases instead of snapping (`features/table/motion.tsx`).
+- Bots play at a person's pace: their moves are shown one by one, with a pause to draw (~1.4 s), a beat for each meld (~1.1–1.2 s), and a pause to discard (~1.3 s), each varied by up to 15%. When a bot ends the round, the table stays up 2 s before the summary. Pacing lives in `realtime/pacing.ts`.
+- Melds always lie in order, however they were played (a 5 added to 6-7-8 shows 5-6-7-8). The server sends them sorted; see the backend changelog.
+- Trincas (lavadeiras) stack downwards, each card showing its rank and suit; sequences still fan sideways. A trinca canastra's crosswise card lies across the foot of the column.
+- A card you draw from the stock leaves face down and turns face up over the last part of its flight into your hand.
+- Cards fly across the table: from the stock (face down) to a hand, from a hand to the lixo or a meld, and from the lixo to whoever takes it. Each flight takes 0.7 s on a slight arc, easing in and out, and grows or shrinks between card sizes. The real card appears when its flight lands. Cards going to or from another player's hidden hand fly to or from their avatar. Rows re-space with a 0.45 s glide, and the selection lift eases. Timings are in `features/table/timing.ts`, the move diff is `planFlights.ts`, and the flight layer is `flights.tsx`.
 - The app is now called **Buraco Lounge**: the home-screen name, the Home header, and the sign-in wordmark (on two lines, as designed). Notification titles change too.
 - Card backs are the final "Ardósia" design: the Salvia Code Labs leaf mark with "SALVIA CODE LABS" under it, in cream on slate blue, on every face-down card (pile, morto, opponents' hands, the lobby's deck).
 - New app icon (two cards, a heart and a club, with sage leaves on the felt), from the final icon set. Android: the artwork sits at 88% on the felt, inside the launcher's safe circle, so it isn't zoomed or cropped as Salvie's and Woddie's first icons were. The themed (monochrome) icon, the launch screen, the favicon and a white notification icon come from the same set; the icon, launch screen and notification colour are the icon's felt, `#275243`.

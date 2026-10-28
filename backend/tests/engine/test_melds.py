@@ -1,6 +1,6 @@
 import pytest
 
-from app.engine.melds import CanastraKind, MeldKind, analyse, canastra_kind
+from app.engine.melds import CanastraKind, MeldKind, analyse, canastra_kind, in_order
 from app.engine.presets import ABERTO, Preset
 
 from .helpers import cards
@@ -129,3 +129,33 @@ def test_stbl_preset_has_no_trincas():
     from app.engine.presets import STBL
     assert shape("7H 7S 7D", STBL) is None
     assert shape("7H 8H 9H", STBL) is not None
+
+
+# --- order on the table -----------------------------------------------------
+
+def laid(codes: str) -> list[str]:
+    cs = cards(codes)
+    return [c.label for c in in_order(cs, analyse(cs, ABERTO))]
+
+
+@pytest.mark.parametrize("played, shown", [
+    ("6H 7H 8H 5H", "5H 6H 7H 8H"),  # a card added at the low end goes first
+    ("10D JD 8D 9D", "8D 9D 10D JD"),
+    ("5S JK 7S", "5S JK 7S"),  # the wild sits in the gap it fills
+    ("JK 7S 5S 6S", "JK 5S 6S 7S"),  # a wild at the end stands for the 4, as the engine reads it
+    ("KC AC QC", "QC KC AC"),  # high ace
+    ("3C AC 2C", "AC 2C 3C"),  # low ace, natural 2
+    ("4H 2S 3H 6H 5H", "2S 3H 4H 5H 6H"),  # a wild 2 of another suit takes the free slot
+    ("5H 2H 7H", "5H 2H 7H"),  # a 2 of the suit as a wild
+])
+def test_sequences_lie_in_order(played, shown):
+    assert laid(played) == shown.split()
+
+
+def test_trinca_shows_naturals_then_the_wild():
+    assert laid("JK 5C 5D 5C") == ["5C", "5C", "5D", "JK"]
+
+
+def test_full_run_has_an_ace_at_each_end():
+    shown = laid("KS AS 2S 3S 4S 5S 6S 7S 8S 9S 10S JS QS AS")
+    assert shown[0] == "AS" and shown[-1] == "AS" and shown[1] == "2S"

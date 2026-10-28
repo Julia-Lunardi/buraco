@@ -12,6 +12,7 @@ import { useChat } from '../features/chat/useChat';
 import Hand from '../features/table/Hand';
 import MeldRow from '../features/table/MeldRow';
 import { DiscardPile, Stock } from '../features/table/Piles';
+import { FlightsProvider, useCardFlights } from '../features/table/flights';
 import { GameOver, RoundSummary } from '../features/table/Results';
 import TeamWell from '../features/table/TeamWell';
 import { analyse, RULES, sortHand } from '../game/melds';
@@ -28,7 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Table'>;
 /**
  * The table, as designed ("Jogo — mesa mínima"): their team's well on top, the stock and the
  * spread lixo in the middle, your well and your hand below. Everything is tap-to-select, then
- * tap a target: the stock draws, "Pegar" takes the lixo, your area lays the selection down,
+ * tap a target: the stock draws, the lixo is taken by tapping it, your area lays the selection down,
  * one of your melds takes it, the lixo takes a single selected card as the discard.
  * Landscape (and tablets) put the wells in a left column and the piles and hand on the right.
  */
@@ -49,6 +50,8 @@ export default function TableScreen({ navigation, route }: Props) {
   const [picked, setPicked] = useState<number[]>([]);
 
   const game = table?.game ?? null;
+  const flights = useCardFlights(game);
+  const place = (key: string) => (view: View | null) => flights.api.register(key, view);
   // Derived, not synced: after any new state, only cards still in the hand stay selected.
   const selected = picked.filter((id) => game?.hand.some((card) => card.id === id));
 
@@ -159,12 +162,16 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const piles = game ? (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
-      <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
-      <DiscardPile cards={game.discard} width={Math.min(270, handWidth - 100)}
-                   takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
-                   onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
-                   target={playing && selected.length === 1}
-                   onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
+      <View collapsable={false} ref={place('stock')}>
+        <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
+      </View>
+      <View collapsable={false} ref={place('discard')}>
+        <DiscardPile cards={game.discard} width={Math.min(320, handWidth - 115)}
+                     takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
+                     onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
+                     target={playing && selected.length === 1}
+                     onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
+      </View>
     </View>
   ) : null;
 
@@ -188,16 +195,20 @@ export default function TableScreen({ navigation, route }: Props) {
   );
 
   const hand = game ? (
-    <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
-          selectionValid={newMeldValid || pickupValid} onToggle={toggle} />
+    <View collapsable={false} ref={place('hand')}>
+      <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
+            selectionValid={newMeldValid || pickupValid} onToggle={toggle} />
+    </View>
   ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.table, paddingTop: insets.top + space.space2,
                    paddingBottom: insets.bottom + space.space3, paddingLeft: insets.left, paddingRight: insets.right }}>
+      <FlightsProvider api={flights.api}>
       {landscape ? (
         <View style={{ flex: 1, flexDirection: 'row' }}>
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: gutter, gap: 10 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: gutter, gap: 10 }}
+                      onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
             {theirWell}
             {myWell}
           </ScrollView>
@@ -208,7 +219,8 @@ export default function TableScreen({ navigation, route }: Props) {
           </View>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}
+                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: space.space3 }} />
           {piles}
@@ -218,6 +230,8 @@ export default function TableScreen({ navigation, route }: Props) {
           {hand}
         </ScrollView>
       )}
+      </FlightsProvider>
+      {flights.layer}
       {chatAvailable ? (
         <ChatPanel visible={chatOpen} onClose={() => { chat.markSeen(); setChatOpen(false); }} table={table} chat={chat}
                    myUserId={user?.id} send={say} />

@@ -1,16 +1,17 @@
 import type { BotStep, TableView } from '../api/tables';
 
 /** How long a bot "thinks" before each kind of move, in ms. The server decides at once; these
- * make a bot's turn read like a person's: a pause to draw, a beat per meld, a pause to discard. */
+ * make a bot's turn read like a person's: a pause to draw, a beat per meld, a pause to discard.
+ * Each is longer than a card's flight (features/table/timing.ts), so every move is seen landing. */
 export const BOT_PAUSE: Record<NonNullable<BotStep['action']>, number> = {
-  draw: 900,
-  take_discard: 1000,
-  lay_down: 750,
-  add_to_meld: 650,
-  discard: 800,
+  draw: 1400,
+  take_discard: 1600,
+  lay_down: 1200,
+  add_to_meld: 1100,
+  discard: 1300,
 };
 /** After the last move ends a round, before the summary replaces the table. */
-export const ROUND_END_PAUSE = 1400;
+export const ROUND_END_PAUSE = 2000;
 
 export interface Frame {
   table: TableView;

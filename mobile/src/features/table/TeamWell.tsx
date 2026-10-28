@@ -4,6 +4,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { SeatView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
+import { useFlights } from './flights';
 
 interface Props {
   seats: SeatView[];
@@ -30,6 +31,7 @@ const initials = (name: string | null) =>
 export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
   const { seats, handSizes, currentSeat, score, mortoWaiting, active, meldsFirst, melds, trailing, onPressArea } = props;
+  const flights = useFlights();
 
   const strip = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 44 }}>
@@ -43,7 +45,8 @@ export default function TeamWell(props: Props) {
                           on ? t('table.yourTurnA11y') : null, seat.covered_by_bot ? t('table.botA11y') : null]
               .filter(Boolean).join(', ');
             return (
-              <View key={seat.seat} accessible accessibilityLabel={a11y}
+              <View key={seat.seat} accessible accessibilityLabel={a11y} collapsable={false}
+                    ref={(view) => flights?.register(`seat:${seat.seat}`, view)}
                     style={{ width: 38, height: 38, borderRadius: 19, marginLeft: i ? -6 : 0, backgroundColor: c.table,
                              alignItems: 'center', justifyContent: 'center', opacity: seat.connected === false ? 0.55 : 1,
                              borderWidth: bot ? 1.5 : 0, borderStyle: 'dashed', borderColor: c.tableInkSoft,
@@ -65,9 +68,20 @@ export default function TeamWell(props: Props) {
               style={{ fontFamily: type.score.fontFamily, fontSize: 20, lineHeight: 24, color: c.tableInk, marginLeft: 4,
                        fontVariant: ['tabular-nums'] }}>{score.toLocaleString('pt-BR')}</Text>
         <View accessible accessibilityLabel={mortoWaiting ? t('table.mortoOnTable') : t('table.mortoGone')}
-              style={{ width: 14, height: 20, borderRadius: 3, borderWidth: 1.5,
-                       ...(mortoWaiting ? { backgroundColor: c.cardBack, borderColor: c.cardBackPattern }
-                         : { borderStyle: 'dashed' as const, borderColor: c.tableInkSoft, opacity: 0.7 }) }} />
+              style={{ width: 23, height: 30, marginLeft: 2 }}>
+          {mortoWaiting ? (
+            <>
+              <View style={{ position: 'absolute', left: 4, top: 0, width: 19, height: 27, borderRadius: 3, borderWidth: 2,
+                             backgroundColor: c.cardBack, borderColor: c.cardBackPattern }} />
+              <View style={{ position: 'absolute', left: 0, top: 3, width: 19, height: 27, borderRadius: 3, borderWidth: 2,
+                             backgroundColor: c.cardBack, borderColor: c.cardBackPattern,
+                             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.45)' }} />
+            </>
+          ) : (
+            <View style={{ position: 'absolute', left: 0, top: 3, width: 19, height: 27, borderRadius: 3, borderWidth: 1.5,
+                           borderStyle: 'dashed', borderColor: c.tableInkSoft, opacity: 0.6 }} />
+          )}
+        </View>
       </View>
       {trailing}
     </View>

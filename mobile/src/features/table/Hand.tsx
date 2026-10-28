@@ -4,7 +4,7 @@ import type { CardView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
-import { CardSlot, ENTER_HAND } from './motion';
+import { CardSlot } from './motion';
 import { useCardSizes } from './sizes';
 
 interface Props {
@@ -41,7 +41,7 @@ export default function Hand({ cards, selected, selectionValid, width, onToggle 
             {line.map((card, i) => {
               const isSel = selected.includes(card.id);
               return (
-                <CardSlot key={card.id} left={i * step} zIndex={i + 1} entering={ENTER_HAND}>
+                <CardSlot key={card.id} id={card.id} left={i * step} zIndex={i + 1}>
                   <Card label={card.label} selected={isSel ? (selectionValid ? 'valid' : true) : false}
                         onPress={() => onToggle(card.id)} />
                 </CardSlot>

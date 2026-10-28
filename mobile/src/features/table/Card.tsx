@@ -5,7 +5,7 @@ import { spokenCard } from '../../components/PlayingCard';
 import { useTheme } from '../../theme';
 import { parse } from '../../game/melds';
 import { type CardSize, useCardSizes } from './sizes';
-import { LIFT_TRANSITION } from './motion';
+import { LIFT_TRANSITION } from './timing';
 import SuitIcon from './SuitIcon';
 
 // Classic deck faces: Vector Playing Cards 1.3 (public domain), one sprite of 14 x 4 cards

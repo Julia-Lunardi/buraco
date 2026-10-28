@@ -2,14 +2,13 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import { appleSignIn, googleReady, googleSignInAndroid, nativeGoogle } from '../auth/providers';
 import GoogleLogo from '../components/GoogleLogo';
-import Card from '../features/table/Card';
 import { GOOGLE_CLIENT_IDS, LEGAL_URLS } from '../config';
 import { t } from '../i18n';
 import { useTheme } from '../theme';
@@ -20,6 +19,7 @@ WebBrowser.maybeCompleteAuthSession(); // must run at module level for the redir
 // conditional: a placeholder keeps it quiet while `googleReady` hides the button.
 const PLACEHOLDER_CLIENT_ID = 'missing-client-id';
 const BUTTON_HEIGHT = 52;
+const LOGO = require('../../assets/icon.png');
 
 export default function SignInScreen() {
   const { c, space, radius, type } = useTheme();
@@ -133,7 +133,7 @@ export default function SignInScreen() {
     ? <Text style={{ color: c.accent }} accessibilityRole="link" onPress={() => Linking.openURL(url)}>{label}</Text>
     : <Text>{label}</Text>;
 
-  // On the felt (Claude Design "Entrar"): a small fan of cards, the wordmark, then the
+  // On the felt (Claude Design "Entrar"): the Buraco Lounge logo, the wordmark, then the
   // sign-in buttons in each brand's own colours and the guest option as a plain link.
   return (
     <ScrollView
@@ -145,10 +145,9 @@ export default function SignInScreen() {
     >
       <View style={{ flex: 1, width: '100%', maxWidth: 420, gap: space.space3 }}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: space.space6, minHeight: 320 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 104 }} importantForAccessibility="no-hide-descendants">
-            <Card faceDown size="pile" style={{ transform: [{ rotate: '-10deg' }, { translateY: 8 }] }} />
-            <Card label="AH" size="pile" style={{ marginLeft: -16 }} />
-            <Card label="2S" size="pile" style={{ marginLeft: -16, transform: [{ rotate: '10deg' }, { translateY: 8 }] }} />
+          <View importantForAccessibility="no-hide-descendants"
+                style={{ borderRadius: 30, boxShadow: '0 6px 18px rgba(0, 0, 0, 0.35)' }}>
+            <Image source={LOGO} accessibilityIgnoresInvertColors style={{ width: 128, height: 128, borderRadius: 30 }} />
           </View>
           <View style={{ alignItems: 'center', gap: 10 }}>
             <Text style={[type.wordmark, { color: c.tableInk, textAlign: 'center' }]} accessibilityRole="header">

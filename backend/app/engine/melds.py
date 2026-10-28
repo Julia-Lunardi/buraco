@@ -58,6 +58,34 @@ def canastra_kind(size: int, shape: MeldShape, preset: Preset) -> CanastraKind |
     return CanastraKind.LIMPA
 
 
+def in_order(cards: Sequence[Card], shape: MeldShape) -> list[Card]:
+    """The meld as it should lie on the table, whatever order its cards were played in.
+    Sequences run low to high, each wild in the slot it stands for (a natural 2 in the 2's
+    place, an ace low or high as the span says). Trincas: naturals by suit, then wilds."""
+    if shape.kind is MeldKind.TRINCA:
+        return sorted(cards, key=lambda c: (c.can_be_wild, c.suit.value if c.suit else "", c.id))
+    slots: dict[int, Card] = {}
+    spare: list[Card] = []
+    # A 2 of the meld's suit counts as natural when the shape has fewer wilds than wild-capable cards.
+    natural_two = sum(c.can_be_wild for c in cards) > shape.wilds
+    for card in sorted(cards, key=lambda c: c.id):
+        rank = card.rank
+        if card.is_joker or (card.is_two and not (natural_two and card.suit and card.suit.value == shape.suit
+                                                     and 2 not in slots)):
+            spare.append(card)
+            continue
+        if rank == ACE and shape.high == HIGH_ACE and (shape.low != ACE or ACE in slots):
+            rank = HIGH_ACE
+        if rank in slots or not shape.low <= rank <= shape.high:
+            spare.append(card)  # cannot happen for a valid shape; never lose a card
+            continue
+        slots[rank] = card
+    ordered = []
+    for rank in range(shape.low, shape.high + 1):
+        ordered.append(slots[rank] if rank in slots else spare.pop(0) if spare else None)
+    return [c for c in ordered if c is not None] + spare
+
+
 def _as_sequence(cards: Sequence[Card], max_wilds: int) -> MeldShape | None:
     n = len(cards)
     if not 3 <= n <= MAX_SEQUENCE:

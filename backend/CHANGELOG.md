@@ -2,6 +2,7 @@
 
 ## 28.10.2026
 
+- Melds are sent in table order (`melds.in_order`), not in the order their cards were played: sequences low to high with each wild in the slot it fills (an ace high or low as the span says, a natural 2 in the 2's place); trincas naturals by suit, then the wild. Only the view changes: the stored moves and replays are untouched. A bot adding a 5 to 6-7-8 used to show 6-7-8-5.
 - Table views carry `steps`: the bot moves made by the change that produced them, each as `{seat, action, game}` from the viewer's seat. The first step (`seat`/`action` null) is the table just before the bots moved, and the last equals `game`. Bots still decide at once; the app replays the steps at a person's pace. A plain `GET` (or any change without bot moves) has `steps: []`.
 
 ## 27.10.2026 (7)

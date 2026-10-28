@@ -49,10 +49,10 @@ interface PileProps {
  * readable, the last one on top; when it can be taken it glows and a tap on it takes it. */
 export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard }: PileProps) {
   const { c, radius } = useTheme();
-  const { table } = useCardSizes();
+  const { pile } = useCardSizes();
   const n = cards.length;
-  const cw = table.w;
-  const ch = table.h;
+  const cw = pile.w;
+  const ch = pile.h;
   const maxStep = Math.round(cw * 0.62);
   const minStep = Math.round(cw * 0.42);
   const rows = n > 1 && (width - cw) / (n - 1) < minStep ? 2 : 1;
@@ -73,8 +73,8 @@ export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard 
                           outlineWidth: onPress ? 1.5 : 0, outlineStyle: takeable ? 'solid' : 'dashed', outlineColor: c.accent,
                           outlineOffset: 6, boxShadow: takeable ? '0 0 18px rgba(232, 178, 74, 0.35)' : undefined }}>
         {n ? cards.map((card, i) => (
-          <CardSlot key={card.id} left={(i % per) * step} top={Math.floor(i / per) * rowGap} zIndex={i}>
-            <Card label={card.label} size="table" />
+          <CardSlot key={card.id} id={card.id} left={(i % per) * step} top={Math.floor(i / per) * rowGap} zIndex={i}>
+            <Card label={card.label} size="pile" />
           </CardSlot>
         )) : (
           <View style={{ width: cw, height: ch, borderRadius: radius.radiusXs, borderWidth: 1.5, borderStyle: 'dashed',

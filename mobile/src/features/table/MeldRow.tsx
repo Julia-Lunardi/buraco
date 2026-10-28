@@ -1,11 +1,10 @@
 import { Pressable, Text, View } from 'react-native';
-import Animated from 'react-native-reanimated';
 
 import type { MeldView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
-import { CardSlot, ENTER_TABLE } from './motion';
+import { CardSlot } from './motion';
 import { useCardSizes } from './sizes';
 
 interface Props {
@@ -17,7 +16,8 @@ interface Props {
 
 const isWild = (label: string) => label === 'JK' || label.startsWith('2');
 
-/** Design system `MeldRow`: an overlapped meld. A canastra lies with one card crosswise on top
+/** Design system `MeldRow`: an overlapped meld. Sequences fan sideways; trincas (lavadeiras)
+ * stack downwards, each card showing its index. A canastra lies with one card crosswise on top
  * (suja: the wild card, so "dirty" shows at a glance; limpa: the last card) plus a tag. */
 export default function MeldRow({ meld, target, onPress }: Props) {
   const { c, space, radius, type } = useTheme();
@@ -32,27 +32,35 @@ export default function MeldRow({ meld, target, onPress }: Props) {
   }
   const cross = crossIndex >= 0 ? meld.cards[crossIndex] : null;
   const body = meld.cards.filter((_, i) => i !== crossIndex);
-  const width = cw + step * Math.max(0, body.length - 1);
+  const ch = table.h;
+  const vertical = meld.kind === 'trinca';
+  const down = Math.round(ch * (kind ? 0.34 : 0.4)); // a trinca's step: enough for rank and suit
+  const width = vertical ? cw : cw + step * Math.max(0, body.length - 1);
+  const height = vertical ? ch + down * Math.max(0, body.length - 1) : ch;
+  // Crosswise on a trinca: across the foot of the column, overhanging it on both sides.
+  const overhang = vertical && cross ? Math.round((ch - cw) / 2) : 0;
+  const crossTop = vertical ? height + 4 - Math.round(cw / 2 + ch / 2) : 0;
   const label = kind ? `Canastra ${t(`table.canastra_${kind}`)}, ${meld.cards.length}` : `${meld.cards.length}`;
 
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
                accessibilityLabel={label}
-               style={{ flexDirection: 'row', alignItems: 'center', gap: space.space2, padding: 6, borderRadius: radius.radiusMd,
+               style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.space2, padding: 6, borderRadius: radius.radiusMd,
                         borderWidth: 1.5, borderStyle: 'dashed', borderColor: target ? c.accent : 'transparent',
                         backgroundColor: target ? 'rgba(232, 178, 74, 0.08)' : 'transparent' }}>
-      <View style={{ width, height: table.h, marginRight: kind ? Math.round(cw * 0.45) : 0 }}>
+      <View style={{ width, height: height + (vertical && cross ? 4 : 0), marginHorizontal: overhang,
+                     marginRight: kind && !vertical ? Math.round(cw * 0.45) : overhang }}>
         {body.map((card, i) => (
-          <CardSlot key={card.id} left={i * step} zIndex={i}>
+          <CardSlot key={card.id} id={card.id} left={vertical ? 0 : i * step} top={vertical ? i * down : 0} zIndex={i}>
             <Card label={card.label} size="table" />
           </CardSlot>
         ))}
         {cross ? (
-          <Animated.View key={cross.id} entering={ENTER_TABLE}
-                         style={{ position: 'absolute', top: 0, left: width - cw + Math.round(cw * 0.25), zIndex: 30,
-                                  transform: [{ rotate: '90deg' }] }}>
+          <CardSlot key={cross.id} id={cross.id} left={vertical ? 0 : width - cw + Math.round(cw * 0.25)} top={crossTop}
+                    zIndex={30}
+                    style={{ transform: [{ rotate: '90deg' }] }}>
             <Card label={cross.label} size="table" />
-          </Animated.View>
+          </CardSlot>
         ) : null}
       </View>
       {kind ? (
