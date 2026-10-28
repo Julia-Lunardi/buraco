@@ -2,6 +2,12 @@
 
 ## 28.10.2026
 
+- New card faces, from Magnific's illustrated deck (file 37631): flat pips, colour court cards, and a jester joker. Each card was rendered on its own from the vector art (in the source file they overlap) into the same 14 × 4 sprite, `assets/cards/classic.webp`, now 240 × 344 px per card. Settings → About adds **Playing cards** with "Designed by Magnific · www.magnific.com", which opens the site, as the licence requires.
+- Live tables show the turn clock (`0:32`) in the line under the piles for a person's turn. On your own turn it turns gold in the last 10 s. When it runs out, a bot finishes the turn. You can leave the app or the table without ending the game: if you're away when your clock runs out, a bot plays for you until you're back.
+- Settings → **Language**: phone language (default), Português (Brasil), English or Dansk. The app switches at once and stays on the same screen. Push notifications follow the choice.
+- Home: swipe a table left (or long-press it) to **Delete** it (only bots besides you) or **Leave** it (a bot takes your seat; in the lobby the seat opens again), after a confirmation.
+- Guests: Settings offers **Sign in with Apple or Google**, which keeps their bot games. **Sign out** now warns that a guest's games will be lost. Before, signing out was the only way to reach the sign-in screen, and it dropped every game.
+- The table shows each team's points on the table this round (`+80`) beside the match score, which only counts finished rounds.
 - Bots play at a person's pace: their moves are shown one by one, with a pause to draw (~1.4 s), a beat for each meld (~1.1–1.2 s), and a pause to discard (~1.3 s), each varied by up to 15%. When a bot ends the round, the table stays up 2 s before the summary. Pacing lives in `realtime/pacing.ts`.
 - Melds always lie in order, however they were played (a 5 added to 6-7-8 shows 5-6-7-8). The server sends them sorted; see the backend changelog.
 - Trincas (lavadeiras) stack downwards, each card showing its rank and suit; sequences still fan sideways. A trinca canastra's crosswise card lies across the foot of the column.

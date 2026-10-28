@@ -2,11 +2,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { errorDetail } from '../api/client';
-import { myTables, type TableSummary } from '../api/tables';
+import { deleteTable, myTables, type TableSummary } from '../api/tables';
 import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
 import TablePreview from '../features/home/TablePreview';
@@ -50,6 +51,28 @@ export default function HomeScreen({ navigation }: Props) {
   const open = (row: TableSummary) => navigation.navigate(row.status === 'lobby' ? 'Lobby' : 'Table', { tableId: row.id });
   const practice = () => navigation.navigate('NewTable', { practice: true });
 
+  // Only bots (or nobody yet) besides you: the table is deleted. With people: you leave it.
+  const alone = (row: TableSummary) => row.players.every((p, seat) => seat === row.my_seat || p === null);
+  function remove(row: TableSummary) {
+    const leaving = !alone(row);
+    Alert.alert(leaving ? t('home.leaveTitle') : t('home.deleteTitle'),
+                leaving ? (row.status === 'lobby' ? t('home.leaveLobbyBody') : t('home.leaveBody')) : t('home.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: leaving ? t('home.leave') : t('home.delete'), style: 'destructive',
+        onPress: async () => {
+          setTables((all) => all?.filter((x) => x.id !== row.id) ?? all);
+          try {
+            await deleteTable(row.id);
+          } catch (e) {
+            setError(errorDetail(e, t('common.somethingWrong')));
+          }
+          void load();
+        },
+      },
+    ]);
+  }
+
   const header = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <Text style={{ fontFamily: type.wordmark.fontFamily, fontSize: 30, lineHeight: 34, color: c.ink }}
@@ -91,11 +114,24 @@ export default function HomeScreen({ navigation }: Props) {
     const meta = [row.mode === 'live' ? t('newTable.live') : t('newTable.async'), t(`newTable.${row.preset}`),
                   t('home.upTo', { n: fmt(row.target_score) })].join(' · ');
     const solo = row.num_players === 2;
+    const removeLabel = alone(row) ? t('home.delete') : t('home.leave');
     return (
-      <Pressable key={row.id} onPress={() => (wide ? setChosen(row.id) : open(row))} accessibilityRole="button"
+      <ReanimatedSwipeable key={row.id} friction={2} rightThreshold={40} overshootRight={false}
+                           renderRightActions={() => (
+                             <Pressable onPress={() => remove(row)} accessibilityRole="button" accessibilityLabel={removeLabel}
+                                        style={{ width: 96, backgroundColor: c.invalidInk, alignItems: 'center',
+                                                 justifyContent: 'center', gap: 2 }}>
+                               <Ionicons name={alone(row) ? 'trash-outline' : 'exit-outline'} size={20} color="#fff" />
+                               <Text style={[type.caption, { color: '#fff', fontFamily: type.label.fontFamily }]}>{removeLabel}</Text>
+                             </Pressable>
+                           )}>
+      <Pressable onPress={() => (wide ? setChosen(row.id) : open(row))} onLongPress={() => remove(row)}
+                 accessibilityRole="button"
+                 accessibilityActions={[{ name: 'remove', label: removeLabel }]}
+                 onAccessibilityAction={(e) => { if (e.nativeEvent.actionName === 'remove') remove(row); }}
                  accessibilityState={wide ? { selected: selected?.id === row.id } : undefined}
                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: space.space3, minHeight: 72,
-                                            backgroundColor: selected?.id === row.id ? c.surfaceSunken : 'transparent',
+                                            backgroundColor: selected?.id === row.id ? c.surfaceSunken : c.surfaceRaised,
                                             paddingVertical: 14, paddingHorizontal: space.space4, opacity: pressed ? 0.7 : 1,
                                             borderTopWidth: i ? 1 : 0, borderTopColor: c.line })}>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
@@ -119,6 +155,7 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
         {status(row)}
       </Pressable>
+      </ReanimatedSwipeable>
     );
   };
 

@@ -49,7 +49,13 @@ export function useTableSocket(tableId: string, initial?: TableView) {
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
     }, {
-      onState: (next) => { frames.current.push(...framesFor(next)); play(); },
+      onState: (next) => {
+        // The clock counts from arrival (no clock skew), and already includes the replay below.
+        const left = next.turn_seconds_left;
+        const timed = { ...next, turn_deadline: left == null ? null : Date.now() + left * 1000 };
+        frames.current.push(...framesFor(timed));
+        play();
+      },
       onChat: (message) => setChat((all) => [...all, message]),
       onError: (code, detail) => setError({ code, detail }),
       onConnection: setConnected,

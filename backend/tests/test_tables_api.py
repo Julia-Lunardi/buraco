@@ -16,6 +16,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models import GameTable, TableStatus
 from app.services import oauth
+from app.services import tables as tables_service
 
 from .test_oauth import GOOGLE_CLAIMS
 
@@ -93,6 +94,40 @@ async def test_bot_moves_come_as_steps_to_replay(client, sessions, monkeypatch):
     assert all(len(st["game"]["hand"]) == len(after["game"]["hand"]) for st in steps)  # only Ana's own hand
     # A plain reload has nothing to replay.
     assert (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).json()["steps"] == []
+
+
+async def test_deleting_a_bot_table_removes_it(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    assert table["round_points"] == [0, 0]
+    assert (await client.delete(f"/tables/{table['id']}", headers=bearer(ana))).status_code == 204
+    assert (await client.get("/tables", headers=bearer(ana))).json() == []
+    assert (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).status_code == 404
+
+
+async def test_leaving_a_friend_table_hands_the_seat_to_a_bot(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    created = (await client.post("/tables", json={"num_players": 2, "seats": ["friend"], "mode": "async"},
+                                 headers=bearer(ana))).json()
+    await client.post("/tables/join", json={"code": created["code"]}, headers=bearer(bia))
+    await client.post(f"/tables/{created['id']}/start", headers=bearer(ana))
+    # Ana leaves on her own turn: a bot takes seat 0 and plays it, so it is Bia's turn.
+    assert (await client.delete(f"/tables/{created['id']}", headers=bearer(ana))).status_code == 204
+    assert (await client.get("/tables", headers=bearer(ana))).json() == []
+    bias = (await client.get(f"/tables/{created['id']}", headers=bearer(bia))).json()
+    assert bias["seats"][0]["bot"] and bias["seats"][0]["name"] is None
+    assert bias["is_host"] and bias["current_seat"] == 1
+
+
+async def test_leaving_a_lobby_opens_the_seat_again(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    created = (await client.post("/tables", json={"num_players": 2, "seats": ["friend"]}, headers=bearer(ana))).json()
+    await client.post("/tables/join", json={"code": created["code"]}, headers=bearer(bia))
+    assert (await client.delete(f"/tables/{created['id']}", headers=bearer(bia))).status_code == 204
+    view = (await client.get(f"/tables/{created['id']}", headers=bearer(ana))).json()
+    assert view["seats"][1]["open"] and view["status"] == "lobby"
 
 
 async def test_home_lists_my_tables_with_my_turn_first(client, sessions, monkeypatch):
@@ -236,54 +271,82 @@ async def live_game_after_anas_turn(client, monkeypatch, mode="live"):
     return table["id"], ana
 
 
-async def test_takeover_timer_covers_the_seat_and_reconnect_cancels_it():
-    from app.realtime import Hub
-    hub, ran = Hub(), []
-
-    async def run():
-        ran.append(True)
-
-    table_id, user_id = uuid.uuid4(), uuid.uuid4()
-    hub.schedule_takeover(table_id, user_id, 1, 0.05, run)
-    await asyncio.sleep(0.15)
-    assert hub.covered(table_id) == {1} and ran == [True]
-
-    hub.join(table_id, user_id, 1, ws=object())  # back: the bot lets go
-    assert hub.covered(table_id) == set()
-
-    hub.leave(table_id, user_id, ws=object())
-    hub.schedule_takeover(table_id, user_id, 1, 0.05, run)
-    hub.join(table_id, user_id, 1, ws=object())  # back before the grace period ends
-    await asyncio.sleep(0.15)
-    assert ran == [True] and hub.covered(table_id) == set()
+async def user_id_of(sessions, name: str) -> uuid.UUID:
+    from sqlalchemy import select
+    from app.models import User
+    async with sessions() as db:
+        return (await db.execute(select(User.id).where(User.display_name == name))).scalar_one()
 
 
-async def test_dropped_live_player_is_played_by_a_bot(client, sessions, monkeypatch):
+async def run_clock(sessions, table_id: str, monkeypatch, seconds: float = 0.05) -> None:
+    """Restart the current turn's clock with a short limit and let it run out."""
     from app.realtime import hub
+    from app.models import GameTable
+    monkeypatch.setattr(db_session, "SessionLocal", sessions)
+    monkeypatch.setattr(settings, "live_turn_seconds", seconds)
+    hub.stop_clock(uuid.UUID(table_id))
+    async with sessions() as db:
+        table = await db.get(GameTable, uuid.UUID(table_id))
+        hub.arm_turn(table, await tables_service.load_match(db, table))
+    await asyncio.sleep(seconds + 0.4)
+
+
+@pytest.fixture
+def live_hub():
+    from app.realtime import hub
+    yield hub
+    for table_id in list(hub._turns):
+        hub.stop_clock(table_id)
+    hub._covered.clear()
+    hub._sockets.clear()
+
+
+async def test_turn_clock_plays_a_slow_players_turn_once(client, sessions, monkeypatch, live_hub):
+    table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
+    tid = uuid.UUID(table_id)
+    for name in ("Ana", "Bia"):  # both at the table
+        live_hub._sockets[tid][await user_id_of(sessions, name)].add(object())
+    view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
+    assert 0 < view["turn_seconds_left"] <= settings.live_turn_seconds
+
+    await run_clock(sessions, table_id, monkeypatch)
+    view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
+    assert view["current_seat"] == 0  # the bot finished Bia's turn and handed back
+    assert view["seats"][1]["covered_by_bot"] is False  # she is here: next turn is hers again
+
+
+async def test_turn_clock_keeps_the_bot_for_a_player_who_left(client, sessions, monkeypatch, live_hub):
+    table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
+    live_hub._sockets[uuid.UUID(table_id)][await user_id_of(sessions, "Ana")].add(object())  # Bia has left
+    await run_clock(sessions, table_id, monkeypatch)
+    view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
+    assert view["current_seat"] == 0 and view["seats"][1]["covered_by_bot"] is True
+
+
+async def test_turn_clock_waits_when_nobody_is_at_the_table(client, sessions, monkeypatch, live_hub):
+    table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
+    await run_clock(sessions, table_id, monkeypatch)
+    view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
+    assert view["current_seat"] == 1 and view["seats"][1]["covered_by_bot"] is False
+
+
+async def test_leaving_the_screen_does_not_hand_the_seat_over(client, sessions, monkeypatch, live_hub):
     from app.routers.tables import _after_last_disconnect
 
     table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
     monkeypatch.setattr(db_session, "SessionLocal", sessions)
-    monkeypatch.setattr(settings, "live_takeover_seconds", 0.05)
-    bia_not_connected = uuid.uuid4()  # whoever it is, nobody by that id has a socket open
-    await _after_last_disconnect(uuid.UUID(table_id), bia_not_connected, 1)
-    await asyncio.sleep(0.3)
-
+    await _after_last_disconnect(uuid.UUID(table_id), await user_id_of(sessions, "Bia"), 1)
+    await asyncio.sleep(0.2)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
-    assert view["seats"][1]["covered_by_bot"] is True
-    assert view["current_seat"] == 0  # the bot played Bia's turn and handed back
-    hub._covered.clear()
+    assert view["current_seat"] == 1 and view["seats"][1]["covered_by_bot"] is False
 
 
-async def test_async_tables_never_hand_a_seat_to_a_bot(client, sessions, monkeypatch):
-    from app.routers.tables import _after_last_disconnect
-
+async def test_async_tables_have_no_turn_clock(client, sessions, monkeypatch, live_hub):
     table_id, ana = await live_game_after_anas_turn(client, monkeypatch, mode="async")
-    monkeypatch.setattr(db_session, "SessionLocal", sessions)
-    monkeypatch.setattr(settings, "live_takeover_seconds", 0.05)
-    await _after_last_disconnect(uuid.UUID(table_id), uuid.uuid4(), 1)
-    await asyncio.sleep(0.3)
+    live_hub._sockets[uuid.UUID(table_id)][await user_id_of(sessions, "Ana")].add(object())
+    await run_clock(sessions, table_id, monkeypatch)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
+    assert view["turn_seconds_left"] is None
     assert view["current_seat"] == 1 and view["seats"][1]["covered_by_bot"] is False
 
 

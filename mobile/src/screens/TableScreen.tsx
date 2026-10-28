@@ -15,6 +15,7 @@ import { DiscardPile, Stock } from '../features/table/Piles';
 import { FlightsProvider, useCardFlights } from '../features/table/flights';
 import { GameOver, RoundSummary } from '../features/table/Results';
 import TeamWell from '../features/table/TeamWell';
+import TurnClock from '../features/table/TurnClock';
 import { analyse, RULES, sortHand } from '../game/melds';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
@@ -144,13 +145,13 @@ export default function TableScreen({ navigation, route }: Props) {
   ) : null;
 
   const theirWell = game ? (
-    <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]}
+    <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]} roundPoints={table.round_points?.[1 - myTeam]}
               mortoWaiting={game.teams[1 - myTeam].morto_waiting} active={game.current % 2 !== myTeam}
               meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} />
   ) : null;
 
   const myWell = game ? (
-    <TeamWell seats={team(myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[myTeam]}
+    <TeamWell seats={team(myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[myTeam]} roundPoints={table.round_points?.[myTeam]}
               mortoWaiting={game.teams[myTeam].morto_waiting} active={game.current % 2 === myTeam}
               meldsFirst melds={melds(myTeam)} areaLabel={t('table.yourArea')}
               onPressArea={playing && selected.length >= 3 ? () => run({ type: 'lay_down', cards: selected }) : undefined}
@@ -182,8 +183,14 @@ export default function TableScreen({ navigation, route }: Props) {
     : playing && newMeldValid ? { text: t('table.canMeld'), color: c.valid }
     : drawing && fechado && game.discard.length ? { text: t('table.pileHint'), color: c.tableInkSoft }
     : null;
+  // Live tables: a person's turn runs on a 40 s clock (server: live_turn_seconds); bots' turns don't.
+  const turnSeat = game ? table.seats.find((s) => s.seat === game.current) : undefined;
+  const clock = table.mode === 'live' && table.turn_deadline && turnSeat && !turnSeat.bot && !turnSeat.covered_by_bot ? (
+    <TurnClock deadline={table.turn_deadline} limit={LIVE_TURN_SECONDS} mine={myTurn} />
+  ) : null;
   const noticeRow = (
     <View style={{ minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+      {clock}
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}
       {practice && myTurn && !hintText ? (
@@ -240,6 +247,8 @@ export default function TableScreen({ navigation, route }: Props) {
     </View>
   );
 }
+
+const LIVE_TURN_SECONDS = 40;
 
 const isPractice = (table: TableView) => table.seats.filter((s) => !s.bot && !s.open).length === 1;
 

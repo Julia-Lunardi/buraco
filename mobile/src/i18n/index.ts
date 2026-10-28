@@ -29,6 +29,18 @@ export function deviceLocale(): Locale {
 
 i18n.locale = deviceLocale();
 
+/** Settings → Language: a fixed language, or `system` to follow the phone. */
+export type LanguagePref = 'system' | Locale;
+export const LANGUAGES: { value: Locale; name: string }[] = [
+  { value: 'pt-BR', name: 'Português (Brasil)' },
+  { value: 'en', name: 'English' },
+  { value: 'da', name: 'Dansk' },
+];
+
+export function applyLanguage(pref: LanguagePref): void {
+  i18n.locale = pref === 'system' ? deviceLocale() : pref;
+}
+
 export function t(key: string, options?: TranslateOptions): string {
   return i18n.t(key, options);
 }

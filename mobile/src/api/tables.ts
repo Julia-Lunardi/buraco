@@ -94,6 +94,12 @@ export interface TableView {
   /** Bot moves made since the last change, as you saw them, ending at `game`: the app replays
    * them at a person's pace. Empty when no bot moved (and on a plain reload). */
   steps?: BotStep[];
+  /** Each team's points on the table this round (melds + canastra bonuses), while playing. */
+  round_points?: [number, number] | null;
+  /** Live tables: seconds left on the current turn's clock, as sent (null: no clock). */
+  turn_seconds_left?: number | null;
+  /** Set by the app on arrival: when that clock runs out, in Date.now() ms. */
+  turn_deadline?: number | null;
 }
 
 export interface BotStep {
@@ -136,6 +142,12 @@ export async function joinTable(code: string): Promise<TableView> {
 
 export async function getTable(id: string): Promise<TableView> {
   return (await api.get<TableView>(`/tables/${id}`)).data;
+}
+
+/** Off your list: deletes a table with only bots besides you; otherwise you leave it and a
+ * bot (in the lobby: an open seat) takes your place. */
+export async function deleteTable(id: string): Promise<void> {
+  await api.delete(`/tables/${id}`);
 }
 
 export async function startTable(id: string): Promise<TableView> {

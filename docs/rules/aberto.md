@@ -124,7 +124,7 @@ A turn has three steps, always in this order: **draw → meld (optional) → dis
 
 ## 10. Play modes (not rules, but they affect the engine interface)
 
-- **Live**: everyone is at the table. A turn timer is optional, and a bot takes over a disconnected seat.
+- **Live**: everyone is at the table. Each turn has a **40-second clock**. When it runs out, a bot finishes that turn. If the player has left the app or the table, the bot keeps playing their turns at once until they come back. Leaving never ends the game. With nobody at the table, the clock waits.
 - **Async**: no turn timer. The player whose turn it is gets a push notification. Game state is saved after every action.
 - The host chooses live or async when creating the table. Bots act immediately in both modes.
 

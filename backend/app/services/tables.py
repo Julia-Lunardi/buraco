@@ -20,6 +20,7 @@ from app.engine.bots import BOTS
 from app.engine.game import IllegalMove, Phase
 from app.engine.match import Match
 from app.engine.presets import PRESETS
+from app.engine.scoring import score_round
 from app.engine.serialize import action_from_dict, action_to_dict
 from app.models import GameAction, GameTable, PlayMode, TableSeat, TableStatus, User
 
@@ -169,15 +170,56 @@ async def next_round(db: AsyncSession, user: User, table_id: uuid.UUID,
     return table, match
 
 
-async def cover(db: AsyncSession, table_id: uuid.UUID, covered: frozenset[int]) -> tuple[GameTable, Match] | None:
-    """A live player dropped: if it is a covered seat's turn, the bot plays it now."""
+async def leave(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple[GameTable, Match] | None:
+    """Take a table off your list. With no other person at it, the table is deleted (None).
+    With others, you leave it: in the lobby your seat opens again; once dealt, a bot plays it
+    (at once, if it was your turn). The host role passes to someone still there."""
     table = await _locked(db, table_id)
-    if table.mode is not PlayMode.LIVE or table.status is not TableStatus.PLAYING:
+    seat = _seat_of(table, user)
+    if seat is None:
+        raise TableError(status.HTTP_404_NOT_FOUND, "no_such_table", "No such table.")
+    others = [s for s in table.seats if s.user_id is not None and s.user_id != user.id]
+    if not others:
+        await db.delete(table)
+        await db.flush()
         return None
+    mine = next(s for s in table.seats if s.seat == seat)
+    mine.user_id = None
+    mine.bot_level = None if table.status is TableStatus.LOBBY else table.bot_level
+    if table.host_id == user.id:
+        table.host_id = others[0].user_id
     match = await load_match(db, table)
-    _advance(db, table, match, covered)
+    if table.status is TableStatus.PLAYING:
+        _advance(db, table, match)
     await db.flush()
     return table, match
+
+
+async def time_out(db: AsyncSession, table_id: uuid.UUID, seat: int, turn: int,
+                   covered: frozenset[int]) -> tuple[GameTable, Match] | None:
+    """Live tables: `seat`'s clock ran out on turn number `turn`. A bot finishes that turn for
+    them (then bots play on as usual). None if the turn was played meanwhile."""
+    table = await _locked(db, table_id)
+    if table.mode is not PlayMode.LIVE or table.status is not TableStatus.PLAYING or table.current_seat != seat:
+        return None
+    match = await load_match(db, table)
+    if turn_number(match.round) != turn:
+        return None
+    _advance(db, table, match, covered, stand_in=seat)
+    await db.flush()
+    return table, match
+
+
+def turn_number(rnd) -> int:
+    """Which turn of the round this is (1 for the first): a new turn starts whenever the seat
+    changes in the move log. Identifies a turn for its clock."""
+    seats = [seat for seat, _ in rnd.history]
+    return 1 + sum(1 for a, b in zip(seats, seats[1:]) if a != b)
+
+
+def replay_steps(match: Match) -> int:
+    """Bot moves the app is about to replay (see _bot_steps)."""
+    return max(0, len(_bot_steps.get(match, [])) - 1)
 
 
 async def hint(db: AsyncSession, user: User, table_id: uuid.UUID) -> dict:
@@ -213,7 +255,7 @@ async def tables_of(db: AsyncSession, user: User) -> list[GameTable]:
 
 
 def table_view(table: GameTable, match: Match, user: User, *, connected: set[uuid.UUID] = frozenset(),
-               covered: frozenset[int] = frozenset()) -> dict:
+               covered: frozenset[int] = frozenset(), seconds_left: float | None = None) -> dict:
     """Everything one player may see. Never includes the seed or other hands."""
     me = _seat_of(table, user)
     return {
@@ -229,6 +271,9 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "is_host": table.host_id == user.id,
         "my_seat": me,
         "current_seat": table.current_seat,
+        # Live tables: time left on the current turn's clock (it includes the replay of the bot
+        # moves in `steps`, which the app shows first). None when no clock runs.
+        "turn_seconds_left": round(seconds_left, 1) if seconds_left is not None else None,
         "seats": [{
             "seat": s.seat,
             "team": s.seat % 2,
@@ -244,6 +289,10 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "winner": match.winner,
         "rematch_id": str(table.rematch_id) if table.rematch_id else None,
         "game": match.round.view_for(me) if match.round is not None and me is not None else None,
+        # Points each team has on the table this round (melds + canastra bonuses): provisional,
+        # shown beside the match score while the round is played.
+        "round_points": ([s.melded + s.canastra_bonus for s in score_round(match.round)]
+                         if match.round is not None and table.status is TableStatus.PLAYING else None),
         "steps": [{"seat": st["seat"], "action": st["action"], "game": st["views"][me]}
                   for st in _bot_steps.get(match, []) if me in st["views"]],
     }
@@ -295,11 +344,14 @@ def _apply(db: AsyncSession, table: GameTable, match: Match, seat: int, action) 
                       seat=seat, action=action_to_dict(action)))
 
 
-def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozenset[int] = frozenset()) -> None:
+def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozenset[int] = frozenset(),
+             stand_in: int | None = None) -> None:
+    """Bots play until a person's turn. `stand_in`: a person's seat the bot plays for the rest
+    of its current turn only (their live clock ran out)."""
     rnd = match.round
     people = [s.seat for s in table.seats if s.user_id is not None]
     steps: list[dict] = []
-    while rnd.phase is not Phase.OVER and _bot_controls(table, rnd.current, covered):
+    while rnd.phase is not Phase.OVER and (rnd.current == stand_in or _bot_controls(table, rnd.current, covered)):
         if not steps:  # the table before the bots move (e.g. right after the person's discard)
             steps.append({"seat": None, "action": None, "views": {p: rnd.view_for(p) for p in people}})
         # A deleted player's or a dropped live player's seat plays at the table's level.
@@ -307,6 +359,8 @@ def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozense
         level = table.seats[seat].bot_level or table.bot_level
         action = BOTS.get(level, BOTS["standard"]).choose(rnd, seat)
         _apply(db, table, match, seat, action)
+        if seat == stand_in and rnd.current != seat:
+            stand_in = None  # their turn is over: from now on they play it themselves
         steps.append({"seat": seat, "action": action_to_dict(action)["type"],
                       "views": {p: rnd.view_for(p) for p in people}})
     _bot_steps[match] = steps

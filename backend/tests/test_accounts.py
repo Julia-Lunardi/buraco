@@ -84,6 +84,20 @@ async def test_guest_signing_in_to_an_existing_account_is_merged_away(client, se
     assert [str(u.id) for u in await all_users(sessions)] == [existing]  # the empty guest is gone
 
 
+async def test_a_guest_signing_in_to_an_existing_account_keeps_its_bot_games(client, sessions, monkeypatch):
+    fake_google(monkeypatch, GOOGLE_CLAIMS)
+    account = (await client.post("/auth/google", json={"id_token": "t"})).json()
+    guest = (await client.post("/auth/guest")).json()
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]},
+                               headers=bearer(guest["access_token"]))).json()
+    signed = (await client.post("/auth/google", json={"id_token": "t"}, headers=bearer(guest["access_token"]))).json()
+    assert signed["user"]["id"] == account["user"]["id"]
+    mine = (await client.get("/tables", headers=bearer(signed["access_token"]))).json()
+    assert [row["id"] for row in mine] == [table["id"]]
+    view = (await client.get(f"/tables/{table['id']}", headers=bearer(signed["access_token"]))).json()
+    assert view["my_seat"] == 0 and view["is_host"]
+
+
 async def test_apple_sign_in_upgrades_a_guest_too(client, sessions):
     guest = (await client.post("/auth/guest")).json()
     res = await client.post("/auth/apple", json={"identity_token": apple_token(), "nonce": RAW_NONCE,

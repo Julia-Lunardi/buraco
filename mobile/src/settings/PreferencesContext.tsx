@@ -2,6 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 
+import { applyLanguage, type LanguagePref } from '../i18n';
+import { registerToken } from '../notifications/push';
+
 export type ThemePref = 'system' | 'light' | 'dark';
 export type Felt = 'green' | 'blue';
 export type OrientationPref = 'auto' | 'portrait' | 'landscape';
@@ -13,9 +16,11 @@ export interface Preferences {
   orientation: OrientationPref;
   /** Default hand order at the table; the table's own toggle changes it too. */
   sort: HandSort;
+  /** The app's language; `system` follows the phone. */
+  language: LanguagePref;
 }
 
-const DEFAULTS: Preferences = { theme: 'system', felt: 'green', orientation: 'auto', sort: 'suit' };
+const DEFAULTS: Preferences = { theme: 'system', felt: 'green', orientation: 'auto', sort: 'suit', language: 'system' };
 const STORAGE_KEY = 'preferences';
 
 const LOCKS: Record<OrientationPref, ScreenOrientation.OrientationLock> = {
@@ -35,7 +40,13 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => raw && setPrefs({ ...DEFAULTS, ...JSON.parse(raw) }))
+      .then((raw) => {
+        if (!raw) return;
+        const saved: Preferences = { ...DEFAULTS, ...JSON.parse(raw) };
+        applyLanguage(saved.language); // before the render that shows it
+        setPrefs(saved);
+        if (saved.language !== 'system') void registerToken(); // notifications in this language
+      })
       .catch(() => {}); // unreadable prefs: defaults are fine
   }, []);
 
@@ -48,6 +59,10 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   const value = useMemo<PreferencesValue>(() => ({
     ...prefs,
     set(key, value) {
+      if (key === 'language') {
+        applyLanguage(value as LanguagePref);
+        void registerToken();
+      }
       setPrefs((current) => {
         const next = { ...current, [key]: value };
         AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});

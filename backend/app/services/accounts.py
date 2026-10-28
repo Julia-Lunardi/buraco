@@ -3,10 +3,10 @@ guests into real accounts."""
 
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User
+from app.models import GameTable, TableSeat, User
 from app.services.oauth import Identity
 
 Provider = Literal["google", "apple"]
@@ -22,8 +22,8 @@ async def create_guest(db: AsyncSession) -> User:
 
 async def user_for_identity(db: AsyncSession, provider: Provider, identity: Identity,
                             guest: User | None = None) -> User:
-    """1. Same provider account → that user (a guest signing in to an existing
-          account leaves the guest behind; it is deleted).
+    """1. Same provider account → that user. A guest signing in to an existing account
+          brings its games along (seats and hosted tables move over); the guest is deleted.
     2. Else a user with the same *provider-verified* email → link this provider to it.
        Only verified emails link: an email the app merely sends could hijack an account.
     3. Else the guest who is signing in becomes this account, keeping its games.
@@ -48,6 +48,9 @@ async def user_for_identity(db: AsyncSession, provider: Provider, identity: Iden
     if not user.display_name and identity.name:
         user.display_name = identity.name[:40]
     if guest is not None:
+        # Guests only play bots, so a guest never shares a table with the account it joins.
+        await db.execute(update(TableSeat).where(TableSeat.user_id == guest.id).values(user_id=user.id))
+        await db.execute(update(GameTable).where(GameTable.host_id == guest.id).values(host_id=user.id))
         await db.delete(guest)
     await db.flush()
     return user

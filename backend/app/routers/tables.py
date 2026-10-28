@@ -6,16 +6,15 @@ import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Request, Response, WebSocket, WebSocketDisconnect, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.deps import get_current_user, require_account
 from app.core.security import InvalidToken, decode_access_token
 from app.db import session as db_session
 from app.db.session import get_db
-from app.models import GameTable, PlayMode, User
+from app.models import GameTable, User
 from app.realtime import hub, viewer
 from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
 from app.models import TableStatus
@@ -106,6 +105,19 @@ async def join(body: JoinIn, user: User = Depends(require_account), db: AsyncSes
 async def get(table_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     table, match = await tables.get_for(db, user, table_id)
     return viewer(await tables.refreshed(db, table), match)(user)
+
+
+@router.delete("/{table_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def leave(table_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Off your list: a table with only bots besides you is deleted; otherwise you leave it
+    and a bot (or, in the lobby, an open seat) takes your place."""
+    before = await _before(db, table_id)
+    result = await tables.leave(db, user, table_id)
+    if result is None:
+        await db.commit()
+    else:
+        await _publish(db, *result, user, before)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{table_id}/start")
@@ -263,21 +275,39 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
 
 
 async def _after_last_disconnect(table_id: uuid.UUID, user_id: uuid.UUID, seat: int) -> None:
+    """Others see "disconnected". Nothing else changes: on a live table the turn clock decides
+    when a bot steps in, so leaving the app or the screen never ends the game."""
     async with db_session.SessionLocal() as db:
         table = await db.get(GameTable, table_id)
         if table is None:
             return
         match = await tables.load_match(db, table)
-        await hub.broadcast(table, match, viewer(table, match))  # others see "disconnected"
-        if table.mode is not PlayMode.LIVE:
-            return  # async tables simply wait for the person
+        await hub.broadcast(table, match, viewer(table, match))
 
-    async def take_over() -> None:
-        async with db_session.SessionLocal() as db:
-            result = await tables.cover(db, table_id, hub.covered(table_id))
-            await db.commit()
-            if result:
-                table, match = await tables.refreshed(db, result[0]), result[1]
-                await hub.broadcast(table, match, viewer(table, match))
 
-    hub.schedule_takeover(table_id, user_id, seat, settings.live_takeover_seconds, take_over)
+async def _turn_ran_out(table_id: uuid.UUID, seat: int, turn: int) -> None:
+    """A live turn's clock ran out: a bot finishes that turn. If its player has left, the bot
+    keeps the seat (playing at once) until they connect again, so the others never wait a full
+    clock per turn. With nobody at the table the game just waits; the clock restarts when
+    someone comes back."""
+    async with db_session.SessionLocal() as db:
+        table = await db.get(GameTable, table_id)
+        if table is None:
+            return
+        connected = hub.connected(table_id)
+        people = {s.user_id for s in table.seats if s.user_id}
+        if not people & connected:
+            return
+        player = next((s.user_id for s in table.seats if s.seat == seat), None)
+        if player not in connected:
+            hub.cover(table_id, seat)
+        before = await _before(db, table_id)
+        result = await tables.time_out(db, table_id, seat, turn, hub.covered(table_id))
+        await db.commit()
+        if result:
+            table, match = await tables.refreshed(db, result[0]), result[1]
+            await hub.broadcast(table, match, viewer(table, match))
+            hub.spawn(_push_after_change(table_id, *before))
+
+
+hub.on_turn_timeout = _turn_ran_out

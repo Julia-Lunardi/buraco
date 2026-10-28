@@ -11,6 +11,8 @@ interface Props {
   handSizes: number[];
   currentSeat: number | null;
   score: number;
+  /** Points this team has on the table this round (melds + canastras), not yet in `score`. */
+  roundPoints?: number | null;
   mortoWaiting: boolean;
   /** The gold inset line: this team is to play. */
   active: boolean;
@@ -30,7 +32,7 @@ const initials = (name: string | null) =>
  * score, a tiny morto marker, and the team's melds. No labels: the turn is a gold light. */
 export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
-  const { seats, handSizes, currentSeat, score, mortoWaiting, active, meldsFirst, melds, trailing, onPressArea } = props;
+  const { seats, handSizes, currentSeat, score, roundPoints, mortoWaiting, active, meldsFirst, melds, trailing, onPressArea } = props;
   const flights = useFlights();
 
   const strip = (
@@ -67,6 +69,12 @@ export default function TeamWell(props: Props) {
         <Text accessibilityLabel={t('table.pointsA11y', { n: score })}
               style={{ fontFamily: type.score.fontFamily, fontSize: 20, lineHeight: 24, color: c.tableInk, marginLeft: 4,
                        fontVariant: ['tabular-nums'] }}>{score.toLocaleString('pt-BR')}</Text>
+        {roundPoints ? (
+          <Text accessibilityLabel={t('table.onTableA11y', { n: roundPoints })}
+                style={[type.label, { fontSize: 14, color: c.tableInkSoft, marginLeft: -4, fontVariant: ['tabular-nums'] }]}>
+            +{roundPoints.toLocaleString('pt-BR')}
+          </Text>
+        ) : null}
         <View accessible accessibilityLabel={mortoWaiting ? t('table.mortoOnTable') : t('table.mortoGone')}
               style={{ width: 23, height: 30, marginLeft: 2 }}>
           {mortoWaiting ? (

@@ -8,7 +8,9 @@ import { type CardSize, useCardSizes } from './sizes';
 import { LIFT_TRANSITION } from './timing';
 import SuitIcon from './SuitIcon';
 
-// Classic deck faces: Vector Playing Cards 1.3 (public domain), one sprite of 14 x 4 cards
+// Classic deck faces: "Designed by Magnific" (magnific.com, file 37631; the licence wants that line
+// and a link visible in the app, which Settings > About carries). Each card rendered on its own from
+// the stacked vector art, its thin outline trimmed, into one sprite of 14 x 4 cards at 240 x 344 px
 // (A..K then joker; spades, hearts, diamonds, clubs), as in the design system.
 const SPRITE = require('../../../assets/cards/classic.webp');
 const SPRITE_SUITS = ['S', 'H', 'D', 'C'];

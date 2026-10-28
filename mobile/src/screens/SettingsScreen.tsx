@@ -11,7 +11,7 @@ import NameField from '../components/NameField';
 import SegmentedControl from '../components/SegmentedControl';
 import { LEGAL_URLS } from '../config';
 import type { RootStackParamList } from '../navigation/types';
-import { t } from '../i18n';
+import { LANGUAGES, type LanguagePref, t } from '../i18n';
 import { usePreferences } from '../settings/PreferencesContext';
 import { palette, useTheme } from '../theme';
 
@@ -19,7 +19,8 @@ export default function SettingsScreen() {
   const { name, c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
   const prefs = usePreferences();
-  const { signOut, deleteAccount } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
+  const guest = !!user?.is_guest;
   const [error, setError] = useState('');
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -31,6 +32,14 @@ export default function SettingsScreen() {
         text: t('settings.deleteConfirmButton'), style: 'destructive',
         onPress: () => deleteAccount().catch((e) => setError(errorDetail(e, t('common.somethingWrong')))),
       },
+    ]);
+  }
+
+  // A guest's games live only in this guest account: signing out loses them, signing in keeps them.
+  function confirmGuestSignOut() {
+    Alert.alert(t('settings.guestSignOutTitle'), t('settings.guestSignOutBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('settings.guestSignOutConfirm'), style: 'destructive', onPress: () => { void signOut(); } },
     ]);
   }
 
@@ -61,6 +70,18 @@ export default function SettingsScreen() {
       <Ionicons name="chevron-forward" size={18} color={c.inkSoft} />
     </Pressable>
   );
+  const language = (value: LanguagePref, text: string) => {
+    const on = prefs.language === value;
+    return (
+      <Pressable key={value} onPress={() => prefs.set('language', value)} accessibilityRole="radio"
+                 accessibilityState={{ selected: on }}
+                 style={({ pressed }) => ({ minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                                            opacity: pressed ? 0.6 : 1 })}>
+        <Text style={[type.body, { color: c.ink }]}>{text}</Text>
+        {on ? <Ionicons name="checkmark" size={20} color={c.accentInk} /> : null}
+      </Pressable>
+    );
+  };
   const felt = (value: 'green' | 'blue', text: string) => {
     const on = prefs.felt === value;
     return (
@@ -105,7 +126,25 @@ export default function SettingsScreen() {
         )),
       )}
 
-      {group(t('settings.account'),
+      {group(t('settings.language'),
+        language('system', t('settings.languageSystem')),
+        ...LANGUAGES.map((l) => language(l.value, l.name)),
+      )}
+
+      {guest ? group(t('settings.account'),
+        <Pressable onPress={() => navigation.navigate('Account')} accessibilityRole="button"
+                   style={({ pressed }) => ({ minHeight: 56, paddingVertical: 10, flexDirection: 'row', alignItems: 'center',
+                                              gap: space.space3, opacity: pressed ? 0.6 : 1 })}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[type.bodyStrong, { color: c.accentInk }]}>{t('settings.guestSignIn')}</Text>
+            <Text style={[type.caption, { color: c.inkSoft }]}>{t('settings.guestSignInHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.inkSoft} />
+        </Pressable>,
+        error ? <Text style={[type.body, { color: c.invalidInk, paddingVertical: 12 }]}>{error}</Text> : null,
+        link(t('settings.signOut'), confirmGuestSignOut, c.invalidInk),
+        link(t('settings.deleteAccount'), confirmDelete, c.invalidInk),
+      ) : group(t('settings.account'),
         <View style={{ paddingVertical: 12 }}><NameField /></View>,
         error ? <Text style={[type.body, { color: c.invalidInk, paddingVertical: 12 }]}>{error}</Text> : null,
         link(t('settings.signOut'), () => { void signOut(); }),
@@ -117,6 +156,16 @@ export default function SettingsScreen() {
         link(t('settings.support'), () => navigation.navigate('Support')),
         LEGAL_URLS.privacy ? link(t('settings.privacy'), () => Linking.openURL(LEGAL_URLS.privacy)) : null,
         LEGAL_URLS.terms ? link(t('settings.terms'), () => Linking.openURL(LEGAL_URLS.terms)) : null,
+        // The card faces' licence asks for this exact line and a link, visible in the app; untranslated.
+        <Pressable onPress={() => Linking.openURL('https://www.magnific.com')} accessibilityRole="link"
+                   style={({ pressed }) => ({ minHeight: 56, paddingVertical: 10, flexDirection: 'row', alignItems: 'center',
+                                              gap: space.space3, opacity: pressed ? 0.6 : 1 })}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[type.body, { color: c.ink }]}>{t('settings.cardArt')}</Text>
+            <Text style={[type.caption, { color: c.inkSoft }]}>Designed by Magnific · www.magnific.com</Text>
+          </View>
+          <Ionicons name="open-outline" size={18} color={c.inkSoft} />
+        </Pressable>,
       )}
       <Text style={[type.caption, { color: c.inkSoft, textAlign: 'center' }]}>{t('settings.footer')}</Text>
     </ScrollView>

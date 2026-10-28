@@ -1,5 +1,6 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
+import { useNavigation } from '@react-navigation/native';
 import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Platform, Pressable, ScrollView, Text, View } from 'react-native';
@@ -22,9 +23,15 @@ const BUTTON_HEIGHT = 52;
 const LOGO = require('../../assets/icon.png');
 
 export default function SignInScreen() {
-  const { c, space, radius, type } = useTheme();
+  const { name, c, space, radius, type } = useTheme();
   const insets = useSafeAreaInsets();
-  const { playAsGuest, signInWithGoogle, signInWithApple } = useAuth();
+  const { user, playAsGuest, signInWithGoogle, signInWithApple } = useAuth();
+  const navigation = useNavigation();
+  // Opened from Settings by a guest: signing in turns the guest into the account (games kept).
+  const upgrading = !!user?.is_guest;
+  useEffect(() => {
+    if (user && !user.is_guest && navigation.canGoBack()) navigation.goBack();
+  }, [user, navigation]);
 
   const [busy, setBusy] = useState<'google' | 'apple' | 'guest' | null>(null);
   const [error, setError] = useState('');
@@ -130,14 +137,14 @@ export default function SignInScreen() {
   };
 
   const legal = (label: string, url: string) => url
-    ? <Text style={{ color: c.accent }} accessibilityRole="link" onPress={() => Linking.openURL(url)}>{label}</Text>
+    ? <Text style={{ color: c.accentInk }} accessibilityRole="link" onPress={() => Linking.openURL(url)}>{label}</Text>
     : <Text>{label}</Text>;
 
-  // On the felt (Claude Design "Entrar"): the Buraco Lounge logo, the wordmark, then the
+  // On the beige surface, so the green logo tile stands out (was the felt in Claude Design "Entrar"): the Buraco Lounge logo, the wordmark, then the
   // sign-in buttons in each brand's own colours and the guest option as a plain link.
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: c.table }}
+      style={{ flex: 1, backgroundColor: c.surface }}
       contentContainerStyle={{
         flexGrow: 1, alignItems: 'center', paddingHorizontal: space.space5,
         paddingTop: insets.top + space.space5, paddingBottom: insets.bottom + space.space5,
@@ -150,15 +157,15 @@ export default function SignInScreen() {
             <Image source={LOGO} accessibilityIgnoresInvertColors style={{ width: 128, height: 128, borderRadius: 30 }} />
           </View>
           <View style={{ alignItems: 'center', gap: 10 }}>
-            <Text style={[type.wordmark, { color: c.tableInk, textAlign: 'center' }]} accessibilityRole="header">
+            <Text style={[type.wordmark, { color: c.ink, textAlign: 'center' }]} accessibilityRole="header">
               {t('appName').replace(' ', '\n') /* two lines, as the design's wordmark */}
             </Text>
-            <Text style={[type.body, { color: c.tableInkSoft, textAlign: 'center', maxWidth: 260 }]}>{t('signIn.tagline')}</Text>
+            <Text style={[type.body, { color: c.inkSoft, textAlign: 'center', maxWidth: 260 }]}>{t('signIn.tagline')}</Text>
           </View>
         </View>
 
         {error ? (
-          <Text accessibilityLiveRegion="polite" style={[type.body, { color: c.tableInk, textAlign: 'center' }]}>
+          <Text accessibilityLiveRegion="polite" style={[type.body, { color: c.invalidInk, textAlign: 'center' }]}>
             {error}
           </Text>
         ) : null}
@@ -169,7 +176,8 @@ export default function SignInScreen() {
             {appleWidth > 0 && (
               <AppleAuthentication.AppleAuthenticationButton
                 buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                buttonStyle={name === 'dark' ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                 cornerRadius={radius.radiusMd}
                 style={{ width: appleWidth, height: BUTTON_HEIGHT }}
                 onPress={onApple}
@@ -198,18 +206,18 @@ export default function SignInScreen() {
           </Pressable>
         )}
 
-        <Pressable
+        {upgrading ? null : <Pressable
           onPress={onGuest}
           disabled={!!busy}
           accessibilityRole="button"
           accessibilityHint={t('signIn.guestHint')}
           style={({ pressed }) => [buttonBase, { height: 44, opacity: pressed ? 0.6 : 1 }]}
         >
-          {busy === 'guest' ? <ActivityIndicator color={c.tableInkSoft} />
-            : <Text style={[type.label, { color: c.tableInk }]}>{t('signIn.guest')}</Text>}
-        </Pressable>
+          {busy === 'guest' ? <ActivityIndicator color={c.inkSoft} />
+            : <Text style={[type.label, { color: c.ink }]}>{t('signIn.guest')}</Text>}
+        </Pressable>}
 
-        <Text style={[type.caption, { color: c.tableInkSoft, textAlign: 'center' }]}>
+        <Text style={[type.caption, { color: c.inkSoft, textAlign: 'center' }]}>
           {t('signIn.legalBefore')}{legal(t('signIn.termsLong'), LEGAL_URLS.terms)}{t('signIn.legalMiddle')}
           {legal(t('signIn.privacyLong'), LEGAL_URLS.privacy)}{t('signIn.legalAfter')}
         </Text>
