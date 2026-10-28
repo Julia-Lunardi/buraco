@@ -1,9 +1,11 @@
 import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import { spokenCard } from '../../components/PlayingCard';
 import { useTheme } from '../../theme';
 import { parse } from '../../game/melds';
 import { type CardSize, useCardSizes } from './sizes';
+import { LIFT_TRANSITION } from './motion';
 import SuitIcon from './SuitIcon';
 
 // Classic deck faces: Vector Playing Cards 1.3 (public domain), one sprite of 14 x 4 cards
@@ -69,7 +71,7 @@ export default function Card({ label, size = 'hand', faceDown, selected, disable
   const iconSize = size === 'hand' ? (sizes.large ? 18 : 15) : size === 'pile' ? 14 : (sizes.large ? 13 : 11);
 
   const face = (
-    <View style={[{
+    <Animated.View style={[LIFT_TRANSITION, {
       width: w, height: h, borderRadius: corner, overflow: 'hidden', backgroundColor: c.card,
       borderWidth: selected ? 2 : 0, borderColor: selected === 'valid' ? c.valid : c.accent,
       boxShadow: selected ? shadow.shadowCardLift : shadow.shadowCard, opacity: disabled ? 0.45 : 1,
@@ -87,7 +89,7 @@ export default function Card({ label, size = 'hand', faceDown, selected, disable
         <View style={{ position: 'absolute', top: 0, right: 0, width: 0, height: 0, borderTopWidth: notch, borderLeftWidth: notch,
                        borderTopColor: c.wild, borderLeftColor: 'transparent' }} />
       ) : null}
-    </View>
+    </Animated.View>
   );
 
   if (!onPress) return <View accessible accessibilityLabel={spokenCard(label)}>{face}</View>;

@@ -74,6 +74,27 @@ async def test_illegal_move_returns_code_and_reason(client, sessions, monkeypatc
     assert res.json() == {"code": "wrong_phase", "detail": "Draw a card or take the discard pile first."}
 
 
+async def test_bot_moves_come_as_steps_to_replay(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    assert table["steps"] == []  # Ana starts: no bot has moved
+    drew = (await client.post(f"/tables/{table['id']}/actions", json={"action": {"type": "draw"}},
+                              headers=bearer(ana))).json()
+    card = drew["game"]["hand"][0]["id"]
+    after = (await client.post(f"/tables/{table['id']}/actions", json={"action": {"type": "discard", "card": card}},
+                               headers=bearer(ana))).json()
+    steps = after["steps"]
+    # First the table right after Ana's discard, then each bot move, the last one being the table now.
+    assert steps[0]["action"] is None and steps[0]["game"]["current"] == 1
+    assert steps[0]["game"]["discard"][-1]["id"] == card
+    assert steps[1]["action"] in ("draw", "take_discard")
+    assert all(st["seat"] == 1 for st in steps[1:])
+    assert steps[-1]["game"] == after["game"] or after["status"] != "playing"
+    assert all(len(st["game"]["hand"]) == len(after["game"]["hand"]) for st in steps)  # only Ana's own hand
+    # A plain reload has nothing to replay.
+    assert (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).json()["steps"] == []
+
+
 async def test_home_lists_my_tables_with_my_turn_first(client, sessions, monkeypatch):
     ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
     bia = await sign_in(client, monkeypatch, "g-bia", "Bia")

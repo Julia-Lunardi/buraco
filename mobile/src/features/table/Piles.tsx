@@ -4,6 +4,7 @@ import type { CardView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
+import { CardSlot } from './motion';
 import { useCardSizes } from './sizes';
 
 function Badge({ n }: { n: number }) {
@@ -36,7 +37,7 @@ export function Stock({ count, active, onPress }: { count: number; active: boole
 interface PileProps {
   cards: CardView[];
   width: number;
-  /** "Pegar" is offered (your turn to draw). */
+  /** A tap on the lixo takes it (your turn to draw). */
   takeable?: boolean;
   /** A tap discards the selected card. */
   target?: boolean;
@@ -45,9 +46,9 @@ interface PileProps {
 }
 
 /** Design system `DiscardPile` (spread): every card in the lixo fanned out so all are
- * readable, the last one on top; taking it is a deliberate "Pegar" button. */
+ * readable, the last one on top; when it can be taken it glows and a tap on it takes it. */
 export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard }: PileProps) {
-  const { c, radius, type } = useTheme();
+  const { c, radius } = useTheme();
   const { table } = useCardSizes();
   const n = cards.length;
   const cw = table.w;
@@ -60,32 +61,27 @@ export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard 
   const rowGap = Math.round(ch * 0.52);
   const boxW = n ? cw + step * Math.max(0, per - 1) : cw;
   const boxH = ch + rowGap * (rows - 1);
-  const outline = takeable || target;
+  const onPress = takeable ? onTake : target ? onDiscard : undefined;
+  const label = takeable ? t('table.takePile', { n })
+    : `${n ? t('table.pile', { n }) : t('table.emptyPile')}${target ? `. ${t('table.discard')}` : ''}`;
 
   return (
-    <View style={{ alignItems: 'flex-start', gap: 10 }}>
-      <Pressable onPress={target ? onDiscard : undefined} disabled={!target}
-                 accessibilityRole={target ? 'button' : undefined}
-                 accessibilityLabel={`${n ? t('table.pile', { n }) : t('table.emptyPile')}${target ? `. ${t('table.discard')}` : ''}`}
+    <View style={{ alignItems: 'flex-start' }}>
+      <Pressable onPress={onPress} disabled={!onPress} hitSlop={8}
+                 accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={label}
                  style={{ width: boxW, height: boxH, borderRadius: 6,
-                          outlineWidth: outline ? 1.5 : 0, outlineStyle: 'dashed', outlineColor: c.accent, outlineOffset: 6 }}>
+                          outlineWidth: onPress ? 1.5 : 0, outlineStyle: takeable ? 'solid' : 'dashed', outlineColor: c.accent,
+                          outlineOffset: 6, boxShadow: takeable ? '0 0 18px rgba(232, 178, 74, 0.35)' : undefined }}>
         {n ? cards.map((card, i) => (
-          <Card key={card.id} label={card.label} size="table"
-                style={{ position: 'absolute', left: (i % per) * step, top: Math.floor(i / per) * rowGap, zIndex: i }} />
+          <CardSlot key={card.id} left={(i % per) * step} top={Math.floor(i / per) * rowGap} zIndex={i}>
+            <Card label={card.label} size="table" />
+          </CardSlot>
         )) : (
           <View style={{ width: cw, height: ch, borderRadius: radius.radiusXs, borderWidth: 1.5, borderStyle: 'dashed',
                          borderColor: c.tableLine }} />
         )}
         {n ? <Badge n={n} /> : null}
       </Pressable>
-      {takeable ? (
-        <Pressable onPress={onTake} accessibilityRole="button" accessibilityLabel={t('table.takePile', { n })}
-                   hitSlop={8}
-                   style={{ minHeight: 32, paddingHorizontal: 12, borderRadius: radius.radiusPill, backgroundColor: c.accent,
-                            justifyContent: 'center' }}>
-          <Text style={[type.label, { fontSize: 13, lineHeight: 18, color: c.onAccent }]}>{t('table.take')}</Text>
-        </Pressable>
-      ) : null}
     </View>
   );
 }

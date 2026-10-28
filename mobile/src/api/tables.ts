@@ -91,6 +91,15 @@ export interface TableView {
   /** Set once someone at a finished table asked to play again with the same group. */
   rematch_id: string | null;
   game: GameView | null;
+  /** Bot moves made since the last change, as you saw them, ending at `game`: the app replays
+   * them at a person's pace. Empty when no bot moved (and on a plain reload). */
+  steps?: BotStep[];
+}
+
+export interface BotStep {
+  seat: number | null; // null: the table just before the bots moved
+  action: Action['type'] | null;
+  game: GameView;
 }
 
 export type Preset = 'aberto' | 'fechado' | 'stbl';

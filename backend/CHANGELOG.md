@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 28.10.2026
+
+- Table views carry `steps`: the bot moves made by the change that produced them, each as `{seat, action, game}` from the viewer's seat. The first step (`seat`/`action` null) is the table just before the bots moved, and the last equals `game`. Bots still decide at once; the app replays the steps at a person's pace. A plain `GET` (or any change without bot moves) has `steps: []`.
+
 ## 27.10.2026 (7)
 
 - **Play again with the same group:** `POST /tables/{id}/rematch` on a finished table.

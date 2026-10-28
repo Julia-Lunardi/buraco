@@ -7,6 +7,7 @@ from __future__ import annotations
 import dataclasses
 import secrets
 import uuid
+import weakref
 from collections import defaultdict
 from typing import Literal
 
@@ -243,6 +244,8 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "winner": match.winner,
         "rematch_id": str(table.rematch_id) if table.rematch_id else None,
         "game": match.round.view_for(me) if match.round is not None and me is not None else None,
+        "steps": [{"seat": st["seat"], "action": st["action"], "game": st["views"][me]}
+                  for st in _bot_steps.get(match, []) if me in st["views"]],
     }
 
 
@@ -294,16 +297,31 @@ def _apply(db: AsyncSession, table: GameTable, match: Match, seat: int, action) 
 
 def _advance(db: AsyncSession, table: GameTable, match: Match, covered: frozenset[int] = frozenset()) -> None:
     rnd = match.round
+    people = [s.seat for s in table.seats if s.user_id is not None]
+    steps: list[dict] = []
     while rnd.phase is not Phase.OVER and _bot_controls(table, rnd.current, covered):
+        if not steps:  # the table before the bots move (e.g. right after the person's discard)
+            steps.append({"seat": None, "action": None, "views": {p: rnd.view_for(p) for p in people}})
         # A deleted player's or a dropped live player's seat plays at the table's level.
-        level = table.seats[rnd.current].bot_level or table.bot_level
-        _apply(db, table, match, rnd.current, BOTS.get(level, BOTS["standard"]).choose(rnd, rnd.current))
+        seat = rnd.current
+        level = table.seats[seat].bot_level or table.bot_level
+        action = BOTS.get(level, BOTS["standard"]).choose(rnd, seat)
+        _apply(db, table, match, seat, action)
+        steps.append({"seat": seat, "action": action_to_dict(action)["type"],
+                      "views": {p: rnd.view_for(p) for p in people}})
+    _bot_steps[match] = steps
     if rnd.phase is Phase.OVER:
         match.finish_round()
         table.status = TableStatus.FINISHED if match.is_over else TableStatus.ROUND_OVER
         table.current_seat = None
     else:
         table.current_seat = rnd.current
+
+
+# Each bot move of the last _advance, as every person at the table saw it. Bots decide at once;
+# the app replays these at a person's pace instead of jumping to the end. Only the change that
+# made them carries them (a fresh load_match has none).
+_bot_steps: "weakref.WeakKeyDictionary[Match, list[dict]]" = weakref.WeakKeyDictionary()
 
 
 def _bot_controls(table: GameTable, seat: int, covered: frozenset[int]) -> bool:

@@ -1,9 +1,11 @@
 import { Pressable, Text, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 
 import type { MeldView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
+import { CardSlot, ENTER_TABLE } from './motion';
 import { useCardSizes } from './sizes';
 
 interface Props {
@@ -41,13 +43,16 @@ export default function MeldRow({ meld, target, onPress }: Props) {
                         backgroundColor: target ? 'rgba(232, 178, 74, 0.08)' : 'transparent' }}>
       <View style={{ width, height: table.h, marginRight: kind ? Math.round(cw * 0.45) : 0 }}>
         {body.map((card, i) => (
-          <Card key={card.id} label={card.label} size="table" style={{ position: 'absolute', left: i * step, zIndex: i }} />
+          <CardSlot key={card.id} left={i * step} zIndex={i}>
+            <Card label={card.label} size="table" />
+          </CardSlot>
         ))}
         {cross ? (
-          <View style={{ position: 'absolute', top: 0, left: width - cw + Math.round(cw * 0.25), zIndex: 30,
-                         transform: [{ rotate: '90deg' }] }}>
+          <Animated.View key={cross.id} entering={ENTER_TABLE}
+                         style={{ position: 'absolute', top: 0, left: width - cw + Math.round(cw * 0.25), zIndex: 30,
+                                  transform: [{ rotate: '90deg' }] }}>
             <Card label={cross.label} size="table" />
-          </View>
+          </Animated.View>
         ) : null}
       </View>
       {kind ? (
