@@ -11,6 +11,12 @@ on:
     branches: [de, main]
   workflow_dispatch:
 
+# One deploy per branch at a time: two quick pushes used to start two Terraform runs, and the
+# second failed on the state lock. Queue instead of cancelling, so no apply stops halfway.
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
 permissions:
   id-token: write # OIDC federated login to Azure: no stored cloud password
   contents: read
