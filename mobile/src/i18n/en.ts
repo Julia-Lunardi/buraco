@@ -1,7 +1,7 @@
 import type { Messages } from './pt-BR';
 
 const en: Messages = {
-  appName: 'Buraco',
+  appName: 'Buraco Lounge',
   common: {
     cancel: 'Cancel',
     back: 'Back',
@@ -80,7 +80,7 @@ const en: Messages = {
   },
   support: {
     title: 'Support the app',
-    body: "Buraco is free and has no ads. Contributions help pay for the servers that keep the tables running. They're optional and unlock nothing.",
+    body: "Buraco Lounge is free and has no ads. Contributions help pay for the servers that keep the tables running. They're optional and unlock nothing.",
     tip_small: 'Small contribution',
     tip_medium: 'Medium contribution',
     tip_large: 'Large contribution',

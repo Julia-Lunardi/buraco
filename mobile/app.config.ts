@@ -22,7 +22,7 @@ const googleServicesFile = process.env.GOOGLE_SERVICES_JSON
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Buraco',
+  name: 'Buraco Lounge',
   slug: 'buraco',
   scheme: 'buraco',
   version: '1.0.0',

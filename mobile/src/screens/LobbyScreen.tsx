@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { errorDetail } from '../api/client';
 import { type SeatView, startTable } from '../api/tables';
 import Button from '../components/Button';
-import Card from '../features/table/Card';
+import { CardBack } from '../features/table/Card';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import PushPrimer from '../notifications/PushPrimer';
@@ -122,7 +122,7 @@ export default function LobbyScreen({ navigation, route }: Props) {
           {n === 4 ? seat(at(1)) : null}
           <View style={{ width: 110, height: 150, borderRadius: 20, backgroundColor: c.tableRaised, alignItems: 'center',
                          justifyContent: 'center' }} importantForAccessibility="no-hide-descendants">
-            <Card faceDown size="pile" />
+            <CardBack width={84} />
           </View>
           {n === 4 ? seat(at(3)) : null}
         </View>

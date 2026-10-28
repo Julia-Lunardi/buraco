@@ -12,6 +12,23 @@ const SPRITE = require('../../../assets/cards/classic.webp');
 const SPRITE_SUITS = ['S', 'H', 'D', 'C'];
 const COLS = 14;
 const ROWS = 4;
+// Card back "Ardósia" (design system, 28.10.2026): the Salvia Code Labs leaf mark in cream on
+// slate blue. Small backs show the mark only; the large back adds the wordmark (back.svg,
+// rasterised to back-full.png).
+const BACK_MARK = require('../../../assets/cards/back-mark.png');
+const BACK_FULL = require('../../../assets/cards/back-full.png');
+const MARK_RATIO = 240 / 204;
+
+/** The full card back with the Salvia wordmark, for the one large face-down card on a screen
+ * (the lobby's deck). `width` in points; the height follows the 5:7 card shape. */
+export function CardBack({ width, style }: { width: number; style?: ViewStyle }) {
+  const { shadow } = useTheme();
+  return (
+    <View style={[{ width, height: width * 1.4, borderRadius: width * 0.072, boxShadow: shadow.shadowCard }, style]}>
+      <Image source={BACK_FULL} accessibilityIgnoresInvertColors style={{ width, height: width * 1.4 }} />
+    </View>
+  );
+}
 
 interface Props {
   label?: string; // omitted with faceDown
@@ -39,8 +56,8 @@ export default function Card({ label, size = 'hand', faceDown, selected, disable
         padding: size === 'table' ? 3 : 4, boxShadow: shadow.shadowCard }, style]}>
         <View style={{ flex: 1, borderRadius: corner - 2, borderWidth: 1, borderColor: c.cardBackPattern,
                        alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: w * 0.26, height: w * 0.26, borderWidth: 1, borderColor: c.cardBackPattern,
-                         transform: [{ rotate: '45deg' }] }} />
+          <Image source={BACK_MARK} accessibilityIgnoresInvertColors
+                 style={{ width: w * 0.56, height: (w * 0.56) / MARK_RATIO, opacity: 0.85 }} />
         </View>
       </View>
     );

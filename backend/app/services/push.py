@@ -50,7 +50,7 @@ async def send(db: AsyncSession, user_ids: list[uuid.UUID], kind: str, data: dic
     if not user_ids:
         return 0
     devices = (await db.execute(select(DeviceToken).where(DeviceToken.user_id.in_(user_ids)))).scalars().all()
-    messages = [{"to": d.token, "title": "Buraco", "body": text_for(kind, d.locale, **values),
+    messages = [{"to": d.token, "title": "Buraco Lounge", "body": text_for(kind, d.locale, **values),
                  "data": {"type": kind, **data}, "sound": "default"} for d in devices]
     accepted, dead = 0, []
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS, transport=_transport) as client:

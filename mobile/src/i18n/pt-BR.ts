@@ -1,7 +1,7 @@
 // Source language. en.ts and da.ts are typed against this file, so a missing
 // translation is a type error, not a raw key on screen.
 const ptBR = {
-  appName: 'Buraco',
+  appName: 'Buraco Lounge',
   common: {
     cancel: 'Cancelar',
     back: 'Voltar',
@@ -80,7 +80,7 @@ const ptBR = {
   },
   support: {
     title: 'Apoie o app',
-    body: 'O Buraco é gratuito e sem anúncios. As contribuições ajudam a pagar os servidores que mantêm as mesas funcionando. São opcionais e não desbloqueiam nada.',
+    body: 'O Buraco Lounge é gratuito e sem anúncios. As contribuições ajudam a pagar os servidores que mantêm as mesas funcionando. São opcionais e não desbloqueiam nada.',
     tip_small: 'Apoio pequeno',
     tip_medium: 'Apoio médio',
     tip_large: 'Apoio grande',

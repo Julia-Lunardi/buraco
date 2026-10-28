@@ -1,5 +1,10 @@
 # Mobile Changelog
 
+## 28.10.2026
+
+- The app is now called **Buraco Lounge**: the home-screen name, the Home header, and the sign-in wordmark (on two lines, as designed). Notification titles change too.
+- Card backs are the final "Ardósia" design: the Salvia Code Labs leaf mark in cream replaces the diamond. The lobby's deck shows the full back with the Salvia wordmark under the mark.
+
 ## 27.10.2026 (14)
 
 - Game over: "Jogar de novo com o mesmo grupo" now works at every table, not only practice ones. It asks the server for the group's new table. Once someone has asked, the others' button reads "O grupo está numa nova mesa: entrar" and takes them there.

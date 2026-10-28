@@ -151,7 +151,9 @@ export default function SignInScreen() {
             <Card label="2S" size="pile" style={{ marginLeft: -16, transform: [{ rotate: '10deg' }, { translateY: 8 }] }} />
           </View>
           <View style={{ alignItems: 'center', gap: 10 }}>
-            <Text style={[type.wordmark, { color: c.tableInk, textAlign: 'center' }]} accessibilityRole="header">{t('appName')}</Text>
+            <Text style={[type.wordmark, { color: c.tableInk, textAlign: 'center' }]} accessibilityRole="header">
+              {t('appName').replace(' ', '\n') /* two lines, as the design's wordmark */}
+            </Text>
             <Text style={[type.body, { color: c.tableInkSoft, textAlign: 'center', maxWidth: 260 }]}>{t('signIn.tagline')}</Text>
           </View>
         </View>
