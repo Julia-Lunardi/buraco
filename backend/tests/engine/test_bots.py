@@ -139,3 +139,50 @@ def test_fechado_rounds_end_with_every_bot_level(seed, n, levels):
     from app.engine.presets import FECHADO
     rnd = play_round(Round(FECHADO, n, seed), bots=[BOTS[level] for level in levels[:n]])
     assert rnd.phase is Phase.OVER
+
+
+# --- lavadeiras (trincas) are a last resort -------------------------------------------
+
+from app.engine.bots import LAVADEIRA_AFTER, stuck_turns  # noqa: E402
+
+
+def stall(rnd, seat, turns):
+    """Pretend `seat` played `turns` turns that drew and discarded without melding."""
+    for _ in range(turns):
+        rnd.history += [(seat, Draw()), (seat, Discard(-1))]
+
+
+def test_holds_a_lavadeira_back_while_not_stuck():
+    rnd = rigged_round(["7C 7D 7S KH 2D", "5S 6S"], phase=Phase.PLAY)
+    stall(rnd, 0, LAVADEIRA_AFTER)
+    assert isinstance(bot.choose(rnd, 0), Discard)
+
+
+def test_lays_a_lavadeira_after_too_many_stuck_turns():
+    rnd = rigged_round(["7C 7D 7S KH 2D", "5S 6S"], phase=Phase.PLAY)
+    stall(rnd, 0, LAVADEIRA_AFTER + 1)
+    action = bot.choose(rnd, 0)
+    assert isinstance(action, LayDown) and labels(rnd, action.card_ids) == ["7C", "7D", "7S"]
+
+
+def test_does_not_take_the_pile_for_a_lavadeira_while_not_stuck():
+    rnd = rigged_round(["7C 7D KH 2D", "5S 6S"], discard="4H 7S")
+    assert bot.choose(rnd, 0) == Draw()
+    stall(rnd, 0, LAVADEIRA_AFTER + 1)
+    assert bot.choose(rnd, 0) == TakeDiscard()
+
+
+def test_still_grows_a_lavadeira_already_on_the_table():
+    rnd = rigged_round(["7H KH 2D", "5S 6S"], melds=(["7C 7D 7S"], []), phase=Phase.PLAY)
+    action = bot.choose(rnd, 0)
+    assert isinstance(action, AddToMeld) and labels(rnd, action.card_ids) == ["7H"]
+
+
+def test_a_meld_resets_the_stuck_count():
+    rnd = rigged_round(["7C 7D 7S KH 2D", "5S 6S"], phase=Phase.PLAY)
+    stall(rnd, 0, 5)
+    rnd.history += [(1, Draw()), (1, Discard(-2)), (0, Draw()), (0, LayDown((1, 2, 3))), (0, Discard(-3))]
+    stall(rnd, 0, 2)
+    assert stuck_turns(rnd, 0) == 2
+    rnd.history.append((0, LayDown((4, 5, 6))))  # this turn already melded
+    assert stuck_turns(rnd, 0) == 0

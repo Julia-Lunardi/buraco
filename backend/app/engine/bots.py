@@ -3,7 +3,8 @@ state and return one action at a time, which goes through the same `apply()`.
 
 Three levels (design: relaxed / standard / sharp):
 - GreedyBot ("standard"): melds what it can, keeps wilds for canastras, takes the pile only
-  for a card it can use at once.
+  for a card it can use at once. Lavadeiras (trincas) are a last resort: they jam the game for
+  both teams, so a bot only starts one after LAVADEIRA_AFTER turns without melding anything.
 - SharpBot: standard, plus Aberto's key skill: never feed the opponents. Anyone may take
   the whole discard pile at any time in Aberto, so a discard that fits an opponent meld
   hands them the pile.
@@ -24,6 +25,9 @@ from .melds import CanastraKind, analyse, canastra_kind
 from .presets import DiscardPickup, GoOutRequires
 from .scoring import card_points
 
+LAVADEIRA_AFTER = 3  # own turns in a row without laying down or adding to a meld
+
+
 
 class GreedyBot:
     def choose(self, rnd: Round, seat: int) -> Action:
@@ -39,7 +43,7 @@ class GreedyBot:
         top = rnd.discard[-1]
         if rnd.preset.discard_pickup is DiscardPickup.MUST_USE_TOP_CARD:
             # Fechado: the move itself says how the top card is used.
-            for action in self._fechado_pickups(rnd, seat, top):
+            for action in self._fechado_pickups(rnd, seat, top, lavadeiras_ok(rnd, seat)):
                 if rnd.is_legal(seat, action):
                     return action
             return Draw()
@@ -47,14 +51,14 @@ class GreedyBot:
             return TakeDiscard()
         return Draw()
 
-    def _fechado_pickups(self, rnd: Round, seat: int, top: Card):
+    def _fechado_pickups(self, rnd: Round, seat: int, top: Card, trincas: bool):
         if top.can_be_wild:
             return
         for meld in rnd.teams[rnd.team_of(seat)].melds:
             extended = analyse(meld.cards + [top], rnd.preset, meld.shape.kind)
             if extended and extended.wilds == meld.shape.wilds:
                 yield TakeDiscard(meld_id=meld.id)
-        for group in sorted(candidate_melds(rnd.hands[seat] + [top], rnd), key=len, reverse=True):
+        for group in sorted(candidate_melds(rnd.hands[seat] + [top], rnd, trincas), key=len, reverse=True):
             if top in group:
                 yield TakeDiscard(use_with=tuple(c.id for c in group if c is not top))
 
@@ -67,7 +71,8 @@ class GreedyBot:
             extended = analyse(meld.cards + [card], rnd.preset, meld.shape.kind)
             if extended and extended.wilds == meld.shape.wilds:
                 return True
-        return any(card in group for group in candidate_melds(rnd.hands[seat] + [card], rnd))
+        trincas = lavadeiras_ok(rnd, seat)
+        return any(card in group for group in candidate_melds(rnd.hands[seat] + [card], rnd, trincas))
 
     # --- meld ---------------------------------------------------------------
 
@@ -85,8 +90,8 @@ class GreedyBot:
                 if extended and extended.wilds == meld.shape.wilds and rnd.is_legal(seat, action):
                     return action
 
-        # 2. Lay down new natural melds, longest first.
-        for group in sorted(candidate_melds(hand, rnd), key=len, reverse=True):
+        # 2. Lay down new natural melds, longest first. A new lavadeira only when stuck.
+        for group in sorted(candidate_melds(hand, rnd, lavadeiras_ok(rnd, seat)), key=len, reverse=True):
             action = LayDown(tuple(c.id for c in group))
             if rnd.is_legal(seat, action):
                 return action
@@ -118,13 +123,14 @@ class GreedyBot:
 
     def _usefulness(self, rnd: Round, seat: int, card: Card) -> int:
         score = 0
+        trincas = lavadeiras_ok(rnd, seat)  # until then a pair isn't worth keeping
         for other in rnd.hands[seat]:
             if other is card or other.can_be_wild:
                 continue
             if other.suit == card.suit:
                 gap = _rank_gap(card.rank, other.rank)
                 score += {1: 2, 2: 1}.get(gap, 0)
-            if rnd.preset.trincas_allowed and other.rank == card.rank:
+            if trincas and other.rank == card.rank:
                 score += 1
         for meld in rnd.teams[rnd.team_of(seat)].melds:
             if analyse(meld.cards + [card], rnd.preset, meld.shape.kind):
@@ -137,8 +143,28 @@ def _has_clean_canastra(rnd: Round, seat: int) -> bool:
                for m in rnd.teams[rnd.team_of(seat)].melds)
 
 
-def candidate_melds(cards: Sequence[Card], rnd: Round) -> list[list[Card]]:
-    """Natural (wild-free) sequences and trincas that can be formed from `cards`."""
+def stuck_turns(rnd: Round, seat: int) -> int:
+    """How many of `seat`'s own turns in a row, most recent first, ended without it laying
+    down or adding to a meld. A turn in progress that already melded resets it to 0."""
+    stuck, melded = 0, False
+    for s, action in reversed(rnd.history):
+        if s != seat:
+            continue
+        if isinstance(action, Discard):  # walking backwards, a discard closes the turn before it
+            stuck, melded = stuck + 1, False
+        elif isinstance(action, (LayDown, AddToMeld)) or (isinstance(action, TakeDiscard) and action.use_with):
+            melded = True
+            break
+    return stuck - 1 if melded and stuck else stuck
+
+
+def lavadeiras_ok(rnd: Round, seat: int) -> bool:
+    """A lavadeira (trinca) jams the table for both teams: start one only as a last resort."""
+    return rnd.preset.trincas_allowed and stuck_turns(rnd, seat) > LAVADEIRA_AFTER
+
+
+def candidate_melds(cards: Sequence[Card], rnd: Round, trincas: bool = True) -> list[list[Card]]:
+    """Natural (wild-free) sequences, and trincas if `trincas`, that can be formed from `cards`."""
     out: list[list[Card]] = []
     naturals = [c for c in cards if not c.can_be_wild]
 
@@ -161,7 +187,7 @@ def candidate_melds(cards: Sequence[Card], rnd: Round) -> list[list[Card]]:
             if len(run) >= 3:
                 out.append(run)
 
-    if rnd.preset.trincas_allowed:
+    if trincas and rnd.preset.trincas_allowed:
         by_rank: dict[int, list[Card]] = defaultdict(list)
         for c in naturals:
             by_rank[c.rank].append(c)
