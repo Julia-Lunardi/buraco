@@ -239,6 +239,19 @@ async def test_stbl_tables_play_with_stbl_rules(sessions):
         await tables.act(db, ana, table.id, {"type": "draw"})  # plays like any other table
 
 
+async def test_host_can_turn_lavadeiras_off(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], trincas_allowed=False)
+        match = await tables.load_match(db, table)
+        assert match.preset.trincas_allowed is False and match.preset.name == "aberto"
+        assert tables.table_view(table, match, ana)["trincas_allowed"] is False
+        default = await tables.create_table(db, ana, num_players=2, seats=["bot"])
+        assert (await tables.load_match(db, default)).preset.trincas_allowed is True
+        stbl = await tables.create_table(db, ana, num_players=2, seats=["bot"], preset="stbl", trincas_allowed=True)
+        assert stbl.trincas_allowed is False  # STBL never has them
+
+
 @pytest.mark.parametrize("action", [TakeDiscard(use_with=(1, 2)), TakeDiscard(meld_id=3),
                                     TakeDiscard(use_with=(4,), meld_id=5)])
 def test_fechado_pickups_round_trip(action):

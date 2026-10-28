@@ -38,7 +38,8 @@ class TableError(Exception):
 
 async def create_table(db: AsyncSession, host: User, *, num_players: int, seats: list[SeatKind],
                        mode: PlayMode = PlayMode.LIVE, preset: str = "aberto", chat_enabled: bool = True,
-                       target_score: int | None = None, bot_level: str = "standard") -> GameTable:
+                       target_score: int | None = None, bot_level: str = "standard",
+                       trincas_allowed: bool = True) -> GameTable:
     """The host takes seat 0; `seats` describes seats 1..n-1. A table with only bots
     starts at once; otherwise it waits in the lobby for friends."""
     if preset not in PRESETS:
@@ -56,6 +57,7 @@ async def create_table(db: AsyncSession, host: User, *, num_players: int, seats:
 
     table = GameTable(code=await _free_code(db), host_id=host.id, preset=preset, num_players=num_players,
                       mode=mode, chat_enabled=chat_enabled, target_score=target, bot_level=bot_level,
+                      trincas_allowed=trincas_allowed and PRESETS[preset].trincas_allowed,
                       seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=0, user_id=host.id)] + [
         TableSeat(seat=i, bot_level=bot_level if kind == "bot" else None) for i, kind in enumerate(seats, 1)
@@ -118,7 +120,7 @@ async def rematch(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTabl
 
     table = GameTable(code=await _free_code(db), host_id=user.id, preset=old.preset, num_players=old.num_players,
                       mode=old.mode, chat_enabled=old.chat_enabled, target_score=old.target_score,
-                      bot_level=old.bot_level, seed=secrets.token_hex(16))
+                      bot_level=old.bot_level, trincas_allowed=old.trincas_allowed, seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=s.seat, user_id=s.user_id, bot_level=None if s.user_id else (s.bot_level or old.bot_level))
                    for s in old.seats]
     db.add(table)
@@ -267,6 +269,7 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "chat_enabled": table.chat_enabled,
         "bot_level": table.bot_level,
         "target_score": table.target_score,
+        "trincas_allowed": table.trincas_allowed,
         "status": table.status.value,
         "is_host": table.host_id == user.id,
         "my_seat": me,
@@ -315,7 +318,9 @@ async def load_match(db: AsyncSession, table: GameTable) -> Match:
     for row in rows:
         by_round[row.round_no].append(row)
 
-    preset = dataclasses.replace(PRESETS[table.preset], target_score=table.target_score)
+    base = PRESETS[table.preset]
+    preset = dataclasses.replace(base, target_score=table.target_score,
+                                 trincas_allowed=base.trincas_allowed and table.trincas_allowed)
     match = Match(preset, table.num_players, table.seed)
     for round_no in range(table.rounds_started):
         rnd = match.start_round()

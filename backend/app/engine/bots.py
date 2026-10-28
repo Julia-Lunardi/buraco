@@ -47,7 +47,7 @@ class GreedyBot:
                 if rnd.is_legal(seat, action):
                     return action
             return Draw()
-        if self._fits(rnd, seat, top):
+        if self._pile_helps(rnd, seat):
             return TakeDiscard()
         return Draw()
 
@@ -62,17 +62,20 @@ class GreedyBot:
             if top in group:
                 yield TakeDiscard(use_with=tuple(c.id for c in group if c is not top))
 
-    def _fits(self, rnd: Round, seat: int, card: Card) -> bool:
-        """Only take the pile for a natural card we can meld right away. Besides being
-        sensible, it guarantees the pile can't bounce between players forever."""
-        if card.can_be_wild:
-            return False
+    def _pile_helps(self, rnd: Round, seat: int) -> bool:
+        """Take the whole pile when any natural card in it (not just the top) can be melded
+        right away: it extends a team meld cleanly, or forms a new meld with the hand or with
+        other pile cards. Besides being sensible, melding at once guarantees the pile can't
+        bounce between players forever."""
+        pile = [c for c in rnd.discard if not c.can_be_wild]
         for meld in rnd.teams[rnd.team_of(seat)].melds:
-            extended = analyse(meld.cards + [card], rnd.preset, meld.shape.kind)
-            if extended and extended.wilds == meld.shape.wilds:
-                return True
-        trincas = lavadeiras_ok(rnd, seat)
-        return any(card in group for group in candidate_melds(rnd.hands[seat] + [card], rnd, trincas))
+            for card in pile:
+                extended = analyse(meld.cards + [card], rnd.preset, meld.shape.kind)
+                if extended and extended.wilds == meld.shape.wilds:
+                    return True
+        from_pile = {c.id for c in pile}
+        groups = candidate_melds(rnd.hands[seat] + pile, rnd, lavadeiras_ok(rnd, seat))
+        return any(c.id in from_pile for group in groups for c in group)
 
     # --- meld ---------------------------------------------------------------
 

@@ -2,6 +2,7 @@
 
 ## 28.10.2026
 
+- New table, under Rules: a **Lavadeiras (trincas)** switch, on by default. Off means sequences only. It's hidden for STBL, which never has them. The lobby line says **No lavadeiras** when the host turned them off.
 - New card faces, from Magnific's illustrated deck (file 37631): flat pips, colour court cards, and a jester joker. Each card was rendered on its own from the vector art (in the source file they overlap) into the same 14 × 4 sprite, `assets/cards/classic.webp`, now 240 × 344 px per card. Settings → About adds **Playing cards** with "Designed by Magnific · www.magnific.com", which opens the site, as the licence requires.
 - Live tables show the turn clock (`0:32`) in the line under the piles for a person's turn. On your own turn it turns gold in the last 10 s. When it runs out, a bot finishes the turn. You can leave the app or the table without ending the game: if you're away when your clock runs out, a bot plays for you until you're back.
 - Settings → **Language**: phone language (default), Português (Brasil), English or Dansk. The app switches at once and stays on the same screen. Push notifications follow the choice.

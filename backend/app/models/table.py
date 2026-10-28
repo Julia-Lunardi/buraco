@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, BigInteger, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -40,6 +40,8 @@ class GameTable(Base):
     # relaxed | standard | sharp: for bot seats chosen at creation and open seats filled at start.
     bot_level: Mapped[str] = mapped_column(String(10), default="standard", server_default="standard")
     target_score: Mapped[int] = mapped_column(Integer)
+    # The host may turn lavadeiras (trincas) off; STBL never has them.
+    trincas_allowed: Mapped[bool] = mapped_column(default=True, server_default=true())
     status: Mapped[TableStatus] = mapped_column(_enum(TableStatus, "table_status"), default=TableStatus.LOBBY)
     # Secret: whoever knows the seed knows every hand. Never sent to clients.
     seed: Mapped[str] = mapped_column(String(64))

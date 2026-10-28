@@ -186,3 +186,18 @@ def test_a_meld_resets_the_stuck_count():
     assert stuck_turns(rnd, 0) == 2
     rnd.history.append((0, LayDown((4, 5, 6))))  # this turn already melded
     assert stuck_turns(rnd, 0) == 0
+
+
+def test_takes_pile_for_a_useful_card_below_the_top():
+    rnd = rigged_round(["9C 10C KD", "5S 6S"], discard="JC 4H")
+    assert bot.choose(rnd, 0) == TakeDiscard()
+
+
+def test_takes_pile_when_a_buried_card_extends_a_meld():
+    rnd = rigged_round(["9C KD QS", "5S 6S"], discard="6H 2C 4D", melds=(["3H 4H 5H"], []))
+    assert bot.choose(rnd, 0) == TakeDiscard()
+
+
+def test_draws_when_nothing_in_the_pile_is_useful():
+    rnd = rigged_round(["9C 10C KD", "5S 6S"], discard="4H 7D JK")
+    assert bot.choose(rnd, 0) == Draw()

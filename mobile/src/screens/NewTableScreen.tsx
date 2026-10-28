@@ -35,6 +35,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
   const [chat, setChat] = useState(true);
   const [botLevel, setBotLevel] = useState<BotLevel>('standard');
   const [preset, setPreset] = useState<Preset>('aberto');
+  const [trincas, setTrincas] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -51,7 +52,8 @@ export default function NewTableScreen({ navigation, route }: Props) {
     setError('');
     try {
       const table = await createTable({ preset, num_players: count, seats: otherSeats, mode, chat_enabled: chat,
-                                        bot_level: botLevel, target_score: Number(target) });
+                                        bot_level: botLevel, target_score: Number(target),
+                                        trincas_allowed: preset !== 'stbl' && trincas });
       navigation.replace(table.status === 'lobby' ? 'Lobby' : 'Table', { tableId: table.id });
     } catch (e) {
       setError(errorDetail(e, t('common.somethingWrong')));
@@ -87,7 +89,19 @@ export default function NewTableScreen({ navigation, route }: Props) {
       <Text style={[type.label, { color }]}>{text}</Text>
     </View>
   );
-  const myInitials = (user?.display_name || t('newTable.you')).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  const toggle = (title: string, hintText: string, value: boolean, onChange: (v: boolean) => void) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3,
+                   minHeight: 56, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line,
+                   borderRadius: radius.radiusMd, paddingHorizontal: space.space4, paddingVertical: space.space2 }}>
+      <View style={{ flex: 1 }}>
+        <Text style={[type.body, { color: c.ink }]}>{title}</Text>
+        {hint(hintText)}
+      </View>
+      <Switch value={value} onValueChange={onChange} accessibilityLabel={title}
+              trackColor={{ true: c.accent, false: c.line }} />
+    </View>
+  );
+  const myInitials =(user?.display_name || t('newTable.you')).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
   const settingsCol = (
     <>
@@ -97,6 +111,11 @@ export default function NewTableScreen({ navigation, route }: Props) {
           options={[{ value: 'aberto', label: t('newTable.aberto') }, { value: 'fechado', label: t('newTable.fechado') },
                     { value: 'stbl', label: t('newTable.stbl') }]} />,
         <View key="h">{hint({ aberto: t('newTable.abertoHint'), fechado: t('newTable.fechadoHint'), stbl: t('newTable.stblHint') }[preset])}</View>,
+        // STBL never has lavadeiras, so there is nothing to choose.
+        preset === 'stbl' ? null : (
+          <View key="t">{toggle(t('newTable.trincas'), trincas ? t('newTable.trincasOn') : t('newTable.trincasOff'),
+                                trincas, setTrincas)}</View>
+        ),
       )}
 
       {section(
@@ -119,16 +138,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
       )}
 
       <View style={{ gap: space.space2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.space3,
-                       minHeight: 56, backgroundColor: c.surfaceRaised, borderWidth: 1, borderColor: c.line,
-                       borderRadius: radius.radiusMd, paddingHorizontal: space.space4, paddingVertical: space.space2 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={[type.body, { color: c.ink }]}>{t('newTable.chat')}</Text>
-            {hint(t('newTable.chatHint'))}
-          </View>
-          <Switch value={chat} onValueChange={setChat} accessibilityLabel={t('newTable.chat')}
-                  trackColor={{ true: c.accent, false: c.line }} />
-        </View>
+        {toggle(t('newTable.chat'), t('newTable.chatHint'), chat, setChat)}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Ionicons name="lock-closed-outline" size={14} color={c.inkSoft} />
           {hint(t('newTable.privateNote'))}

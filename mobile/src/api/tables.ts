@@ -80,6 +80,7 @@ export interface TableView {
   chat_enabled: boolean;
   bot_level: BotLevel;
   target_score: number;
+  trincas_allowed: boolean;
   status: TableStatus;
   is_host: boolean;
   my_seat: number | null;
@@ -119,6 +120,8 @@ export interface NewTable {
   chat_enabled: boolean;
   bot_level?: BotLevel;
   target_score?: number;
+  /** Lavadeiras (trincas) on or off; STBL never has them. */
+  trincas_allowed?: boolean;
 }
 
 export type Action =

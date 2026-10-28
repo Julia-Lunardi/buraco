@@ -14,6 +14,7 @@ class TableCreate(BaseModel):
     chat_enabled: bool = True
     bot_level: Literal["relaxed", "standard", "sharp"] = "standard"
     target_score: int | None = Field(default=None, ge=500, le=10000)
+    trincas_allowed: bool = True  # ignored for STBL, which never has them
 
 
 class JoinIn(BaseModel):
