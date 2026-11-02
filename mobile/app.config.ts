@@ -62,7 +62,18 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     predictiveBackGestureEnabled: false,
     // Request only what is used: extra permissions trigger Play declarations (Salvie).
     permissions: [],
-    blockedPermissions: ['android.permission.RECORD_AUDIO', 'android.permission.READ_MEDIA_IMAGES'],
+    // Blocked because `permissions: []` doesn't remove what the prebuild template and libraries
+    // add: overlay (template), storage (expo-file-system), biometrics (expo-secure-store, used
+    // here without requireAuthentication). Check against the merged release manifest.
+    blockedPermissions: [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.READ_MEDIA_IMAGES',
+      'android.permission.SYSTEM_ALERT_WINDOW',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+      'android.permission.USE_BIOMETRIC',
+      'android.permission.USE_FINGERPRINT',
+    ],
   },
   plugins: [
     'expo-secure-store',

@@ -3,6 +3,7 @@
 ## 02.11.2026
 
 - The delete-account confirmation now says what happens: your messages are removed and a bot takes your seat at tables with friends. It used to say your tables would be removed, which they aren't (and which the privacy policy contradicted).
+- Android no longer asks for permissions it doesn't use: display over other apps, external storage, and biometrics/fingerprint. `permissions: []` didn't remove them, because they come from the prebuild template, expo-file-system and expo-secure-store, so they are now blocked in `app.config.ts`.
 
 ## 28.10.2026
 
