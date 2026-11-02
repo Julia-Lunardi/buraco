@@ -146,4 +146,5 @@ cython_debug/
 # ── Store / signing credentials ──
 mobile/google-play-service-account.json
 mobile/google-services.json
+mobile/google-services-2.json
 mobile/GoogleService-Info.plist

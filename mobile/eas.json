@@ -39,6 +39,9 @@
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ca-buraco-pr.salmonsky-b4df37a6.northeurope.azurecontainerapps.io"
+      },
       "android": {
         "buildType": "app-bundle"
       }

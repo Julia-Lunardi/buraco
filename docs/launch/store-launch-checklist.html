@@ -411,6 +411,7 @@ const DONE={
   66:'Done by Claude · 26 Oct 2026 · 18 tests',
   67:'Done by Claude · 27 Oct 2026 · mute is per table on the phone; report and block go to the server',
   69:'Done by Claude · 2 Nov 2026 · both pages live on salviacodelabs.com; deletion tested on Postgres (guests too), and its confirmation text corrected. Device check is step 97',
+  70:'Done by Claude · 2 Nov 2026 · ca-buraco-pr on the shared environment\'s domain; the app does not exist yet, so check the URL against the first pr deploy (step 71)',
   74:'Done by Claude · 2 Nov 2026 · "Google Play" appears only in the tip jar\'s Android line, behind Platform.OS: iOS never shows it (the string is still in the shared JS bundle)',
   83:'Done by Claude · 2 Nov 2026 · "App Store" is the same, Android never shows it. Merged release manifest checked: overlay, storage and biometric permissions blocked; no AD_ID',
 };
@@ -623,7 +624,7 @@ eas env:create --name GOOGLE_SERVICES_JSON --type file --value ./google-services
 <li><pre>az keyvault secret show --vault-name kv-buraco-pr --name google-client-id --query value -o tsv</pre></li>
 <li>It must equal the <b>Web</b> client id (the client of type "Web application"), not the iOS or Android one. If not: <code>az keyvault secret set</code> with the right value, then <code>az containerapp revision restart</code> or redeploy.</li></ol>`],
 ['Build and upload the iOS production build',`<ol>
-<li>Fill in <code>eas.json</code> → <code>production.env</code>: the API URL (the pr deploy summary) and the three Google client ids. Commit.</li>
+<li>Fill in <code>eas.json</code> → <code>production.env</code>: the API URL is already set, so check it against the pr deploy summary, then add the three Google client ids. Commit.</li>
 <li><pre>cd mobile
 eas build --platform ios --profile production
 eas submit --platform ios --latest</pre>
