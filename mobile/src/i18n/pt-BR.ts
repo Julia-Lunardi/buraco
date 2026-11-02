@@ -75,7 +75,7 @@ const ptBR = {
     account: 'Conta',
     signOut: 'Sair',
     deleteAccount: 'Excluir conta',
-    deleteConfirm: 'Excluir sua conta? Suas mesas e mensagens serão apagadas. Isso não pode ser desfeito.',
+    deleteConfirm: 'Excluir sua conta? Suas mensagens serão apagadas e um bot assume seu lugar nas mesas com amigos. Isso não pode ser desfeito.',
     deleteConfirmButton: 'Excluir',
     language: 'Idioma',
     languageSystem: 'Idioma do aparelho',

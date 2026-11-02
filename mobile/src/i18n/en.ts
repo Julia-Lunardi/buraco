@@ -75,7 +75,7 @@ const en: Messages = {
     account: 'Account',
     signOut: 'Sign out',
     deleteAccount: 'Delete account',
-    deleteConfirm: 'Delete your account? Your tables and messages will be removed. This cannot be undone.',
+    deleteConfirm: 'Delete your account? Your messages will be removed and a bot takes your seat at tables with friends. This cannot be undone.',
     deleteConfirmButton: 'Delete',
     language: 'Language',
     languageSystem: 'Phone language',

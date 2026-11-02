@@ -75,7 +75,7 @@ const da: Messages = {
     account: 'Konto',
     signOut: 'Log ud',
     deleteAccount: 'Slet konto',
-    deleteConfirm: 'Slet din konto? Dine borde og beskeder fjernes. Det kan ikke fortrydes.',
+    deleteConfirm: 'Slet din konto? Dine beskeder fjernes, og en bot overtager din plads ved borde med venner. Det kan ikke fortrydes.',
     deleteConfirmButton: 'Slet',
     language: 'Sprog',
     languageSystem: 'Telefonens sprog',

@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 02.11.2026
+
+- The delete-account confirmation now says what happens: your messages are removed and a bot takes your seat at tables with friends. It used to say your tables would be removed, which they aren't (and which the privacy policy contradicted).
+
 ## 28.10.2026
 
 - New table, under Rules: a **Lavadeiras (trincas)** switch, on by default. Off means sequences only. It's hidden for STBL, which never has them. The lobby line says **No lavadeiras** when the host turned them off.
