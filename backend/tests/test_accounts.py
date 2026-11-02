@@ -58,6 +58,12 @@ async def test_guest_session_has_no_personal_data(client, sessions):
     assert (await client.get("/users/me", headers=bearer(res.json()["access_token"]))).status_code == 200
 
 
+async def test_guest_can_delete_itself(client, sessions):
+    pair = (await client.post("/auth/guest")).json()
+    assert (await client.delete("/users/me", headers=bearer(pair["access_token"]))).status_code == 204
+    assert (await client.get("/users/me", headers=bearer(pair["access_token"]))).status_code == 401
+
+
 async def test_guest_refreshes_like_anyone_else(client, sessions):
     pair = (await client.post("/auth/guest")).json()
     assert (await client.post("/auth/refresh", json={"refresh_token": pair["refresh_token"]})).status_code == 200
