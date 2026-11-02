@@ -1,8 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import Button from '../components/Button';
 import TablePreview from '../features/home/TablePreview';
 import Card from '../features/table/Card';
+import { clockText, useSecondsLeft } from '../features/table/TurnClock';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme';
@@ -47,6 +48,18 @@ export default function HomeScreen({ navigation }: Props) {
   }, []);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  // Back from another app (or a locked phone): a live game may be waiting on you.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') void load(); });
+    return () => sub.remove();
+  }, [load]);
+  // While a live game is in progress, keep its row current (whose turn, the clock).
+  const anyLive = !!tables?.some((row) => row.live_now);
+  useFocusEffect(useCallback(() => {
+    if (!anyLive) return undefined;
+    const timer = setInterval(() => { void load(); }, 10_000);
+    return () => clearInterval(timer);
+  }, [anyLive, load]));
 
   const open = (row: TableSummary) => navigation.navigate(row.status === 'lobby' ? 'Lobby' : 'Table', { tableId: row.id });
   const practice = () => navigation.navigate('NewTable', { practice: true });
@@ -92,6 +105,9 @@ export default function HomeScreen({ navigation }: Props) {
   );
 
   const status = (row: TableSummary) => {
+    if (row.your_turn && row.turn_deadline) {
+      return <TurnLeftPill deadline={row.turn_deadline} onDone={() => { void load(); }} />;
+    }
     if (row.your_turn) {
       return (
         <Text style={[type.caption, { fontFamily: type.label.fontFamily, color: c.onAccent, backgroundColor: c.accent,
@@ -135,9 +151,12 @@ export default function HomeScreen({ navigation }: Props) {
                                             paddingVertical: 14, paddingHorizontal: space.space4, opacity: pressed ? 0.7 : 1,
                                             borderTopWidth: i ? 1 : 0, borderTopColor: c.line })}>
         <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-          <Text style={[type.bodyStrong, { color: c.ink }]} numberOfLines={1}>
-            {title(row)}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[type.bodyStrong, { color: c.ink, flexShrink: 1 }]} numberOfLines={1}>
+              {title(row)}
+            </Text>
+            {row.live_now ? <LiveBadge /> : null}
+          </View>
           <Text style={[type.caption, { color: c.inkSoft }]} numberOfLines={1}>{meta}</Text>
           {row.scores ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -252,5 +271,34 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={{ width: 440, borderRightWidth: 1, borderRightColor: c.line }}>{list}</View>
       <TablePreview row={selected} title={title(selected)} onOpen={() => open(selected)} />
     </View>
+  );
+}
+
+/** A live game in progress: easy to spot when you come back to the list. */
+function LiveBadge() {
+  const { c, radius, type } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 2,
+                   borderRadius: radius.radiusPill, backgroundColor: c.surfaceSunken }}>
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: c.valid }} />
+      <Text style={[type.caption, { fontFamily: type.label.fontFamily, color: c.ink }]}>{t('home.live')}</Text>
+    </View>
+  );
+}
+
+/** Your turn at a live table, counting down. When it runs out a bot has played: refresh. */
+function TurnLeftPill({ deadline, onDone }: { deadline: number; onDone(): void }) {
+  const { c, type } = useTheme();
+  const left = useSecondsLeft(deadline);
+  useEffect(() => {
+    if (left === 0) onDone();
+  }, [left === 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Text accessibilityLabel={t('home.yourTurnLeftA11y', { n: left })}
+          style={[type.caption, { fontFamily: type.label.fontFamily, color: c.onAccent, backgroundColor: c.accent,
+                                  borderRadius: 999, overflow: 'hidden', paddingHorizontal: 10, paddingVertical: 4,
+                                  fontVariant: ['tabular-nums'] }]}>
+      {t('home.yourTurnLeft', { time: clockText(left) })}
+    </Text>
   );
 }

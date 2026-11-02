@@ -21,10 +21,11 @@ const isWild = (label: string) => label === 'JK' || label.startsWith('2');
  * (suja: the wild card, so "dirty" shows at a glance; limpa: the last card) plus a tag. */
 export default function MeldRow({ meld, target, onPress }: Props) {
   const { c, space, radius, type } = useTheme();
-  const { table, large } = useCardSizes();
+  const { table } = useCardSizes();
   const kind = meld.canastra;
   const cw = table.w;
-  const step = kind ? (large ? 15 : 12) : (large ? 22 : 18);
+  // Each card shows its index; a canastra packs tighter (its crosswise card tells the kind).
+  const step = Math.round(cw * (kind ? 0.33 : 0.45));
   let crossIndex = -1;
   if (kind) {
     crossIndex = kind === 'suja' ? meld.cards.findIndex((card) => isWild(card.label)) : -1;

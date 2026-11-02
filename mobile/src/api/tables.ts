@@ -20,6 +20,12 @@ export interface TableSummary {
   turn_of: { name: string | null; bot: boolean } | null;
   /** [your team, the other team]; null in the lobby. */
   scores: [number, number] | null;
+  /** A live game in progress. */
+  live_now?: boolean;
+  /** Your turn at a live table: seconds left on its clock, as sent. */
+  turn_seconds_left?: number | null;
+  /** Set by the app on arrival: when that clock runs out, in Date.now() ms. */
+  turn_deadline?: number | null;
   players: (string | null)[];
 }
 
@@ -132,7 +138,10 @@ export type Action =
   | { type: 'discard'; card: number };
 
 export async function myTables(): Promise<TableSummary[]> {
-  return (await api.get<TableSummary[]>('/tables')).data;
+  const rows = (await api.get<TableSummary[]>('/tables')).data;
+  const now = Date.now();
+  return rows.map((row) => ({ ...row, turn_deadline: row.turn_seconds_left == null ? null
+    : now + row.turn_seconds_left * 1000 }));
 }
 
 export async function createTable(body: NewTable): Promise<TableView> {

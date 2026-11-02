@@ -14,7 +14,7 @@ from app.core.deps import get_current_user, require_account
 from app.core.security import InvalidToken, decode_access_token
 from app.db import session as db_session
 from app.db.session import get_db
-from app.models import GameTable, User
+from app.models import GameTable, PlayMode, User
 from app.realtime import hub, viewer
 from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
 from app.models import TableStatus
@@ -91,6 +91,10 @@ async def _summary(db: AsyncSession, t: GameTable, user: User) -> dict:
             "turn_of": None if turn is None or turn.seat == me else
             {"name": turn.user.display_name if turn.user else None, "bot": turn.user is None},
             "scores": scores,
+            # A live game in progress, and on your turn the seconds left on its clock: the home
+            # list marks these so a player who stepped away finds their way back in time.
+            "live_now": t.mode is PlayMode.LIVE and t.status is TableStatus.PLAYING,
+            "turn_seconds_left": hub.seconds_left(t.id) if turn is not None and turn.seat == me else None,
             "players": [s.user.display_name if s.user else None for s in t.seats]}
 
 
@@ -276,8 +280,8 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
 
 
 async def _after_last_disconnect(table_id: uuid.UUID, user_id: uuid.UUID, seat: int) -> None:
-    """Others see "disconnected". Nothing else changes: on a live table the turn clock decides
-    when a bot steps in, so leaving the app or the screen never ends the game."""
+    """Others see "disconnected". Nothing else changes: on a live table the turn clock keeps
+    running, so leaving the app or the screen never takes you out of the game."""
     async with db_session.SessionLocal() as db:
         table = await db.get(GameTable, table_id)
         if table is None:
@@ -287,21 +291,10 @@ async def _after_last_disconnect(table_id: uuid.UUID, user_id: uuid.UUID, seat: 
 
 
 async def _turn_ran_out(table_id: uuid.UUID, seat: int, turn: int) -> None:
-    """A live turn's clock ran out: a bot finishes that turn. If its player has left, the bot
-    keeps the seat (playing at once) until they connect again, so the others never wait a full
-    clock per turn. With nobody at the table the game just waits; the clock restarts when
-    someone comes back."""
+    """A live turn's clock ran out: a bot plays that one turn. The clock runs whether or not
+    the player is at the table or in the app, so they stay in the game while away, and every
+    turn of theirs gets its full clock to come back."""
     async with db_session.SessionLocal() as db:
-        table = await db.get(GameTable, table_id)
-        if table is None:
-            return
-        connected = hub.connected(table_id)
-        people = {s.user_id for s in table.seats if s.user_id}
-        if not people & connected:
-            return
-        player = next((s.user_id for s in table.seats if s.seat == seat), None)
-        if player not in connected:
-            hub.cover(table_id, seat)
         before = await _before(db, table_id)
         result = await tables.time_out(db, table_id, seat, turn, hub.covered(table_id))
         await db.commit()

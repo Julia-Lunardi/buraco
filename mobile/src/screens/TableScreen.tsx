@@ -14,8 +14,9 @@ import MeldRow from '../features/table/MeldRow';
 import { DiscardPile, Stock } from '../features/table/Piles';
 import { FlightsProvider, useCardFlights } from '../features/table/flights';
 import { GameOver, RoundSummary } from '../features/table/Results';
+import { useCardSizes } from '../features/table/sizes';
 import TeamWell from '../features/table/TeamWell';
-import TurnClock from '../features/table/TurnClock';
+import TurnClock, { LIVE_TURN_SECONDS } from '../features/table/TurnClock';
 import { analyse, RULES, sortHand } from '../game/melds';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
@@ -52,6 +53,7 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const game = table?.game ?? null;
   const flights = useCardFlights(game);
+  const cardW = useCardSizes().pile.w; // the stock beside the lixo
   const place = (key: string) => (view: View | null) => flights.api.register(key, view);
   // Derived, not synced: after any new state, only cards still in the hand stay selected.
   const selected = picked.filter((id) => game?.hand.some((card) => card.id === id));
@@ -167,7 +169,7 @@ export default function TableScreen({ navigation, route }: Props) {
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
       <View collapsable={false} ref={place('discard')}>
-        <DiscardPile cards={game.discard} width={Math.min(320, handWidth - 115)}
+        <DiscardPile cards={game.discard} width={Math.min(360, handWidth - cardW - 3 - space.space4 - 8)}
                      takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
                      onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
                      target={playing && selected.length === 1}
@@ -247,8 +249,6 @@ export default function TableScreen({ navigation, route }: Props) {
     </View>
   );
 }
-
-const LIVE_TURN_SECONDS = 40;
 
 const isPractice = (table: TableView) => table.seats.filter((s) => !s.bot && !s.open).length === 1;
 

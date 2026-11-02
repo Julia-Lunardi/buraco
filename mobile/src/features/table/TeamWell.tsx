@@ -5,6 +5,7 @@ import type { SeatView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import { useFlights } from './flights';
+import { useCardSizes } from './sizes';
 
 interface Props {
   seats: SeatView[];
@@ -34,6 +35,7 @@ export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
   const { seats, handSizes, currentSeat, score, roundPoints, mortoWaiting, active, meldsFirst, melds, trailing, onPressArea } = props;
   const flights = useFlights();
+  const { table: card } = useCardSizes();
 
   const strip = (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 44 }}>
@@ -98,7 +100,7 @@ export default function TeamWell(props: Props) {
   const meldArea = (
     <Pressable onPress={onPressArea} disabled={!onPressArea} accessibilityRole={onPressArea ? 'button' : undefined}
                accessibilityLabel={onPressArea ? props.areaLabel : undefined}
-               style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 4, columnGap: 2, alignContent: 'flex-start', minHeight: 63,
+               style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 4, columnGap: 2, alignContent: 'flex-start', minHeight: card.h + 14, // one meld row, plus its padding
                         borderRadius: radius.radiusMd, borderWidth: onPressArea ? 1.5 : 0, borderStyle: 'dashed',
                         borderColor: c.accent }}>
       {melds}

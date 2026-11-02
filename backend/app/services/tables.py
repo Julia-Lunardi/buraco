@@ -248,12 +248,13 @@ async def get_for(db: AsyncSession, user: User, table_id: uuid.UUID) -> tuple[Ga
 
 
 async def tables_of(db: AsyncSession, user: User) -> list[GameTable]:
-    """The user's unfinished tables, theirs-to-play first, then most recent."""
+    """The user's unfinished tables: theirs to play first (live ones, on a clock, before
+    async ones), then most recent."""
     rows = (await db.execute(
         select(GameTable).join(TableSeat).where(TableSeat.user_id == user.id,
                                                 GameTable.status != TableStatus.FINISHED)
         .order_by(GameTable.updated_at.desc()))).scalars().all()
-    return sorted(rows, key=lambda t: _seat_of(t, user) != t.current_seat)
+    return sorted(rows, key=lambda t: (_seat_of(t, user) != t.current_seat, t.mode is not PlayMode.LIVE))
 
 
 def table_view(table: GameTable, match: Match, user: User, *, connected: set[uuid.UUID] = frozenset(),

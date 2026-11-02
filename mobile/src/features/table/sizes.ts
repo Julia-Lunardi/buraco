@@ -1,18 +1,20 @@
 import { useWindowDimensions } from 'react-native';
 
-import { size } from '../../theme/tokens';
-
-/** Card sizes: the design's phone tokens, or the large ones on tablets (shortest side
- * >= 600 pt, the design system's `.bc-large`). */
+/** One card size for the whole table (stock, lixo, melds and your hand), so a card looks the
+ * same wherever it lies and keeps its size when it flies. It scales with the screen: 12.5% of
+ * the shortest side, between 44 pt (small phones) and 76 pt (tablets), in the 5:7 card shape.
+ * The size names stay so callers can say where a card is; they all measure the same. */
 export function useCardSizes() {
   const { width, height } = useWindowDimensions();
-  const large = Math.min(width, height) >= 600;
+  const short = Math.min(width, height);
+  const w = Math.round(Math.min(76, Math.max(44, short * 0.125)));
+  const card = { w, h: Math.round(w * 1.4) };
   return {
-    large,
+    large: short >= 600,
     landscape: width > height,
-    hand: large ? { w: size.cardHandWLg, h: size.cardHandHLg } : { w: size.cardHandW, h: size.cardHandH },
-    table: large ? { w: size.cardTableWLg, h: size.cardTableHLg } : { w: size.cardTableW, h: size.cardTableH },
-    pile: large ? { w: size.cardPileWLg, h: size.cardPileHLg } : { w: size.cardPileW, h: size.cardPileH },
+    hand: card,
+    table: card,
+    pile: card,
   };
 }
 

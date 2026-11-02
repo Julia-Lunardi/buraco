@@ -308,6 +308,11 @@ async def test_turn_clock_plays_a_slow_players_turn_once(client, sessions, monke
         live_hub._sockets[tid][await user_id_of(sessions, name)].add(object())
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
     assert 0 < view["turn_seconds_left"] <= settings.live_turn_seconds
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    (row,) = (await client.get("/tables", headers=bearer(bia))).json()
+    assert row["live_now"] and row["your_turn"] and 0 < row["turn_seconds_left"] <= settings.live_turn_seconds
+    (row,) = (await client.get("/tables", headers=bearer(ana))).json()
+    assert row["live_now"] and row["turn_seconds_left"] is None  # not Ana's turn
 
     await run_clock(sessions, table_id, monkeypatch)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
@@ -315,19 +320,20 @@ async def test_turn_clock_plays_a_slow_players_turn_once(client, sessions, monke
     assert view["seats"][1]["covered_by_bot"] is False  # she is here: next turn is hers again
 
 
-async def test_turn_clock_keeps_the_bot_for_a_player_who_left(client, sessions, monkeypatch, live_hub):
+async def test_turn_clock_runs_for_a_player_who_left(client, sessions, monkeypatch, live_hub):
     table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
     live_hub._sockets[uuid.UUID(table_id)][await user_id_of(sessions, "Ana")].add(object())  # Bia has left
     await run_clock(sessions, table_id, monkeypatch)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
-    assert view["current_seat"] == 0 and view["seats"][1]["covered_by_bot"] is True
+    assert view["current_seat"] == 0  # a bot played Bia's turn
+    assert view["seats"][1]["covered_by_bot"] is False  # only that turn: she is still in the game
 
 
-async def test_turn_clock_waits_when_nobody_is_at_the_table(client, sessions, monkeypatch, live_hub):
+async def test_turn_clock_runs_with_nobody_at_the_table(client, sessions, monkeypatch, live_hub):
     table_id, ana = await live_game_after_anas_turn(client, monkeypatch)
     await run_clock(sessions, table_id, monkeypatch)
     view = (await client.get(f"/tables/{table_id}", headers=bearer(ana))).json()
-    assert view["current_seat"] == 1 and view["seats"][1]["covered_by_bot"] is False
+    assert view["current_seat"] == 0 and view["seats"][1]["covered_by_bot"] is False
 
 
 async def test_leaving_the_screen_does_not_hand_the_seat_over(client, sessions, monkeypatch, live_hub):

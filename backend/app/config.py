@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     # Audience of every Apple identity token.
     apple_bundle_id: str = "com.buraco.app"
 
-    # Live tables: each turn's clock. When it runs out a bot finishes that turn; a player who has
-    # left keeps the bot in their seat until they come back.
+    # Live tables: each turn's clock, running whether or not the player is at the table. When it
+    # runs out a bot plays that one turn; the player's next turn gets a full clock again.
     live_turn_seconds: float = 40.0
 
     model_config = {"env_file": ".env", "extra": "ignore"}

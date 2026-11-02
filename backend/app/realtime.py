@@ -4,8 +4,8 @@ pushing each player their own view after every change.
 In-process state, so the API runs as ONE replica (Container App max_replicas = 1).
 Scaling out needs a shared channel first (Postgres LISTEN/NOTIFY is the cheap one).
 Nothing here is the source of truth: losing it (a restart) only drops connections,
-which clients re-open, bot cover (the next missed turn brings it back) and the turn clock,
-which restarts in full on the next change or connection.
+which clients re-open, and the turn clock, which restarts in full on the next change or
+connection.
 """
 
 from __future__ import annotations
@@ -61,10 +61,6 @@ class Hub:
     def join(self, table_id: uuid.UUID, user_id: uuid.UUID, seat: int, ws: WebSocket) -> None:
         self._sockets[table_id][user_id].add(ws)
         self._covered[table_id].discard(seat)  # they are back: the bot lets go
-
-    def cover(self, table_id: uuid.UUID, seat: int) -> None:
-        """A bot plays this seat's turns until its player connects again."""
-        self._covered[table_id].add(seat)
 
     def leave(self, table_id: uuid.UUID, user_id: uuid.UUID, ws: WebSocket) -> bool:
         """True if that was the user's last connection to the table."""
