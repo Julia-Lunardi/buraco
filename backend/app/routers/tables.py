@@ -173,7 +173,15 @@ async def _deliver_chat(db: AsyncSession, message) -> dict:
     skip = await chat.blocked_by(db, message.user_id)
     await db.commit()
     await hub.send_chat(message.table_id, out, skip)
+    hub.spawn(_push_chat(message.table_id, message.user_id, out["name"], skip))
     return out
+
+
+async def _push_chat(table_id: uuid.UUID, sender_id: uuid.UUID, name: str | None, skip: set[uuid.UUID]) -> None:
+    async with db_session.SessionLocal() as db:
+        table = await db.get(GameTable, table_id)
+        if table is not None:
+            await push.chat_message(db, table, sender_id, name, hub.connected(table_id), skip)
 
 
 @router.get("/{table_id}/chat")

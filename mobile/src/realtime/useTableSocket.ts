@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { refreshSession } from '../api/client';
 import type { Action, TableView } from '../api/tables';
@@ -39,7 +40,7 @@ export function useTableSocket(tableId: string, initial?: TableView) {
       }
     };
 
-    const socket = openTableSocket({
+    const open = () => openTableSocket({
       url: tableSocketUrl(API_URL, tableId),
       getToken: () => SecureStore.getItemAsync(KEYS.access).catch(() => null),
       refreshToken: refreshSession,
@@ -60,9 +61,22 @@ export function useTableSocket(tableId: string, initial?: TableView) {
       onError: (code, detail) => setError({ code, detail }),
       onConnection: setConnected,
     });
-    socketRef.current = socket;
+    socketRef.current = open();
+    // In the background the socket closes, so the server knows this player isn't looking and
+    // sends their pushes. Android keeps a backgrounded app's socket alive otherwise, and iOS
+    // freezes it half-open: either way the server thought they were still at the table.
+    const appState = AppState.addEventListener('change', (next) => {
+      if (next === 'background' && socketRef.current) {
+        socketRef.current.close();
+        socketRef.current = null;
+      } else if (next === 'active' && !socketRef.current) {
+        socketRef.current = open(); // the first state brings the table up to date
+      }
+    });
     return () => {
-      socket.close();
+      appState.remove();
+      socketRef.current?.close();
+      socketRef.current = null;
       if (timer.current) clearTimeout(timer.current);
       timer.current = null;
       frames.current = [];

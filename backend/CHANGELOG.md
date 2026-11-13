@@ -1,5 +1,11 @@
 # Backend Changelog
 
+## 13.11.2026
+
+- Chat messages send a push ("Ana mandou uma mensagem na mesa K7Q2MX.") to seated people who aren't at the table, but not to the sender or anyone who blocked them. There is at most one per person and table every 3 minutes (`CHAT_QUIET_SECONDS`), so a burst of messages makes one notice.
+- Pushes carry an Android `channelId`: `chat` for messages, `turns` for everything else. The app creates both channels. They also carry `priority: high`.
+- Push tickets Expo rejects are now logged (`expo rejected a <kind> push: <error>`). Before, only `DeviceNotRegistered` was acted on and everything else was silent. A missing FCM V1 key on EAS shows up here as `InvalidCredentials` for every Android token.
+
 ## 28.10.2026
 
 - Tables can turn lavadeiras (trincas) off: `POST /tables` takes `trincas_allowed` (default `true`), stored on `game_tables.trincas_allowed` (migration `f2c7d3a8b915`) and sent in table views. It overrides the preset when the match is rebuilt, so the engine rejects trincas and bots never plan for them. STBL tables are always `false`. Rematches keep the setting.

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { blockPlayer, chatHistory, reportMessage } from '../../api/chat';
 import type { ChatMessage } from '../../realtime/tableSocket';
@@ -23,7 +24,12 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
       setLastSeenId(h.length ? h[h.length - 1].id : 0); // old messages are not "new"
     }).catch(() => {});
     AsyncStorage.getItem(muteKey).then((raw) => alive && raw && setMuted(new Set(JSON.parse(raw)))).catch(() => {});
-    return () => { alive = false; };
+    // Back from the background: the socket was closed meanwhile, so fetch what was said. These
+    // stay unread (lastSeenId is kept): they are exactly the messages the push told them about.
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') chatHistory(tableId).then((h) => alive && setHistory(h)).catch(() => {});
+    });
+    return () => { alive = false; sub.remove(); };
   }, [tableId, muteKey]);
 
   const all = useMemo(() => mergeMessages(history, live), [history, live]);

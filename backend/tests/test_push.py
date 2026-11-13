@@ -141,3 +141,46 @@ async def test_push_failure_never_breaks_the_move(client, sessions, monkeypatch)
     ana_view = (await client.get(f"/tables/{table['id']}", headers=bearer(
         await sign_in(client, monkeypatch, "g-ana", "Ana")))).json()
     assert ana_view["current_seat"] == 1  # the move went through
+
+
+async def chat_setup(client, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    bia = await sign_in(client, monkeypatch, "g-bia", "Bia")
+    await register(client, bia, "ExponentPushToken[bia-phone]", locale="en")
+    await register(client, ana, "ExponentPushToken[ana-phone]")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["friend"], "mode": "async"},
+                               headers=bearer(ana))).json()
+    await client.post("/tables/join", json={"code": table["code"]}, headers=bearer(bia))
+    await settle()
+    return ana, bia, table
+
+
+async def test_a_message_pushes_who_is_away_once_per_burst(client, expo, monkeypatch):
+    push._chat_pushed.clear()
+    ana, bia, table = await chat_setup(client, monkeypatch)
+    expo.clear()
+    for text in ("oi", "bora?", "vamos jogar"):
+        assert (await client.post(f"/tables/{table['id']}/chat", json={"text": text}, headers=bearer(ana))).status_code == 200
+    await settle()
+    chats = [m for m in expo if m["data"]["type"] == "chat"]
+    assert [m["to"] for m in chats] == ["ExponentPushToken[bia-phone]"]  # not the sender, and only once
+    assert chats[0]["body"] == f"Ana sent a message at table {table['code']}."
+    assert chats[0]["channelId"] == "chat"
+    assert chats[0]["data"]["table_id"] == table["id"]
+
+
+async def test_no_message_push_to_someone_who_blocked_the_sender(client, expo, monkeypatch):
+    push._chat_pushed.clear()
+    ana, bia, table = await chat_setup(client, monkeypatch)
+    me = (await client.get("/users/me", headers=bearer(ana))).json()
+    assert (await client.post(f"/users/{me['id']}/block", headers=bearer(bia))).status_code in (200, 204)
+    expo.clear()
+    await client.post(f"/tables/{table['id']}/chat", json={"text": "oi"}, headers=bearer(ana))
+    await settle()
+    assert [m for m in expo if m["data"]["type"] == "chat"] == []
+
+
+async def test_turn_pushes_use_the_turns_channel(client, expo, monkeypatch):
+    await your_async_turn_setup(client, monkeypatch)
+    await settle()
+    assert {m["channelId"] for m in expo if m["data"]["type"] == "your_turn"} == {"turns"}

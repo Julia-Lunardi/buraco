@@ -14,7 +14,9 @@ export interface FlightPlan {
 }
 
 const STAGGER_MS = 70;
-const MAX_FLIGHTS = 14;
+/** The lixo leaves card after card, quicker: a 20-card pile still goes in about a second. */
+const PILE_STAGGER_MS = 45;
+const MAX_FLIGHTS = 14; // besides the lixo, which always flies whole (cards past a cap just vanished)
 
 const meldCards = (g: GameView): CardView[] => g.teams.flatMap((t) => t.melds.flatMap((m) => m.cards));
 
@@ -34,14 +36,14 @@ export function planFlights(prev: GameView | null, next: GameView | null): Fligh
   const pileNow = new Set(next.discard.map((x) => x.id));
   const meldBefore = new Set(meldCards(prev).map((x) => x.id));
 
-  const plans: Omit<FlightPlan, 'delay'>[] = [];
-
   // Taking the lixo: every card leaves the pile, into the hand or straight into a meld.
-  for (const card of prev.discard) {
-    if (pileNow.has(card.id)) continue;
-    plans.push({ id: card.id, label: card.label, from: [`card:${card.id}`, 'discard'],
-                 to: [`card:${card.id}`, mine ? 'hand' : hidden] });
-  }
+  const pile: FlightPlan[] = prev.discard.filter((card) => !pileNow.has(card.id)).map((card, i) => ({
+    id: card.id, label: card.label, from: [`card:${card.id}`, 'discard'], to: [`card:${card.id}`, mine ? 'hand' : hidden],
+    delay: i * PILE_STAGGER_MS,
+  }));
+  const after = pile.length ? pile[pile.length - 1].delay + STAGGER_MS * 2 : 0;
+
+  const plans: Omit<FlightPlan, 'delay'>[] = [];
 
   // Drawing from the stock: face down to their hand; to yours it turns face up on the way in.
   const drawn = prev.stock_size - next.stock_size;
@@ -66,5 +68,13 @@ export function planFlights(prev: GameView | null, next: GameView | null): Fligh
     plans.push({ id: card.id, label: card.label, from: fromHand(card.id), to: [`card:${card.id}`, 'discard'] });
   }
 
-  return plans.slice(0, MAX_FLIGHTS).map((plan, i) => ({ ...plan, delay: i * STAGGER_MS }));
+  return [...pile, ...plans.slice(0, MAX_FLIGHTS).map((plan, i) => ({ ...plan, delay: after + i * STAGGER_MS }))];
+}
+
+/** Someone else just took the lixo: who, and how many cards (for the "+N" on their avatar and
+ * the line under the piles). Null for your own take: you see the cards land in your hand. */
+export function pileTaken(prev: GameView | null, next: GameView | null): { seat: number; n: number } | null {
+  if (!prev || !next || prev.seat !== next.seat || next.stock_size > prev.stock_size) return null;
+  if (prev.current === next.seat || !prev.discard.length || next.discard.length) return null;
+  return { seat: prev.current, n: prev.discard.length };
 }

@@ -1,5 +1,5 @@
 import type { CardView, GameView } from '../src/api/tables';
-import { planFlights } from '../src/features/table/planFlights';
+import { pileTaken, planFlights } from '../src/features/table/planFlights';
 
 const c = (id: number, label = 'AS'): CardView => ({ id, label });
 const meld = (id: number, cards: CardView[]) => ({ id, cards, kind: 'trinca' as const, wilds: 0, canastra: null });
@@ -39,6 +39,22 @@ describe('planFlights', () => {
     const before = game({ current: 1, phase: 'draw', discard: pile });
     expect(route(planFlights(before, game({ current: 1, discard: [] })))).toEqual(['card:5 -> card:5 KH', 'card:9 -> card:9 7D']);
     expect(planFlights(before, game({ current: 1, discard: [] }))[0].to).toEqual(['card:5', 'seat:1']);
+  });
+
+  it('flies a big lixo whole, card after card, before the moves that follow', () => {
+    const pile = Array.from({ length: 22 }, (_, i) => c(100 + i, '7D'));
+    const plans = planFlights(game({ current: 1, phase: 'draw', discard: pile }), game({ current: 1, discard: [] }));
+    expect(plans).toHaveLength(22);
+    expect(plans.map((p) => p.delay).slice(0, 3)).toEqual([0, 45, 90]);
+    expect(plans.every((p) => p.to[1] === 'seat:1')).toBe(true);
+  });
+
+  it("says who took the lixo and how many cards, except when it's you", () => {
+    const pile = [c(5, 'KH'), c(9, '7D'), c(11, '3C')];
+    expect(pileTaken(game({ current: 1, phase: 'draw', discard: pile }), game({ current: 1, discard: [] })))
+      .toEqual({ seat: 1, n: 3 });
+    expect(pileTaken(game({ current: 0, phase: 'draw', discard: pile }), game({ current: 0, discard: [] }))).toBeNull();
+    expect(pileTaken(game({ current: 1, discard: pile }), game({ current: 0, discard: [...pile, c(12)] }))).toBeNull();
   });
 
   it('flies nothing when a new round is dealt', () => {

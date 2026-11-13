@@ -1,5 +1,15 @@
 # Mobile Changelog
 
+## 13.11.2026
+
+First round of tester fixes.
+
+- **Notifications on Android.** The table's connection now closes when the app goes to the background and reopens when you come back. Android kept it open, so the server thought you were still looking at the table and skipped your "your turn" and "round over" notices. Two Android notification channels, **Turns and rounds** and **Messages**, are created at launch with high importance, so notices appear as banners. Expo's fallback channel only put an icon in the status bar.
+- **Chat.** The chat button has a new icon, a filled speech bubble with dots. New messages show as a red bubble with their count (99+ past 99), which pops when another arrives. The chat opens on the newest message and stays there as messages come in. Messages that arrive while it is open count as read. Coming back from the background fetches what was said meanwhile, and it stays unread.
+- **Landscape** follows the portrait order: their team on top, the stock and lixo in the middle with the notices beside them, then your team and your hand at the bottom. Each team's players and score sit in a column beside its melds, to save height. The old layout put both teams in a left column.
+- **Taking the lixo.** The whole pile flies to whoever takes it, card after card (45 ms apart). Before, only the first 14 cards flew and the rest vanished. When someone else takes it, a gold **+N** rises from their avatar and the line under the piles says "Ana pegou o lixo (+7)" for 3 s.
+- **End of a round.** When a round ends in front of you, a stamp slams onto the felt ("Ana bateu!", "Você bateu!", "Acabou o monte!") with a burst of suits and a one-liner, and the phone thumps: a heavy tap, then success or warning. It holds 3.2 s before the points, or a tap skips it after 0.7 s. Opening a table that is already between rounds goes straight to the points. After a bot's last move the table now waits 1 s before this, down from 2 s. The code is in `features/table/RoundEnd.tsx`.
+
 ## 02.11.2026
 
 - The delete-account confirmation now says what happens: your messages are removed and a bot takes your seat at tables with friends. It used to say your tables would be removed, which they aren't (and which the privacy policy contradicted).
