@@ -46,8 +46,11 @@ export default function MeldRow({ meld, target, onPress }: Props) {
                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.space2, padding: 6, borderRadius: radius.radiusMd,
                         borderWidth: 1.5, borderStyle: 'dashed', borderColor: target ? c.accent : 'transparent',
                         backgroundColor: target ? 'rgba(232, 178, 74, 0.08)' : 'transparent' }}>
-      <View style={frame ?? undefined}>
-        <View style={{ width, height }}>
+      {/* Both wrappers always exist and never flatten away: when a meld becomes a canastra its
+          frame appears, and if that changed the view tree under the cards, Fabric would move
+          them mid-update and crash ("Attempt to unmount a view which has a different index"). */}
+      <View collapsable={false} style={frame ?? { padding: 0 }}>
+        <View collapsable={false} style={{ width, height }}>
           {meld.cards.map((card, i) => (
             <CardSlot key={card.id} id={card.id} left={vertical ? 0 : i * step} top={vertical ? i * down : 0} zIndex={i}>
               <Card label={card.label} size="table" />
