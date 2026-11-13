@@ -57,7 +57,8 @@ export default function TeamWell(props: Props) {
           .filter(Boolean).join(', ');
         return (
           <View key={seat.seat} accessible accessibilityLabel={a11y} collapsable={false}
-                ref={(view) => flights?.register(`seat:${seat.seat}`, view)}
+                // With backs shown, an opponent's cards fly to and from the backs (BacksFan), not here.
+                ref={backs && !seat.is_you ? undefined : (view) => flights?.register(`seat:${seat.seat}`, view)}
                 style={{ width: 38, height: 38, borderRadius: 19, marginLeft: i ? -6 : 0, backgroundColor: c.table,
                          alignItems: 'center', justifyContent: 'center', opacity: seat.connected === false ? 0.55 : 1,
                          borderWidth: bot ? 1.5 : 0, borderStyle: 'dashed', borderColor: c.tableInkSoft,
@@ -95,7 +96,7 @@ export default function TeamWell(props: Props) {
   const others = backs ? seats.filter((s) => !s.is_you) : [];
   const fans = others.length ? (
     <View style={{ flex: side ? undefined : 1, minWidth: 0, flexDirection: 'row', gap: 10 }}>
-      {others.map((s) => <BacksFan key={s.seat} n={handSizes[s.seat] ?? 0} maxWidth={side ? 130 : undefined} />)}
+      {others.map((s) => <BacksFan key={s.seat} seat={s.seat} n={handSizes[s.seat] ?? 0} maxWidth={side ? 130 : undefined} />)}
     </View>
   ) : null;
 
