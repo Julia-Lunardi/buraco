@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { useTheme } from '../../theme';
 import Card from './Card';
 import { useCardSizes } from './sizes';
 
-/** How much of each back shows: the top, as if their hand peeks over the edge of their area. */
-const PEEK = 0.6;
+/** How much of each back shows: just the top, fading into their area as if held below its edge. */
+const PEEK = 0.38;
 
 /** An opponent's hand as you'd see it across a real table: one face-down card per card in
  * their hand, at the table's card size, overlapped in a straight row squeezed to fit the room
  * it has. The count stays on the avatar. */
 export default function BacksFan({ n, maxWidth }: { n: number; maxWidth?: number }) {
   const { table } = useCardSizes();
+  const { c } = useTheme();
   const [room, setRoom] = useState(maxWidth ?? 160);
   const { w, h } = table;
   const width = Math.min(room, maxWidth ?? room);
@@ -30,6 +32,9 @@ export default function BacksFan({ n, maxWidth }: { n: number; maxWidth?: number
         {Array.from({ length: n }, (_, i) => (
           <Card key={i} faceDown size="table" style={{ position: 'absolute', left: i * step, top: 0 }} />
         ))}
+        {/* No hard cut: the lower half of the strip fades into the panel. */}
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: peek * 0.6,
+                       experimental_backgroundImage: `linear-gradient(to bottom, transparent, ${c.tableRaised})` }} />
       </View>
     </View>
   );

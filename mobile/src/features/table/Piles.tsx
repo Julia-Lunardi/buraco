@@ -95,7 +95,7 @@ interface MortoProps {
   teams: { morto_waiting: boolean; took_morto: boolean }[];
   myTeam: number;
   label(team: number): string;
-  /** One above the other, at the table's left edge (portrait); side by side otherwise. */
+  /** One above the other at the table's left edge, theirs on top (portrait); side by side otherwise. */
   vertical?: boolean;
 }
 
@@ -110,7 +110,8 @@ export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
   const h = Math.round(pile.h * MORTO_SCALE);
   return (
     <View style={{ flexDirection: vertical ? 'column' : 'row', gap: vertical ? 10 : 6 }}>
-      {[myTeam, 1 - myTeam].map((team) => {
+      {/* Side by side ours comes first; stacked, theirs is on top and ours below, nearer our cards. */}
+      {(vertical ? [1 - myTeam, myTeam] : [myTeam, 1 - myTeam]).map((team) => {
         const { morto_waiting: waiting, took_morto: took } = teams[team];
         const mine = team === myTeam;
         const a11y = `${t('table.morto')} ${label(team)}: ${waiting ? t('table.mortoOnTable') : took ? t('table.mortoGone') : t('table.mortoStock')}`;
