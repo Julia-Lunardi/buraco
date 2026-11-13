@@ -1,37 +1,35 @@
 import { useState } from 'react';
-import { Image, View } from 'react-native';
+import { View } from 'react-native';
 
+import Card from './Card';
 import { useCardSizes } from './sizes';
 
-const BACK = require('../../../assets/cards/back-full.png');
+/** How much of each back shows: the top, as if their hand peeks over the edge of their area. */
+const PEEK = 0.6;
 
-/** An opponent's hand as you'd see it across a real table: their cards face down in a gentle
- * fan, one back per card, squeezed to fit the room it has. The count stays on the avatar. */
+/** An opponent's hand as you'd see it across a real table: one face-down card per card in
+ * their hand, at the table's card size, overlapped in a straight row squeezed to fit the room
+ * it has. The count stays on the avatar. */
 export default function BacksFan({ n, maxWidth }: { n: number; maxWidth?: number }) {
   const { table } = useCardSizes();
-  const [room, setRoom] = useState(maxWidth ?? 120);
-  const w = Math.max(16, Math.round(table.w * 0.42));
-  const h = Math.round(w * 1.4);
+  const [room, setRoom] = useState(maxWidth ?? 160);
+  const { w, h } = table;
   const width = Math.min(room, maxWidth ?? room);
-  const step = n > 1 ? Math.min(w * 0.55, (width - w) / (n - 1)) : 0;
-  const spread = Math.min(26, n * 2); // degrees, edge to edge
-  const fanW = n ? w + step * (n - 1) : 0;
+  // Tight like a hand held closed: an edge of each card, not a spread.
+  const step = n > 1 ? Math.max(3, Math.min(w * 0.16, (width - w) / (n - 1))) : 0;
+  const rowW = n ? w + step * (n - 1) : 0;
+  const peek = Math.round(h * PEEK);
   return (
     <View onLayout={maxWidth ? undefined : (e) => setRoom(e.nativeEvent.layout.width)}
           importantForAccessibility="no-hide-descendants" accessibilityElementsHidden pointerEvents="none"
-          style={{ flex: maxWidth ? undefined : 1, minWidth: 0, height: h + 6, alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: fanW, height: h }}>
-        {Array.from({ length: n }, (_, i) => {
-          const k = n > 1 ? i / (n - 1) - 0.5 : 0;
-          return (
-            <View key={i} style={{ position: 'absolute', left: i * step, top: 0, width: w, height: h, borderRadius: 3,
-                                   overflow: 'hidden', borderWidth: 0.5, borderColor: 'rgba(0, 0, 0, 0.35)',
-                                   transformOrigin: 'center bottom',
-                                   transform: [{ translateY: k * k * 10 }, { rotate: `${k * spread}deg` }] }}>
-              <Image source={BACK} resizeMode="stretch" style={{ width: w, height: h }} />
-            </View>
-          );
-        })}
+          style={{ flex: maxWidth ? undefined : 1, minWidth: 0, width: maxWidth ? Math.min(rowW, maxWidth) : undefined,
+                   height: peek }}>
+      {/* Absolute, so the row never widens its slot (it would push past the buttons beside it). */}
+      <View style={{ position: 'absolute', left: Math.max(0, (width - rowW) / 2), top: 0, width: rowW, height: peek,
+                     overflow: 'hidden' }}>
+        {Array.from({ length: n }, (_, i) => (
+          <Card key={i} faceDown size="table" style={{ position: 'absolute', left: i * step, top: 0 }} />
+        ))}
       </View>
     </View>
   );
