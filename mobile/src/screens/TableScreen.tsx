@@ -219,7 +219,8 @@ export default function TableScreen({ navigation, route }: Props) {
   const mortoWidth = landscape ? 2 * (mortoW + 3) + 6 : mortoW + 16;
   const stockAndPile = game ? (
     <>
-      <View collapsable={false} ref={place('stock')}>
+      {/* Above the lixo, so the lixo never covers the stock's count badge. */}
+      <View collapsable={false} ref={place('stock')} style={{ zIndex: 2 }}>
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
       <View collapsable={false} ref={place('discard')}>

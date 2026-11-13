@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import type { CardView } from '../../api/tables';
 import { t } from '../../i18n';
@@ -18,18 +18,58 @@ function Badge({ n }: { n: number }) {
   );
 }
 
-/** Design system `Stock` (minimal): two face-down cards and a count badge; it glows when
- * drawing is the move to make, and a tap draws. */
+const BACK = require('../../../assets/cards/back-full.png');
+
+/** How many card edges show under a pile's top card: a full stock shows three, a nearly empty one none. */
+export const stockDepth = (count: number) => (count >= 30 ? 3 : count >= 10 ? 2 : count >= 2 ? 1 : 0);
+
+interface DeckProps {
+  w: number;
+  h: number;
+  /** Corner radius of the cards, as the cards on the table have it at this size. */
+  r: number;
+  /** Card edges showing under the top card, `gap` apart down and to the right. */
+  depth: number;
+  gap: number;
+  /** The gold "draw now" ring, hugging the top card. */
+  active?: boolean;
+}
+
+/** A face-down pile seen from above: the top card with the back's art, and under it only the
+ * edges of the cards below, evenly spaced cream lines (cardBackPattern) down and to the right,
+ * with one soft shadow under the whole pile rather than one per card. */
+export function DeckStack({ w, h, r, depth, gap, active }: DeckProps) {
+  const { c, shadow } = useTheme();
+  return (
+    <View style={{ width: w + depth * gap, height: h + depth * gap }}>
+      {Array.from({ length: depth }, (_, k) => depth - k).map((i) => (
+        <View key={i} style={{ position: 'absolute', left: i * gap, top: i * gap, width: w, height: h, borderRadius: r,
+                               backgroundColor: c.cardBack, borderWidth: 0.75, borderColor: c.cardBackPattern,
+                               boxShadow: i === depth ? shadow.shadowCard : undefined }} />
+      ))}
+      <View style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: r, overflow: 'hidden',
+                     backgroundColor: c.cardBack, boxShadow: depth ? undefined : shadow.shadowCard }}>
+        <Image source={BACK} resizeMode="stretch" accessibilityIgnoresInvertColors style={{ width: w, height: h }} />
+      </View>
+      {active ? (
+        <View pointerEvents="none"
+              style={{ position: 'absolute', left: -3, top: -3, width: w + 6, height: h + 6, borderRadius: r + 3,
+                       borderWidth: 2, borderColor: c.accent, boxShadow: '0 0 16px rgba(232, 178, 74, 0.4)' }} />
+      ) : null}
+    </View>
+  );
+}
+
+/** Design system `Stock` (minimal): the face-down pile, its edges thinning as it runs low, and
+ * a count badge; it glows when drawing is the move to make, and a tap draws. */
 export function Stock({ count, active, onPress }: { count: number; active: boolean; onPress?(): void }) {
-  const { c, radius } = useTheme();
+  const { radius } = useTheme();
   const { pile } = useCardSizes();
+  const r = pile.w < 48 ? radius.radiusXs + 1 : radius.radiusCard; // as Card draws its corners
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
-               accessibilityLabel={`${t('table.stock', { n: count })}${active ? `. ${t('table.draw')}` : ''}`}
-               style={{ width: pile.w + 3, height: pile.h + 3, borderRadius: radius.radiusCard,
-                        boxShadow: active ? `0 0 0 2px ${c.accent}, 0 0 18px rgba(232, 178, 74, 0.35)` : undefined }}>
-      <Card faceDown size="pile" style={{ position: 'absolute', left: 3, top: 3 }} />
-      <Card faceDown size="pile" style={{ position: 'absolute', left: 0, top: 0 }} />
+               accessibilityLabel={`${t('table.stock', { n: count })}${active ? `. ${t('table.draw')}` : ''}`}>
+      <DeckStack w={pile.w} h={pile.h} r={r} depth={stockDepth(count)} gap={1.5} active={active} />
       <Badge n={count} />
     </Pressable>
   );
@@ -118,14 +158,9 @@ export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
         return (
           <View key={team} accessible accessibilityLabel={a11y} style={{ alignItems: 'center', gap: 3 }}>
             <View collapsable={false} ref={(view) => flights?.register(`morto:${team}`, view)}
-                  style={{ width: w + 3, height: h + 3 }}>
+                  style={{ width: w + 2, height: h + 2 }}>
               {waiting ? (
-                <>
-                  <Card faceDown size="pile" style={{ position: 'absolute', left: 3, top: 3, transform: [{ scale: MORTO_SCALE }],
-                                                      transformOrigin: 'top left' }} />
-                  <Card faceDown size="pile" style={{ position: 'absolute', left: 0, top: 0, transform: [{ scale: MORTO_SCALE }],
-                                                      transformOrigin: 'top left' }} />
-                </>
+                <DeckStack w={w} h={h} r={Math.max(3, Math.round(w * 0.1))} depth={2} gap={1} />
               ) : (
                 <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed',
                                borderColor: took ? (mine ? c.accent : c.invalid) : c.tableLine,
