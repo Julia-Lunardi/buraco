@@ -1,4 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,9 +13,10 @@ import ChatPanel from '../features/chat/ChatPanel';
 import { useChat } from '../features/chat/useChat';
 import Hand from '../features/table/Hand';
 import MeldRow from '../features/table/MeldRow';
-import { DiscardPile, Stock } from '../features/table/Piles';
+import { DiscardPile, MortoStacks, Stock } from '../features/table/Piles';
 import { FlightsProvider, useCardFlights } from '../features/table/flights';
-import { pileTaken } from '../features/table/planFlights';
+import MortoBanner, { MORTO_BANNER_MS } from '../features/table/MortoBanner';
+import { mortoTaken, pileTaken } from '../features/table/planFlights';
 import { GameOver, RoundSummary } from '../features/table/Results';
 import RoundEnd from '../features/table/RoundEnd';
 import { useCardSizes } from '../features/table/sizes';
@@ -62,11 +64,31 @@ export default function TableScreen({ navigation, route }: Props) {
   // Someone else took the lixo: "+n" on their avatar and a line under the piles, for a moment.
   const [lastGame, setLastGame] = useState(game);
   const [taken, setTaken] = useState<{ seat: number; n: number; key: number } | null>(null);
+  // Someone took a morto: a banner drops from the top ("Ana pegou o morto!").
+  const [morto, setMorto] = useState<{ team: number; seat: number; key: number } | null>(null);
+  // It just became your turn (not on opening the table): the phone taps twice.
+  const [buzz, setBuzz] = useState(0);
   if (game !== lastGame) {
     setLastGame(game);
     const took = pileTaken(lastGame, game);
     if (took) setTaken({ ...took, key: (taken?.key ?? 0) + 1 });
+    const gotMorto = mortoTaken(lastGame, game);
+    if (gotMorto) setMorto({ ...gotMorto, key: (morto?.key ?? 0) + 1 });
+    if (lastGame && game && game.current === game.seat && lastGame.current !== game.seat && game.phase === 'draw') {
+      setBuzz((n) => n + 1);
+    }
   }
+  useEffect(() => {
+    if (!morto) return;
+    const clear = setTimeout(() => setMorto(null), MORTO_BANNER_MS);
+    return () => clearTimeout(clear);
+  }, [morto]);
+  useEffect(() => {
+    if (!buzz) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const second = setTimeout(() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }, 140);
+    return () => clearTimeout(second);
+  }, [buzz]);
   useEffect(() => {
     if (!taken) return;
     const clear = setTimeout(() => setTaken(null), 3000);
@@ -172,13 +194,13 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const theirWell = game ? (
     <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]} roundPoints={table.round_points?.[1 - myTeam]}
-              mortoWaiting={game.teams[1 - myTeam].morto_waiting} active={game.current % 2 !== myTeam}
+              active={game.current % 2 !== myTeam}
               meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} gained={taken} side={landscape} />
   ) : null;
 
   const myWell = game ? (
     <TeamWell seats={team(myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[myTeam]} roundPoints={table.round_points?.[myTeam]}
-              mortoWaiting={game.teams[myTeam].morto_waiting} active={game.current % 2 === myTeam}
+              active={game.current % 2 === myTeam}
               meldsFirst melds={melds(myTeam)} areaLabel={t('table.yourArea')} gained={taken} side={landscape}
               onPressArea={playing && selected.length >= 3 ? () => run({ type: 'lay_down', cards: selected }) : undefined}
               trailing={
@@ -187,13 +209,17 @@ export default function TableScreen({ navigation, route }: Props) {
               } />
   ) : null;
 
+  const teamLabel = (team: number) => team === myTeam ? t('table.us')
+    : table.num_players === 2 ? seatName(table, table.seats.find((s) => s.team === team)?.seat ?? -1) : t('table.them');
+  const mortoWidth = 2 * (Math.round(cardW * 0.62) + 3) + 6;
   const piles = game ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+      <MortoStacks teams={game.teams} myTeam={myTeam} label={teamLabel} />
       <View collapsable={false} ref={place('stock')}>
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
       <View collapsable={false} ref={place('discard')}>
-        <DiscardPile cards={game.discard} width={Math.min(landscape ? 420 : 360, handWidth * (landscape ? 0.6 : 1) - cardW - 3 - space.space4 - 8)}
+        <DiscardPile cards={game.discard} width={Math.min(landscape ? 420 : 360, handWidth * (landscape ? 0.6 : 1) - mortoWidth - cardW - 3 - space.space3 * 2 - 8)}
                      takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
                      onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
                      target={playing && selected.length === 1}
@@ -269,6 +295,10 @@ export default function TableScreen({ navigation, route }: Props) {
       {chatAvailable ? (
         <ChatPanel visible={chatOpen} onClose={() => { chat.markSeen(); setChatOpen(false); }} table={table} chat={chat}
                    myUserId={user?.id} send={say} />
+      ) : null}
+      {morto && !ending ? (
+        <MortoBanner key={morto.key} ours={morto.team === myTeam}
+                     text={morto.seat === me ? t('table.mortoBannerYou') : t('table.mortoBanner', { name: seatName(table, morto.seat) })} />
       ) : null}
       {ending ? <RoundEnd table={table} onDone={endingDone} /> : null}
       <PushPrimer visible={push.visible} onAllow={() => { void push.allow(); }} onLater={() => { void push.later(); }} />

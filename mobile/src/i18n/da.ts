@@ -192,6 +192,10 @@ const da: Messages = {
     channelChat: "Beskeder",
   },
   table: {
+    mortoTakenShort: "taget",
+    mortoStock: "blev til bunken",
+    mortoBannerYou: "Du tog morto!",
+    mortoBanner: "{{name}} tog morto!",
     tookPile: "{{name}} tog kassebunken (+{{n}})",
     draw: "Træk",
     take: "Tag",

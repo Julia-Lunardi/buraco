@@ -16,7 +16,6 @@ interface Props {
   score: number;
   /** Points this team has on the table this round (melds + canastras), not yet in `score`. */
   roundPoints?: number | null;
-  mortoWaiting: boolean;
   /** The gold inset line: this team is to play. */
   active: boolean;
   /** Melds go above the strip on your side, below it on theirs. */
@@ -36,10 +35,10 @@ const initials = (name: string | null) =>
   (name || '?').split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 
 /** One team's panel on the minimal table ("Jogo — mesa mínima"): avatars with card counts,
- * score, a tiny morto marker, and the team's melds. No labels: the turn is a gold light. */
+ * score, and the team's melds (the mortos lie by the stock: Piles.MortoStacks). No labels: the turn is a gold light. */
 export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
-  const { seats, handSizes, currentSeat, score, roundPoints, mortoWaiting, active, meldsFirst, melds, trailing, onPressArea,
+  const { seats, handSizes, currentSeat, score, roundPoints, active, meldsFirst, melds, trailing, onPressArea,
           gained, side } = props;
   const flights = useFlights();
   const { table: card } = useCardSizes();
@@ -87,22 +86,7 @@ export default function TeamWell(props: Props) {
           +{roundPoints.toLocaleString('pt-BR')}
         </Text>
       ) : null}
-      <View accessible accessibilityLabel={mortoWaiting ? t('table.mortoOnTable') : t('table.mortoGone')}
-            style={{ width: 23, height: 30, marginLeft: 2 }}>
-        {mortoWaiting ? (
-          <>
-            <View style={{ position: 'absolute', left: 4, top: 0, width: 19, height: 27, borderRadius: 3, borderWidth: 2,
-                           backgroundColor: c.cardBack, borderColor: c.cardBackPattern }} />
-            <View style={{ position: 'absolute', left: 0, top: 3, width: 19, height: 27, borderRadius: 3, borderWidth: 2,
-                           backgroundColor: c.cardBack, borderColor: c.cardBackPattern,
-                           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.45)' }} />
-          </>
-        ) : (
-          <View style={{ position: 'absolute', left: 0, top: 3, width: 19, height: 27, borderRadius: 3, borderWidth: 1.5,
-                         borderStyle: 'dashed', borderColor: c.tableInkSoft, opacity: 0.6 }} />
-        )}
-      </View>
-    </>
+      </>
   );
 
   // Landscape: players and score in a column at the left, the melds beside them.

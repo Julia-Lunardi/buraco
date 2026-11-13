@@ -16,7 +16,10 @@ export interface FlightPlan {
 const STAGGER_MS = 70;
 /** The lixo leaves card after card, quicker: a 20-card pile still goes in about a second. */
 const PILE_STAGGER_MS = 45;
-const MAX_FLIGHTS = 14; // besides the lixo, which always flies whole (cards past a cap just vanished)
+const MAX_FLIGHTS = 14;
+/** Face-down cards shown flying when someone else takes a morto (its 11 would be a blur). */
+const MORTO_FLIGHTS = 5;
+const FLIGHT_GAP_MS = 250; // besides the lixo, which always flies whole (cards past a cap just vanished)
 
 const meldCards = (g: GameView): CardView[] => g.teams.flatMap((t) => t.melds.flatMap((m) => m.cards));
 
@@ -68,7 +71,28 @@ export function planFlights(prev: GameView | null, next: GameView | null): Fligh
     plans.push({ id: card.id, label: card.label, from: fromHand(card.id), to: [`card:${card.id}`, 'discard'] });
   }
 
-  return [...pile, ...plans.slice(0, MAX_FLIGHTS).map((plan, i) => ({ ...plan, delay: after + i * STAGGER_MS }))];
+  const moves = plans.slice(0, MAX_FLIGHTS).map((plan, i) => ({ ...plan, delay: after + i * STAGGER_MS }));
+
+  // Taking the morto: its cards leave the stack on the table for the taker's hand, after the move
+  // that took it (going out of cards, or the discard). Yours turn face up on the way in.
+  const taken = mortoTaken(prev, next);
+  const start = moves.length ? moves[moves.length - 1].delay + FLIGHT_GAP_MS : after;
+  const morto: FlightPlan[] = !taken ? [] : mine
+    ? next.hand.filter((x) => !handBefore.has(x.id)).map((card, i) => ({
+      id: card.id, label: card.label, flip: true, from: [`morto:${taken.team}`], to: [`card:${card.id}`, 'hand'],
+      delay: start + i * PILE_STAGGER_MS }))
+    : Array.from({ length: MORTO_FLIGHTS }, (_, i) => ({
+      id: null, label: null, from: [`morto:${taken.team}`], to: [hidden], delay: start + i * PILE_STAGGER_MS }));
+
+  return [...pile, ...moves, ...morto];
+}
+
+/** Someone's team just picked up its morto (morto_waiting went off with took_morto on). The
+ * player is whoever was to play: the morto comes with going out of cards or with the discard. */
+export function mortoTaken(prev: GameView | null, next: GameView | null): { team: number; seat: number } | null {
+  if (!prev || !next || prev.seat !== next.seat) return null;
+  const team = next.teams.findIndex((t, i) => t.took_morto && !prev.teams[i].took_morto);
+  return team < 0 ? null : { team, seat: prev.current };
 }
 
 /** Someone else just took the lixo: who, and how many cards (for the "+N" on their avatar and

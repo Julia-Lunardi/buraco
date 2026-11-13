@@ -192,6 +192,10 @@ const ptBR = {
     channelChat: "Mensagens",
   },
   table: {
+    mortoTakenShort: "pegou",
+    mortoStock: "virou monte",
+    mortoBannerYou: "Você pegou o morto!",
+    mortoBanner: "{{name}} pegou o morto!",
     tookPile: "{{name}} pegou o lixo (+{{n}})",
     draw: "Comprar",
     take: "Pegar",

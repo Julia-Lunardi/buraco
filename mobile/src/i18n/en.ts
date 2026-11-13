@@ -192,6 +192,10 @@ const en: Messages = {
     channelChat: "Messages",
   },
   table: {
+    mortoTakenShort: "taken",
+    mortoStock: "became the stock",
+    mortoBannerYou: "You took the morto!",
+    mortoBanner: "{{name}} took the morto!",
     tookPile: "{{name}} took the pile (+{{n}})",
     draw: "Draw",
     take: "Take",
