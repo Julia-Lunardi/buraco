@@ -4,13 +4,20 @@ Best effort: a push failure must never break the move that triggered it, so noth
 here raises. Tokens Expo reports as DeviceNotRegistered (an uninstall, or a reinstall
 with a new token) are deleted so the table doesn't grow forever.
 
-Calm by design: only "your turn" on async tables, "a friend joined", and "round/game
-over", and only to people who are not looking at that table right now. No chat pushes.
+Calm by design: only "your turn" on async tables, "a friend joined", "round/game over" and
+"new message" (at most one per table every few minutes), and only to people who are not
+looking at that table right now. The app closes its table socket when it goes to the
+background, so "looking" means the table is on screen.
+
+Android shows each kind on its own channel (mobile notifications/push.ts creates them).
+Expo's rejections are logged: without the FCM V1 key in EAS, every Android push comes back
+`InvalidCredentials`, and nothing else would say so.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 
 import httpx
@@ -35,7 +42,16 @@ _TEXT = {
                    "da": "Runden er slut ved bord {code}."},
     "game_over": {"pt-BR": "Fim de jogo na mesa {code}.", "en": "Game over at table {code}.",
                   "da": "Spillet er slut ved bord {code}."},
+    "chat": {"pt-BR": "{name} mandou uma mensagem na mesa {code}.", "en": "{name} sent a message at table {code}.",
+             "da": "{name} har skrevet en besked ved bord {code}."},
 }
+
+# Android channel per kind (ids match mobile/src/notifications/push.ts).
+_CHANNEL = {"chat": "chat"}
+DEFAULT_CHANNEL = "turns"
+
+CHAT_QUIET_SECONDS = 180  # one "new message" push per person and table in this window
+_chat_pushed: dict[tuple[uuid.UUID, uuid.UUID], float] = {}
 
 
 def text_for(kind: str, locale: str, **values) -> str:
@@ -51,7 +67,8 @@ async def send(db: AsyncSession, user_ids: list[uuid.UUID], kind: str, data: dic
         return 0
     devices = (await db.execute(select(DeviceToken).where(DeviceToken.user_id.in_(user_ids)))).scalars().all()
     messages = [{"to": d.token, "title": "Buraco Lounge", "body": text_for(kind, d.locale, **values),
-                 "data": {"type": kind, **data}, "sound": "default"} for d in devices]
+                 "data": {"type": kind, **data}, "sound": "default", "priority": "high",
+                 "channelId": _CHANNEL.get(kind, DEFAULT_CHANNEL)} for d in devices]
     accepted, dead = 0, []
     async with httpx.AsyncClient(timeout=TIMEOUT_SECONDS, transport=_transport) as client:
         for start in range(0, len(messages), BATCH_SIZE):
@@ -68,6 +85,9 @@ async def send(db: AsyncSession, user_ids: list[uuid.UUID], kind: str, data: dic
                     accepted += 1
                 elif receipt.get("details", {}).get("error") == "DeviceNotRegistered":
                     dead.append(message["to"])
+                else:
+                    logger.warning("expo rejected a %s push: %s %s", kind,
+                                   receipt.get("details", {}).get("error"), receipt.get("message"))
     if dead:
         await db.execute(delete(DeviceToken).where(DeviceToken.token.in_(dead)))
         await db.commit()
@@ -97,3 +117,19 @@ async def after_change(db: AsyncSession, table: GameTable, previous_seat: int | 
 async def joined(db: AsyncSession, table: GameTable, name: str, present: set[uuid.UUID]) -> None:
     if table.host_id is not None and table.host_id not in present:
         await send(db, [table.host_id], "joined", {"table_id": str(table.id)}, name=name or "?", code=table.code)
+
+
+async def chat_message(db: AsyncSession, table: GameTable, sender_id: uuid.UUID, name: str | None,
+                       present: set[uuid.UUID], skip: set[uuid.UUID]) -> None:
+    """Tell seated people who are away that someone wrote, at most once per table every
+    CHAT_QUIET_SECONDS (a burst of messages is one notice). `skip`: who blocked the sender."""
+    now = time.monotonic()
+    to = []
+    for user_id in {s.user_id for s in table.seats if s.user_id is not None}:
+        if user_id == sender_id or user_id in present or user_id in skip:
+            continue
+        if now - _chat_pushed.get((table.id, user_id), -CHAT_QUIET_SECONDS) < CHAT_QUIET_SECONDS:
+            continue
+        _chat_pushed[(table.id, user_id)] = now
+        to.append(user_id)
+    await send(db, to, "chat", {"table_id": str(table.id)}, name=name or "?", code=table.code)

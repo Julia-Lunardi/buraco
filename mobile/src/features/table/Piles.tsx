@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
 import { CardSlot } from './motion';
+import { useFlights } from './flights';
 import { useCardSizes } from './sizes';
 
 function Badge({ n }: { n: number }) {
@@ -82,6 +83,62 @@ export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard 
         )}
         {n ? <Badge n={n} /> : null}
       </Pressable>
+    </View>
+  );
+}
+
+/** Morto stacks are smaller than the playing cards: they are set aside, not in play. */
+const MORTO_SCALE = 0.62;
+
+interface MortoProps {
+  /** Per team: still on the table, and whether that team took it (vs. it became the stock). */
+  teams: { morto_waiting: boolean; took_morto: boolean }[];
+  myTeam: number;
+  label(team: number): string;
+}
+
+/** The two mortos, set aside by the stock as at a real table: ours first, then theirs, each a
+ * small face-down stack with its team's name. Once a team takes its morto the cards fly to the
+ * taker and an outline marked "pegou" stays, so it's clear all game long who has it. */
+export function MortoStacks({ teams, myTeam, label }: MortoProps) {
+  const { c, type } = useTheme();
+  const { pile } = useCardSizes();
+  const flights = useFlights();
+  const w = Math.round(pile.w * MORTO_SCALE);
+  const h = Math.round(pile.h * MORTO_SCALE);
+  return (
+    <View style={{ flexDirection: 'row', gap: 6 }}>
+      {[myTeam, 1 - myTeam].map((team) => {
+        const { morto_waiting: waiting, took_morto: took } = teams[team];
+        const mine = team === myTeam;
+        const a11y = `${t('table.morto')} ${label(team)}: ${waiting ? t('table.mortoOnTable') : took ? t('table.mortoGone') : t('table.mortoStock')}`;
+        return (
+          <View key={team} accessible accessibilityLabel={a11y} style={{ alignItems: 'center', gap: 3 }}>
+            <View collapsable={false} ref={(view) => flights?.register(`morto:${team}`, view)}
+                  style={{ width: w + 3, height: h + 3 }}>
+              {waiting ? (
+                <>
+                  <Card faceDown size="pile" style={{ position: 'absolute', left: 3, top: 3, transform: [{ scale: MORTO_SCALE }],
+                                                      transformOrigin: 'top left' }} />
+                  <Card faceDown size="pile" style={{ position: 'absolute', left: 0, top: 0, transform: [{ scale: MORTO_SCALE }],
+                                                      transformOrigin: 'top left' }} />
+                </>
+              ) : (
+                <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed',
+                               borderColor: took ? (mine ? c.accent : c.invalid) : c.tableLine,
+                               alignItems: 'center', justifyContent: 'center' }}>
+                  {took ? <Text style={{ fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12, textAlign: 'center',
+                                         color: mine ? c.accent : c.invalid }}>{t('table.mortoTakenShort')}</Text> : null}
+                </View>
+              )}
+            </View>
+            <Text numberOfLines={1} style={{ maxWidth: w + 16, fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12,
+                                             color: waiting ? c.tableInkSoft : took ? (mine ? c.accent : c.invalid) : c.tableInkSoft }}>
+              {label(team)}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }

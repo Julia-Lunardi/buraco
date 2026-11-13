@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -49,6 +49,7 @@ export default function ChatPanel({ visible, onClose, table, chat, myUserId, sen
   }
 
   const name = (m: ChatMessage) => m.name || '—'; // senders are always people
+  const newestFirst = useMemo(() => [...chat.messages].reverse(), [chat.messages]);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -77,12 +78,17 @@ export default function ChatPanel({ visible, onClose, table, chat, myUserId, sen
             </View>
           </View>
 
+          {/* Inverted: opens on the newest message, at the bottom by the input, and stays there as
+              new ones arrive; scrolling up reads back. */}
+          {chat.messages.length ? null : (
+            <Text style={[type.body, { color: c.tableInkSoft, padding: space.space4 }]}>{t('chat.empty')}</Text>
+          )}
           <FlatList
-            data={chat.messages}
+            inverted
+            data={newestFirst}
             keyExtractor={(m) => String(m.id)}
             style={{ flexGrow: 0 }}
             contentContainerStyle={{ padding: space.space4, gap: space.space2 }}
-            ListEmptyComponent={<Text style={[type.body, { color: c.tableInkSoft }]}>{t('chat.empty')}</Text>}
             renderItem={({ item }) => {
               const mine = item.user_id === myUserId;
               return (

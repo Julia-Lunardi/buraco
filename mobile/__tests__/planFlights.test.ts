@@ -1,5 +1,5 @@
 import type { CardView, GameView } from '../src/api/tables';
-import { planFlights } from '../src/features/table/planFlights';
+import { mortoTaken, pileTaken, planFlights } from '../src/features/table/planFlights';
 
 const c = (id: number, label = 'AS'): CardView => ({ id, label });
 const meld = (id: number, cards: CardView[]) => ({ id, cards, kind: 'trinca' as const, wilds: 0, canastra: null });
@@ -39,6 +39,46 @@ describe('planFlights', () => {
     const before = game({ current: 1, phase: 'draw', discard: pile });
     expect(route(planFlights(before, game({ current: 1, discard: [] })))).toEqual(['card:5 -> card:5 KH', 'card:9 -> card:9 7D']);
     expect(planFlights(before, game({ current: 1, discard: [] }))[0].to).toEqual(['card:5', 'seat:1']);
+  });
+
+  it('flies a big lixo whole, card after card, before the moves that follow', () => {
+    const pile = Array.from({ length: 22 }, (_, i) => c(100 + i, '7D'));
+    const plans = planFlights(game({ current: 1, phase: 'draw', discard: pile }), game({ current: 1, discard: [] }));
+    expect(plans).toHaveLength(22);
+    expect(plans.map((p) => p.delay).slice(0, 3)).toEqual([0, 45, 90]);
+    expect(plans.every((p) => p.to[1] === 'seat:1')).toBe(true);
+  });
+
+  it("says who took the lixo and how many cards, except when it's you", () => {
+    const pile = [c(5, 'KH'), c(9, '7D'), c(11, '3C')];
+    expect(pileTaken(game({ current: 1, phase: 'draw', discard: pile }), game({ current: 1, discard: [] })))
+      .toEqual({ seat: 1, n: 3 });
+    expect(pileTaken(game({ current: 0, phase: 'draw', discard: pile }), game({ current: 0, discard: [] }))).toBeNull();
+    expect(pileTaken(game({ current: 1, discard: pile }), game({ current: 0, discard: [...pile, c(12)] }))).toBeNull();
+  });
+
+  it("flies someone else's morto face down from its stack to their seat, after their discard", () => {
+    const before = game({ current: 1, discard: [c(1)] });
+    const after = game({ current: 0, discard: [c(1), c(2, '9S')],
+                         teams: [before.teams[0], { morto_waiting: false, took_morto: true, melds: [] }] });
+    expect(mortoTaken(before, after)).toEqual({ team: 1, seat: 1 });
+    const plans = planFlights(before, after);
+    expect(route(plans)).toEqual(['seat:1 -> card:2 9S', 'morto:1 -> seat:1', 'morto:1 -> seat:1', 'morto:1 -> seat:1',
+                                  'morto:1 -> seat:1', 'morto:1 -> seat:1']);
+    expect(plans[1].delay).toBeGreaterThan(plans[0].delay);
+  });
+
+  it('turns my morto face up into my hand when I take it', () => {
+    const before = game({ hand: [c(1, '5S'), c(2, '5H'), c(3, '5D')] });
+    const after = game({ hand: [c(40, 'KH'), c(41, 'QH')],
+                         teams: [{ morto_waiting: false, took_morto: true, melds: [meld(1, before.hand)] }, before.teams[1]] });
+    const morto = planFlights(before, after).filter((p) => p.from[0] === 'morto:0');
+    expect(morto.map((p) => [p.id, p.flip, p.to[0]])).toEqual([[40, true, 'card:40'], [41, true, 'card:41']]);
+  });
+
+  it('does not report a morto that was already taken', () => {
+    const taken = { morto_waiting: false, took_morto: true, melds: [] };
+    expect(mortoTaken(game({ teams: [taken, taken] }), game({ teams: [taken, taken] }))).toBeNull();
   });
 
   it('flies nothing when a new round is dealt', () => {

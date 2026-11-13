@@ -10,8 +10,9 @@ export const BOT_PAUSE: Record<NonNullable<BotStep['action']>, number> = {
   add_to_meld: 1100,
   discard: 1300,
 };
-/** After the last move ends a round, before the summary replaces the table. */
-export const ROUND_END_PAUSE = 2000;
+/** After a bot's last move ends a round: its card lands before the round-end moment starts
+ * (features/table/RoundEnd, which then holds the table a while longer). */
+export const ROUND_END_PAUSE = 1000;
 
 export interface Frame {
   table: TableView;

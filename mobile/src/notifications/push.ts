@@ -27,6 +27,20 @@ export const notifications: Notifications | null = (() => {
   }
 })();
 
+/** Android channels, one per kind of notice (ids match backend services/push.py). HIGH shows a
+ * banner; Expo's own fallback channel is DEFAULT, which only puts an icon in the status bar.
+ * Created before asking (Android 13 asks only once a channel exists) and at every launch. */
+async function ensureChannels(): Promise<void> {
+  if (!notifications || Platform.OS !== 'android') return;
+  const { AndroidImportance } = notifications;
+  await Promise.all([
+    notifications.setNotificationChannelAsync('turns', { name: i18n.t('push.channelTurns'),
+                                                         importance: AndroidImportance.HIGH, vibrationPattern: [0, 200, 120, 200] }),
+    notifications.setNotificationChannelAsync('chat', { name: i18n.t('push.channelChat'),
+                                                        importance: AndroidImportance.HIGH }),
+  ]).catch(() => {});
+}
+
 const ASKED_KEY = 'pushPrimerShown';
 let currentToken: string | null = null;
 
@@ -46,6 +60,7 @@ export async function markPushOffered(): Promise<void> {
 /** Ask the OS (only after the player tapped "Ativar avisos") and register the token. */
 export async function enablePush(): Promise<boolean> {
   if (!notifications || !Device.isDevice) return false;
+  await ensureChannels();
   const { status } = await notifications.requestPermissionsAsync();
   if (status !== 'granted') return false;
   await registerToken();
@@ -57,6 +72,7 @@ export async function registerToken(): Promise<void> {
   if (!notifications || !Device.isDevice) return;
   const { status } = await notifications.getPermissionsAsync();
   if (status !== 'granted') return;
+  await ensureChannels();
   try {
     const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
     const { data } = await notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);

@@ -1,5 +1,19 @@
 # Mobile Changelog
 
+## 13.11.2026
+
+First round of tester fixes.
+
+- **Notifications on Android.** The table's connection now closes when the app goes to the background and reopens when you come back. Android kept it open, so the server thought you were still looking at the table and skipped your "your turn" and "round over" notices. Two Android notification channels, **Turns and rounds** and **Messages**, are created at launch with high importance, so notices appear as banners. Expo's fallback channel only put an icon in the status bar.
+- **Chat.** The chat button has a new icon, a filled speech bubble with dots. New messages show as a red bubble with their count (99+ past 99), which pops when another arrives. The chat opens on the newest message and stays there as messages come in. Messages that arrive while it is open count as read. Coming back from the background fetches what was said meanwhile, and it stays unread.
+- **Landscape** follows the portrait order: their team on top, the stock and lixo in the middle with the notices beside them, then your team and your hand at the bottom. Each team's players and score sit in a column beside its melds, to save height. The old layout put both teams in a left column.
+- **Taking the lixo.** The whole pile flies to whoever takes it, card after card (45 ms apart). Before, only the first 14 cards flew and the rest vanished. When someone else takes it, a gold **+N** rises from their avatar and the line under the piles says "Ana pegou o lixo (+7)" for 3 s.
+- **The mortos lie on the table**, by the stock: two small face-down stacks, ours first, each with its team's name ("Nós", and "Eles" or the opponent's name). When a team takes its morto, the cards fly to the taker (yours turn face up into your hand; theirs fly face down to their avatar). An outline marked **pegou** stays, gold for us and red for them, for the rest of the round. A morto that became the stock leaves a plain outline. The tiny morto marker in each team's area is gone.
+- **"Ana pegou o morto!"**: a banner drops from the top for 3 s when anyone takes a morto, gold for your team and green with a red edge for theirs, with a success or warning vibration.
+- **Your turn**: the phone taps twice (two medium taps) when the turn comes to you. It doesn't tap when you open a table on your turn.
+- **Canastras** no longer lay a card crosswise, which hid the cards under it. Every card lies in order and stays readable, and a frame marks the canastra: gold with a glow for limpa, gold with a second ring for real, and a plain light frame for suja. The tag beside it remains, gold for limpa and real.
+- **End of a round.** When a round ends in front of you, a stamp slams onto the felt ("Ana bateu!", "Você bateu!", "Acabou o monte!") with a burst of suits and a one-liner, and the phone thumps: a heavy tap, then success or warning. It holds 3.2 s before the points, or a tap skips it after 0.7 s. Opening a table that is already between rounds goes straight to the points. After a bot's last move the table now waits 1 s before this, down from 2 s. The code is in `features/table/RoundEnd.tsx`.
+
 ## 02.11.2026
 
 - The delete-account confirmation now says what happens: your messages are removed and a bot takes your seat at tables with friends. It used to say your tables would be removed, which they aren't (and which the privacy policy contradicted).
