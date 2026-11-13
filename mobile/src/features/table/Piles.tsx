@@ -20,35 +20,23 @@ function Badge({ n }: { n: number }) {
 
 const BACK = require('../../../assets/cards/back-full.png');
 
-/** How many card edges show under a pile's top card: a full stock shows three, a nearly empty one none. */
-export const stockDepth = (count: number) => (count >= 30 ? 3 : count >= 10 ? 2 : count >= 2 ? 1 : 0);
-
 interface DeckProps {
   w: number;
   h: number;
   /** Corner radius of the cards, as the cards on the table have it at this size. */
   r: number;
-  /** Card edges showing under the top card, `gap` apart down and to the right. */
-  depth: number;
-  gap: number;
-  /** The gold "draw now" ring, hugging the top card. */
+  /** The gold "draw now" ring, hugging the card. */
   active?: boolean;
 }
 
-/** A face-down pile seen from above: the top card with the back's art, and under it only the
- * edges of the cards below, evenly spaced cream lines (cardBackPattern) down and to the right,
- * with one soft shadow under the whole pile rather than one per card. */
-export function DeckStack({ w, h, r, depth, gap, active }: DeckProps) {
+/** A face-down pile seen from above: just its top card, flat, with the back's art and one soft
+ * shadow (no edges of the cards below: Julia's call, 13.11.2026). The count says how many. */
+export function DeckStack({ w, h, r, active }: DeckProps) {
   const { c, shadow } = useTheme();
   return (
-    <View style={{ width: w + depth * gap, height: h + depth * gap }}>
-      {Array.from({ length: depth }, (_, k) => depth - k).map((i) => (
-        <View key={i} style={{ position: 'absolute', left: i * gap, top: i * gap, width: w, height: h, borderRadius: r,
-                               backgroundColor: c.cardBack, borderWidth: 0.75, borderColor: c.cardBackPattern,
-                               boxShadow: i === depth ? shadow.shadowCard : undefined }} />
-      ))}
-      <View style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, borderRadius: r, overflow: 'hidden',
-                     backgroundColor: c.cardBack, boxShadow: depth ? undefined : shadow.shadowCard }}>
+    <View style={{ width: w, height: h }}>
+      <View style={{ width: w, height: h, borderRadius: r, overflow: 'hidden', backgroundColor: c.cardBack,
+                     boxShadow: shadow.shadowCard }}>
         <Image source={BACK} resizeMode="stretch" accessibilityIgnoresInvertColors style={{ width: w, height: h }} />
       </View>
       {active ? (
@@ -60,8 +48,7 @@ export function DeckStack({ w, h, r, depth, gap, active }: DeckProps) {
   );
 }
 
-/** Design system `Stock` (minimal): the face-down pile, its edges thinning as it runs low, and
- * a count badge; it glows when drawing is the move to make, and a tap draws. */
+/** Design system `Stock` (minimal): the face-down pile and a count badge; it glows when drawing is the move to make, and a tap draws. */
 export function Stock({ count, active, onPress }: { count: number; active: boolean; onPress?(): void }) {
   const { radius } = useTheme();
   const { pile } = useCardSizes();
@@ -69,7 +56,7 @@ export function Stock({ count, active, onPress }: { count: number; active: boole
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
                accessibilityLabel={`${t('table.stock', { n: count })}${active ? `. ${t('table.draw')}` : ''}`}>
-      <DeckStack w={pile.w} h={pile.h} r={r} depth={stockDepth(count)} gap={1.5} active={active} />
+      <DeckStack w={pile.w} h={pile.h} r={r} active={active} />
       <Badge n={count} />
     </Pressable>
   );
@@ -158,9 +145,9 @@ export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
         return (
           <View key={team} accessible accessibilityLabel={a11y} style={{ alignItems: 'center', gap: 3 }}>
             <View collapsable={false} ref={(view) => flights?.register(`morto:${team}`, view)}
-                  style={{ width: w + 2, height: h + 2 }}>
+                  style={{ width: w, height: h }}>
               {waiting ? (
-                <DeckStack w={w} h={h} r={Math.max(3, Math.round(w * 0.1))} depth={2} gap={1} />
+                <DeckStack w={w} h={h} r={Math.max(3, Math.round(w * 0.1))} />
               ) : (
                 <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed',
                                borderColor: took ? (mine ? c.accent : c.invalid) : c.tableLine,

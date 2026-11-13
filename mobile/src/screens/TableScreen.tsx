@@ -220,7 +220,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const stockAndPile = game ? (
     <>
       {/* Above the lixo, so the lixo never covers the stock's count badge. */}
-      <View collapsable={false} ref={place('stock')} style={{ zIndex: 2 }}>
+      <View collapsable={false} ref={place('stock')} style={{ zIndex: 2, marginRight: 6 }}>
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
       <View collapsable={false} ref={place('discard')}>
