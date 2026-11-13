@@ -12,6 +12,9 @@ First round of tester fixes.
 - **"Ana pegou o morto!"**: a banner drops from the top for 3 s when anyone takes a morto, gold for your team and green with a red edge for theirs, with a success or warning vibration.
 - **Your turn**: the phone taps twice (two medium taps) when the turn comes to you. It doesn't tap when you open a table on your turn.
 - **Canastras** no longer lay a card crosswise, which hid the cards under it. Every card lies in order and stays readable, and a frame marks the canastra: gold with a glow for limpa, gold with a second ring for real, and a plain light frame for suja. The tag beside it remains, gold for limpa and real.
+- **The mortos stand at the table's left edge** in portrait, one above the other (ours on top), with the stock and lixo centred in the room left. Landscape keeps them side by side before the stock, where height is scarce.
+- **Their cards, face down.** Each opponent's hand shows beside their avatar as a gentle fan of card backs, one per card, squeezed to fit. The count stays on the avatar. Your partner keeps just the count. The code is in `features/table/BacksFan.tsx`.
+- **Felt.** The table has a touch of texture: a seamless 64 pt tile of soft grain and a few fibres (`assets/felt@3x.png`), in white and black at low alpha, so it suits the green and the blue table alike.
 - **End of a round.** When a round ends in front of you, a stamp slams onto the felt ("Ana bateu!", "Você bateu!", "Acabou o monte!") with a burst of suits and a one-liner, and the phone thumps: a heavy tap, then success or warning. It holds 3.2 s before the points, or a tap skips it after 0.7 s. Opening a table that is already between rounds goes straight to the points. After a bot's last move the table now waits 1 s before this, down from 2 s. The code is in `features/table/RoundEnd.tsx`.
 
 ## 02.11.2026

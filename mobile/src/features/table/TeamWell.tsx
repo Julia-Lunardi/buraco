@@ -5,6 +5,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequ
 import type { SeatView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
+import BacksFan from './BacksFan';
 import { useFlights } from './flights';
 import { useCardSizes } from './sizes';
 import { FLIGHT_MS } from './timing';
@@ -29,6 +30,8 @@ interface Props {
   gained?: { seat: number; n: number; key: number } | null;
   /** Landscape: the strip stands beside the melds instead of above or below them. */
   side?: boolean;
+  /** Opponents: show each one's hand as a fan of card backs beside the avatars. */
+  backs?: boolean;
 }
 
 const initials = (name: string | null) =>
@@ -39,7 +42,7 @@ const initials = (name: string | null) =>
 export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
   const { seats, handSizes, currentSeat, score, roundPoints, active, meldsFirst, melds, trailing, onPressArea,
-          gained, side } = props;
+          gained, side, backs } = props;
   const flights = useFlights();
   const { table: card } = useCardSizes();
 
@@ -89,6 +92,13 @@ export default function TeamWell(props: Props) {
       </>
   );
 
+  const others = backs ? seats.filter((s) => !s.is_you) : [];
+  const fans = others.length ? (
+    <View style={{ flex: side ? undefined : 1, minWidth: 0, flexDirection: 'row', gap: 10 }}>
+      {others.map((s) => <BacksFan key={s.seat} n={handSizes[s.seat] ?? 0} maxWidth={side ? 130 : undefined} />)}
+    </View>
+  ) : null;
+
   // Landscape: players and score in a column at the left, the melds beside them.
   const strip = side ? (
     <View style={{ gap: 6, justifyContent: 'center' }}>
@@ -99,6 +109,7 @@ export default function TeamWell(props: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         {tally}
       </View>
+      {fans}
     </View>
   ) : (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 44 }}>
@@ -106,6 +117,7 @@ export default function TeamWell(props: Props) {
         {avatars}
         {tally}
       </View>
+      {fans}
       {trailing}
     </View>
   );

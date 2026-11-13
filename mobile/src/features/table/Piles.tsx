@@ -95,19 +95,21 @@ interface MortoProps {
   teams: { morto_waiting: boolean; took_morto: boolean }[];
   myTeam: number;
   label(team: number): string;
+  /** One above the other, at the table's left edge (portrait); side by side otherwise. */
+  vertical?: boolean;
 }
 
-/** The two mortos, set aside by the stock as at a real table: ours first, then theirs, each a
+/** The two mortos, set aside from the stock as at a real table: ours first, then theirs, each a
  * small face-down stack with its team's name. Once a team takes its morto the cards fly to the
  * taker and an outline marked "pegou" stays, so it's clear all game long who has it. */
-export function MortoStacks({ teams, myTeam, label }: MortoProps) {
+export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
   const { c, type } = useTheme();
   const { pile } = useCardSizes();
   const flights = useFlights();
   const w = Math.round(pile.w * MORTO_SCALE);
   const h = Math.round(pile.h * MORTO_SCALE);
   return (
-    <View style={{ flexDirection: 'row', gap: 6 }}>
+    <View style={{ flexDirection: vertical ? 'column' : 'row', gap: vertical ? 10 : 6 }}>
       {[myTeam, 1 - myTeam].map((team) => {
         const { morto_waiting: waiting, took_morto: took } = teams[team];
         const mine = team === myTeam;

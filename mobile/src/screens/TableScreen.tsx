@@ -14,6 +14,7 @@ import { useChat } from '../features/chat/useChat';
 import Hand from '../features/table/Hand';
 import MeldRow from '../features/table/MeldRow';
 import { DiscardPile, MortoStacks, Stock } from '../features/table/Piles';
+import FeltTexture from '../features/table/Felt';
 import { FlightsProvider, useCardFlights } from '../features/table/flights';
 import MortoBanner, { MORTO_BANNER_MS } from '../features/table/MortoBanner';
 import { mortoTaken, pileTaken } from '../features/table/planFlights';
@@ -124,6 +125,7 @@ export default function TableScreen({ navigation, route }: Props) {
   if (!table) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.table }}>
+        <FeltTexture />
         <ActivityIndicator color={c.tableInk} />
       </View>
     );
@@ -195,7 +197,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const theirWell = game ? (
     <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]} roundPoints={table.round_points?.[1 - myTeam]}
               active={game.current % 2 !== myTeam}
-              meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} gained={taken} side={landscape} />
+              meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} gained={taken} side={landscape} backs />
   ) : null;
 
   const myWell = game ? (
@@ -211,10 +213,12 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const teamLabel = (team: number) => team === myTeam ? t('table.us')
     : table.num_players === 2 ? seatName(table, table.seats.find((s) => s.team === team)?.seat ?? -1) : t('table.them');
-  const mortoWidth = 2 * (Math.round(cardW * 0.62) + 3) + 6;
-  const piles = game ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
-      <MortoStacks teams={game.teams} myTeam={myTeam} label={teamLabel} />
+  // Portrait: the mortos stand one above the other at the left edge, the stock and lixo centred
+  // in the room left. Landscape: side by side before the stock (height is what's scarce there).
+  const mortoW = Math.round(cardW * 0.62);
+  const mortoWidth = landscape ? 2 * (mortoW + 3) + 6 : mortoW + 16;
+  const stockAndPile = game ? (
+    <>
       <View collapsable={false} ref={place('stock')}>
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
@@ -225,8 +229,21 @@ export default function TableScreen({ navigation, route }: Props) {
                      target={playing && selected.length === 1}
                      onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
       </View>
-    </View>
+    </>
   ) : null;
+  const piles = game ? (landscape ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+      <MortoStacks teams={game.teams} myTeam={myTeam} label={teamLabel} />
+      {stockAndPile}
+    </View>
+  ) : (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.space3 }}>
+      <MortoStacks vertical teams={game.teams} myTeam={myTeam} label={teamLabel} />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+        {stockAndPile}
+      </View>
+    </View>
+  )) : null;
 
   // One quiet line under the piles: errors first, then the hint, then guidance.
   const notice = !connected ? { text: t('table.reconnecting'), color: c.tableInkSoft }
@@ -264,6 +281,7 @@ export default function TableScreen({ navigation, route }: Props) {
   return (
     <View style={{ flex: 1, backgroundColor: c.table, paddingTop: insets.top + (landscape ? 4 : space.space2),
                    paddingBottom: insets.bottom + (landscape ? 4 : space.space3), paddingLeft: insets.left, paddingRight: insets.right }}>
+      <FeltTexture />
       <FlightsProvider api={flights.api}>
       {landscape ? (
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 6 }}
