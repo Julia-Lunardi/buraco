@@ -3,7 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 
 interface Props<T extends string> {
-  value: T;
+  /** null: no segment raised (the table's hand after a draw, until it is sorted again). */
+  value: T | null;
   // NoInfer: T comes from `value` alone, so ('2' | '4') isn't widened to string by the options.
   options: { value: NoInfer<T>; label: string }[];
   onChange(value: NoInfer<T>): void;
@@ -12,7 +13,8 @@ interface Props<T extends string> {
   onTable?: boolean;
 }
 
-/** Design system `SegmentedControl`: a sunken track, the chosen segment raised. */
+/** Design system `SegmentedControl`: a sunken track, the chosen segment raised. Every tap calls
+ * `onChange`, the chosen segment's too (the table re-sorts the hand on it). */
 export default function SegmentedControl<T extends string>({ value, options, onChange, accessibilityLabel, onTable }: Props<T>) {
   const { c, space, radius, size, type } = useTheme();
   return (

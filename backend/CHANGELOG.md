@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 14.11.2026
+
+- Chat reactions: `POST /tables/{id}/chat/{message_id}/react` with `{"emoji": "👏"}` sets your reaction to a message, replacing any earlier one. The same emoji again, or `null`, takes it back. Only the six in `chat.REACTIONS` are accepted (anything else is `bad_reaction`), so there is no free text to moderate. Anyone seated may react, to their own messages too, while chat is on. Messages now carry `reactions: [{user_id, emoji}]` in history and on the socket. A reaction re-sends the whole message as a `chat` frame, which the app merges by id, and sends no push. Stored in `chat_reactions` (migration `a7d4e2c91b06`), one row per message and player, deleted with the message or the account.
+
 ## 13.11.2026
 
 - Chat messages send a push ("Ana mandou uma mensagem na mesa K7Q2MX.") to seated people who aren't at the table, but not to the sender or anyone who blocked them. There is at most one per person and table every 3 minutes (`CHAT_QUIET_SECONDS`), so a burst of messages makes one notice.

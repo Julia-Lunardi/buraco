@@ -157,3 +157,35 @@ def test_ws_chat_reaches_others_but_not_people_who_blocked_the_sender(live, monk
     assert next_of(ws_ana, "pong") == {"type": "pong"}  # nothing from Bia arrived first
     ws_ana.__exit__(None, None, None)
     ws_bia.__exit__(None, None, None)
+
+
+# --- reactions --------------------------------------------------------------------------
+
+async def react(client, table_id, token, message_id, emoji):
+    return await client.post(f"/tables/{table_id}/chat/{message_id}/react", json={"emoji": emoji},
+                             headers=bearer(token))
+
+
+async def test_react_replace_and_take_back(client, sessions, monkeypatch):
+    table_id, ana, bia = await friends_table(client, monkeypatch)
+    sent = (await say(client, table_id, ana, "Bati!")).json()
+    assert sent["reactions"] == []
+    out = (await react(client, table_id, bia, sent["id"], "👏")).json()
+    assert [r["emoji"] for r in out["reactions"]] == ["👏"]
+    out = (await react(client, table_id, ana, sent["id"], "😂")).json()  # own message is fine
+    assert sorted(r["emoji"] for r in out["reactions"]) == ["👏", "😂"]
+    out = (await react(client, table_id, bia, sent["id"], "❤️")).json()  # replaces Bia's 👏
+    assert sorted(r["emoji"] for r in out["reactions"]) == ["❤️", "😂"]
+    out = (await react(client, table_id, bia, sent["id"], "❤️")).json()  # same again: taken back
+    assert [r["emoji"] for r in out["reactions"]] == ["😂"]
+    history = (await client.get(f"/tables/{table_id}/chat", headers=bearer(bia))).json()
+    assert [r["emoji"] for r in history[0]["reactions"]] == ["😂"]
+
+
+async def test_react_only_from_the_set_and_only_seated(client, sessions, monkeypatch):
+    table_id, ana, bia = await friends_table(client, monkeypatch)
+    sent = (await say(client, table_id, ana, "oi")).json()
+    assert (await react(client, table_id, bia, sent["id"], "💩")).json()["code"] == "bad_reaction"
+    caio = await sign_in(client, monkeypatch, "g-caio", "Caio")
+    assert (await react(client, table_id, caio, sent["id"], "👍")).status_code == 404
+    assert (await react(client, table_id, bia, 999999, "👍")).status_code == 404

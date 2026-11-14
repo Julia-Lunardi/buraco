@@ -149,11 +149,13 @@ export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
               {waiting ? (
                 <DeckStack w={w} h={h} r={Math.max(3, Math.round(w * 0.1))} />
               ) : (
-                <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed',
+                <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1, borderStyle: 'dashed',
                                borderColor: took ? (mine ? c.accent : c.invalid) : c.tableLine,
                                alignItems: 'center', justifyContent: 'center' }}>
-                  {took ? <Text style={{ fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12, textAlign: 'center',
-                                         color: mine ? c.accent : c.invalid }}>{t('table.mortoTakenShort')}</Text> : null}
+                  {/* One line always: the outline is narrow, and "pegou" used to break as "pego / u". */}
+                  {took ? <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+                                style={{ alignSelf: 'stretch', fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12,
+                                         textAlign: 'center', color: mine ? c.accent : c.invalid }}>{t('table.mortoTakenShort')}</Text> : null}
                 </View>
               )}
             </View>

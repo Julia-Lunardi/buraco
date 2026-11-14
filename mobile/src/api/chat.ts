@@ -6,6 +6,15 @@ export async function chatHistory(tableId: string, before?: number): Promise<Cha
   return (await api.get<ChatMessage[]>(`/tables/${tableId}/chat`, { params: before ? { before } : undefined })).data;
 }
 
+/** The reactions a long press offers; the server accepts only these. */
+export const REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '👏'] as const;
+
+/** Sets your reaction (replacing any earlier one); the same emoji again takes it back.
+ * Everyone, you included, gets the updated message on the socket. */
+export async function reactToMessage(tableId: string, messageId: number, emoji: string | null): Promise<ChatMessage> {
+  return (await api.post<ChatMessage>(`/tables/${tableId}/chat/${messageId}/react`, { emoji })).data;
+}
+
 /** Hides the message for you at once; for everyone after two reports. Reviewed by the developer. */
 export async function reportMessage(tableId: string, messageId: number, reason = ''): Promise<void> {
   await api.post(`/tables/${tableId}/chat/${messageId}/report`, { reason });

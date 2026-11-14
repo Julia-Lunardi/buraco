@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { setChatEnabled } from '../../api/chat';
+import { REACTIONS, setChatEnabled } from '../../api/chat';
 import { errorDetail } from '../../api/client';
 import type { TableView } from '../../api/tables';
 import Button from '../../components/Button';
@@ -21,8 +22,9 @@ interface Props {
 }
 
 /** Design system chat panel: slides up over the table (table colours), short messages and
- * quick phrases. Long-press a message for mute / report / block (both stores require report
- * and block for user content). The host can turn chat off. */
+ * quick phrases. Long-press a message to react with an emoji and, on someone else's, for
+ * mute / report / block (both stores require report and block for user content). Reactions
+ * sit under the bubble as chips; tapping one adds or takes back yours. The host can turn chat off. */
 export default function ChatPanel({ visible, onClose, table, chat, myUserId, send }: Props) {
   const { c, space, radius, shadow, size, type } = useTheme();
   const insets = useSafeAreaInsets();
@@ -36,6 +38,12 @@ export default function ChatPanel({ visible, onClose, table, chat, myUserId, sen
     if (!trimmed) return;
     send(trimmed);
     setText('');
+  }
+
+  function react(message: ChatMessage, emoji: string) {
+    setActionsFor(null);
+    void Haptics.selectionAsync().catch(() => {});
+    chat.react(message, emoji).catch((e) => setNotice(errorDetail(e, t('common.somethingWrong'))));
   }
 
   async function run(action: () => Promise<void>, done: string) {
@@ -91,25 +99,67 @@ export default function ChatPanel({ visible, onClose, table, chat, myUserId, sen
             contentContainerStyle={{ padding: space.space4, gap: space.space2 }}
             renderItem={({ item }) => {
               const mine = item.user_id === myUserId;
+              const chips = chat.reactions(item);
+              const open = actionsFor?.id === item.id;
               return (
                 <View style={{ alignItems: mine ? 'flex-end' : 'flex-start', gap: space.space1 }}>
                   <Pressable
-                    onLongPress={mine ? undefined : () => setActionsFor(item)}
-                    accessibilityHint={mine ? undefined : t('chat.actions', { name: name(item) })}
+                    onLongPress={table.chat_enabled ? () => {
+                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+                      setActionsFor(open ? null : item);
+                    } : undefined}
+                    accessibilityHint={table.chat_enabled ? t('chat.reactHint') : undefined}
                     style={{ maxWidth: '85%', backgroundColor: mine ? c.accent : c.table, borderRadius: radius.radiusMd,
-                             paddingHorizontal: space.space3, paddingVertical: space.space2 }}>
+                             paddingHorizontal: space.space3, paddingVertical: space.space2,
+                             borderWidth: 1.5, borderColor: open ? c.tableInk : 'transparent' }}>
                     {!mine ? <Text style={[type.caption, { color: item.seat % 2 === 0 ? c.teamA : c.teamB }]}>
                       {item.seat % 2 === 0 ? '● ' : '◆ '}{name(item)}</Text> : null}
                     <Text style={[type.body, { color: mine ? c.onAccent : c.tableInk }]}>{item.text}</Text>
                   </Pressable>
-                  {actionsFor?.id === item.id ? (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.space2 }}>
+                  {chips.length ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.space1, marginTop: -2,
+                                   justifyContent: mine ? 'flex-end' : 'flex-start' }}>
+                      {chips.map((chip) => (
+                        <Pressable key={chip.emoji} onPress={table.chat_enabled ? () => react(item, chip.emoji) : undefined}
+                                   accessibilityRole="button" hitSlop={6}
+                                   accessibilityLabel={t('chat.reactionA11y', { emoji: chip.emoji, n: chip.count })}
+                                   accessibilityState={{ selected: chip.mine }}
+                                   style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 2,
+                                            borderRadius: radius.radiusPill, backgroundColor: c.table, borderWidth: 1,
+                                            borderColor: chip.mine ? c.accent : c.tableLine }}>
+                          <Text style={{ fontSize: 14, lineHeight: 18 }}>{chip.emoji}</Text>
+                          {chip.count > 1 ? <Text style={[type.caption, { color: c.tableInk, fontVariant: ['tabular-nums'] }]}>{chip.count}</Text> : null}
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+                  {open ? (
+                    <View style={{ flexDirection: 'row', alignSelf: mine ? 'flex-end' : 'flex-start', gap: 2, padding: 4,
+                                   borderRadius: radius.radiusPill, backgroundColor: c.table, boxShadow: shadow.shadowCard }}>
+                      {REACTIONS.map((emoji) => {
+                        const chosen = item.reactions?.some((r) => r.user_id === myUserId && r.emoji === emoji);
+                        return (
+                          <Pressable key={emoji} onPress={() => react(item, emoji)} accessibilityRole="button"
+                                     accessibilityLabel={t('chat.reactWith', { emoji })} accessibilityState={{ selected: !!chosen }}
+                                     style={{ width: size.touchMin, height: size.touchMin, borderRadius: size.touchMin / 2,
+                                              alignItems: 'center', justifyContent: 'center',
+                                              backgroundColor: chosen ? 'rgba(232, 178, 74, 0.25)' : 'transparent' }}>
+                            <Text style={{ fontSize: 24, lineHeight: 30 }}>{emoji}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {open ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.space2, justifyContent: mine ? 'flex-end' : 'flex-start' }}>
                       {[
-                        [chat.isMuted(item.user_id) ? t('chat.unmute', { name: name(item) }) : t('chat.mute', { name: name(item) }),
-                         () => { chat.toggleMute(item.user_id); setActionsFor(null); }],
-                        [t('chat.report'), () => run(() => chat.report(item), t('chat.reported'))],
-                        [t('chat.block', { name: name(item) }),
-                         () => run(() => chat.block(item.user_id), t('chat.blocked', { name: name(item) }))],
+                        ...(mine ? [] : [
+                          [chat.isMuted(item.user_id) ? t('chat.unmute', { name: name(item) }) : t('chat.mute', { name: name(item) }),
+                           () => { chat.toggleMute(item.user_id); setActionsFor(null); }],
+                          [t('chat.report'), () => run(() => chat.report(item), t('chat.reported'))],
+                          [t('chat.block', { name: name(item) }),
+                           () => run(() => chat.block(item.user_id), t('chat.blocked', { name: name(item) }))],
+                        ]),
                         [t('common.cancel'), () => setActionsFor(null)],
                       ].map(([label, onPress]) => (
                         <Pressable key={label as string} onPress={onPress as () => void} accessibilityRole="button"
@@ -140,12 +190,16 @@ export default function ChatPanel({ visible, onClose, table, chat, myUserId, sen
                   </Pressable>
                 ))}
               </ScrollView>
-              <View style={{ flexDirection: 'row', gap: space.space2, paddingHorizontal: space.space4, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', gap: space.space2, paddingHorizontal: space.space4, alignItems: 'flex-end' }}>
+                {/* Multiline so a long message wraps (and grows up to 4 lines, then scrolls) instead of
+                    running off to the right; the return key still sends. */}
                 <TextInput value={text} onChangeText={setText} placeholder={t('chat.placeholder')} maxLength={300}
                            placeholderTextColor={c.tableInkSoft} returnKeyType="send" onSubmitEditing={() => submit(text)}
+                           multiline submitBehavior="submit" textAlignVertical="center" scrollEnabled
                            accessibilityLabel={t('chat.placeholder')}
                            style={[type.body, { flex: 1, color: c.tableInk, backgroundColor: c.table, minHeight: size.touchMin,
-                                                borderRadius: radius.radiusMd, paddingHorizontal: space.space3 }]} />
+                                                maxHeight: type.body.lineHeight * 4 + 20, borderRadius: radius.radiusMd,
+                                                paddingHorizontal: space.space3, paddingTop: 10, paddingBottom: 10 }]} />
                 <Button label={t('chat.send')} onPress={() => submit(text)} disabled={!text.trim()} />
               </View>
             </>

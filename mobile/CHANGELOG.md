@@ -7,6 +7,10 @@ Second round of tester fixes.
 - **Canastra tag.** When a meld became a canastra, its tag could show on iOS as an empty pill with no text. The tag is now a pill holding its text, rebuilt whenever the canastra's kind changes (`features/table/MeldRow.tsx`).
 - **Chat vibration.** A message from someone else gives one medium tap when it arrives. Your own messages don't, and neither do messages from muted or blocked players or older messages loaded from history.
 - **Cards you just drew glow.** When the table is taller than the screen and has to scroll, the cards that just came into your hand (from the stock, the lixo or the morto) get a soft gold ring and glow for about 2 s after they land. A new deal doesn't glow (`Hand` `fresh`).
+- **Chat input wraps.** A long message breaks onto new lines as you type, growing up to 4 lines and then scrolling, instead of running off to the right. The return key still sends.
+- **Chat reactions.** Touch and hold any message, yours included, to get a light tap and a row of six reactions (👍 ❤️ 😂 😮 😢 👏). On someone else's message, mute, report and block show below the row. Reactions sit under the bubble as chips with a count, and yours has a gold edge. Tapping a chip adds that reaction or takes yours back. Reactions from muted or blocked players aren't shown. This needs the backend from the same day.
+- **The morto's "pegou" mark** stays on one line, shrinking a little if the outline is too narrow. It used to break into "pego" and "u". The dashed outline is thinner, 1 pt instead of 1.5 pt.
+- **Drawn cards go in at random places.** Cards that come into your hand (from the stock, the lixo or the morto) go into random places, as in a real hand, and the Naipe / Valor toggle then shows neither as chosen. Tapping Naipe or Valor sorts the hand, with a light tap. Tapping the one already chosen sorts again. A new deal still comes sorted the way you last chose (`game/handOrder.ts`).
 - **Home screen name.** iOS shows **Buraco** under the icon, because "Buraco Lounge" was cut off. The store listing keeps the full name. This needs a new build, since an OTA update can't change it.
 
 ## 13.11.2026

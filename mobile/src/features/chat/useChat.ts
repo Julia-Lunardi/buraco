@@ -3,9 +3,9 @@ import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { blockPlayer, chatHistory, reportMessage } from '../../api/chat';
+import { blockPlayer, chatHistory, reactToMessage, reportMessage } from '../../api/chat';
 import type { ChatMessage } from '../../realtime/tableSocket';
-import { mergeMessages, unreadCount, visibleMessages } from './messages';
+import { mergeMessages, reactionChips, unreadCount, visibleMessages } from './messages';
 
 /** Chat for one table: history (REST) merged with live socket messages, minus muted
  * players, reported messages and blocked players; plus the unread count for the dot. */
@@ -34,16 +34,17 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
   }, [tableId, muteKey]);
 
   const all = useMemo(() => mergeMessages(history, live), [history, live]);
-  const messages = useMemo(
-    () => visibleMessages(all, new Set([...muted, ...blocked]), hiddenIds), [all, muted, blocked, hiddenIds]);
+  const ignored = useMemo(() => new Set([...muted, ...blocked]), [muted, blocked]);
+  const messages = useMemo(() => visibleMessages(all, ignored, hiddenIds), [all, ignored, hiddenIds]);
 
   // A message from someone else arrives live: the phone taps once. Only socket messages count
   // (history loads are not arrivals), and not muted, blocked or reported ones.
-  const lastLive = useRef(live.length ? live[live.length - 1].id : 0);
+  // A reaction re-sends an older message, so `live` is not in id order and never buzzes for it.
+  const lastLive = useRef(Math.max(0, ...live.map((m) => m.id)));
   useEffect(() => {
     const fresh = live.filter((m) => m.id > lastLive.current);
     if (!fresh.length) return;
-    lastLive.current = fresh[fresh.length - 1].id;
+    lastLive.current = Math.max(...fresh.map((m) => m.id));
     const shown = new Set(messages.map((m) => m.id));
     if (fresh.some((m) => m.user_id !== myUserId && shown.has(m.id))) {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -66,6 +67,12 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
         AsyncStorage.setItem(muteKey, JSON.stringify([...next])).catch(() => {});
         return next;
       });
+    },
+    reactions: (message: ChatMessage) => reactionChips(message, myUserId, ignored),
+    /** The update comes back on the socket, to everyone at the table. */
+    async react(message: ChatMessage, emoji: string) {
+      const mine = message.reactions?.find((r) => r.user_id === myUserId)?.emoji;
+      await reactToMessage(tableId, message.id, mine === emoji ? null : emoji);
     },
     async report(message: ChatMessage) {
       await reportMessage(tableId, message.id);

@@ -1,4 +1,4 @@
-import { mergeMessages, unreadCount, visibleMessages } from '../src/features/chat/messages';
+import { mergeMessages, reactionChips, unreadCount, visibleMessages } from '../src/features/chat/messages';
 import type { ChatMessage } from '../src/realtime/tableSocket';
 
 const msg = (id: number, user = 'bia', text = `m${id}`): ChatMessage =>
@@ -29,4 +29,12 @@ test('a muted player\'s messages never light the unread dot', () => {
   const all = [msg(1, 'bia'), msg(2, 'caio')];
   const visible = visibleMessages(all, new Set(['bia']), new Set());
   expect(unreadCount(visible, 'ana', 0)).toBe(1);
+});
+
+test('reactions group into chips, mark yours and skip ignored players', () => {
+  const m: ChatMessage = { ...msg(1), reactions: [
+    { user_id: 'ana', emoji: '😂' }, { user_id: 'bia', emoji: '👏' }, { user_id: 'caio', emoji: '😂' }, { user_id: 'dani', emoji: '👏' }] };
+  expect(reactionChips(m, 'ana', new Set(['dani']))).toEqual([
+    { emoji: '😂', count: 2, mine: true }, { emoji: '👏', count: 1, mine: false }]);
+  expect(reactionChips(msg(2), 'ana', new Set())).toEqual([]);
 });

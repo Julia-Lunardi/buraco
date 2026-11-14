@@ -16,6 +16,8 @@ export interface ChatMessage {
   name: string | null;
   text: string;
   at: string | null;
+  /** One emoji per player (server: chat.REACTIONS). An update arrives as the same message again. */
+  reactions?: { user_id: string; emoji: string }[];
 }
 
 export type ServerMessage =

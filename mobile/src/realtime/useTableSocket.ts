@@ -57,7 +57,8 @@ export function useTableSocket(tableId: string, initial?: TableView) {
         frames.current.push(...framesFor(timed));
         play();
       },
-      onChat: (message) => setChat((all) => [...all, message]),
+      // A reaction re-sends the message: it replaces the copy we had.
+      onChat: (message) => setChat((all) => [...all.filter((m) => m.id !== message.id), message]),
       onError: (code, detail) => setError({ code, detail }),
       onConnection: setConnected,
     });

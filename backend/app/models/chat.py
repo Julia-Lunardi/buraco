@@ -21,6 +21,19 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
     user = relationship("User", lazy="selectin")
+    reactions = relationship("ChatReaction", lazy="selectin", order_by="ChatReaction.created_at",
+                             cascade="all, delete-orphan")
+
+
+class ChatReaction(Base):
+    """One emoji per player per message, from a fixed set (no free text to moderate)."""
+
+    __tablename__ = "chat_reactions"
+
+    message_id: Mapped[int] = mapped_column(ForeignKey("chat_messages.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    emoji: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class UserBlock(Base):

@@ -16,7 +16,7 @@ from app.db import session as db_session
 from app.db.session import get_db
 from app.models import GameTable, PlayMode, User
 from app.realtime import hub, viewer
-from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
+from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReactIn, ReportIn, TableCreate, TableSettingsIn
 from app.models import TableStatus
 from app.services import chat, push, tables
 from app.services.tables import TableError
@@ -194,6 +194,19 @@ async def chat_history(table_id: uuid.UUID, before: int | None = None, user: Use
 async def chat_post(table_id: uuid.UUID, body: ChatIn, user: User = Depends(require_account),
                     db: AsyncSession = Depends(get_db)) -> dict:
     return await _deliver_chat(db, await chat.post(db, user, table_id, body.text))
+
+
+@router.post("/{table_id}/chat/{message_id}/react")
+async def chat_react(table_id: uuid.UUID, message_id: int, body: ReactIn, user: User = Depends(require_account),
+                     db: AsyncSession = Depends(get_db)) -> dict:
+    """React with one emoji (the same one again takes it back). The updated message goes out
+    on the socket like a new one; the app merges it by id. No push for a reaction."""
+    message = await chat.react(db, user, table_id, message_id, body.emoji)
+    out = chat.message_out(message)
+    skip = await chat.blocked_by(db, message.user_id)
+    await db.commit()
+    await hub.send_chat(table_id, out, skip)
+    return out
 
 
 @router.post("/{table_id}/chat/{message_id}/report")

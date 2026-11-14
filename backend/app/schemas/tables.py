@@ -29,6 +29,10 @@ class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)  # trimmed and capped at 300 by the service
 
 
+class ReactIn(BaseModel):
+    emoji: str | None = Field(default=None, max_length=16)  # None takes the reaction back
+
+
 class ReportIn(BaseModel):
     reason: str = Field(default="", max_length=200)
 
