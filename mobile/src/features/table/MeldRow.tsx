@@ -58,13 +58,16 @@ export default function MeldRow({ meld, target, onPress }: Props) {
           ))}
         </View>
       </View>
+      {/* The pill is a View around the Text, keyed by kind: a Text that carried its own clipped
+          background came up on iOS as an empty pill when a meld turned into a canastra. */}
       {kind ? (
-        <Text style={[type.caption, {
-          fontSize: 11, lineHeight: 14, fontFamily: type.label.fontFamily, paddingHorizontal: 7, paddingVertical: 2,
-          borderRadius: radius.radiusPill, overflow: 'hidden',
-          ...(gold ? { color: c.onAccent, backgroundColor: c.accent }
-            : { color: c.tableInk, borderWidth: 1, borderColor: c.tableInkSoft }),
-        }]}>{t(`table.canastra_${kind}`)}</Text>
+        <View key={kind} style={{ flexShrink: 0, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.radiusPill,
+                                  ...(gold ? { backgroundColor: c.accent } : { borderWidth: 1, borderColor: c.tableInkSoft }) }}>
+          <Text numberOfLines={1} style={[type.caption, { fontSize: 11, lineHeight: 14, fontFamily: type.label.fontFamily,
+                                                          color: gold ? c.onAccent : c.tableInk }]}>
+            {t(`table.canastra_${kind}`)}
+          </Text>
+        </View>
       ) : null}
     </Pressable>
   );

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { blockPlayer, chatHistory, reportMessage } from '../../api/chat';
@@ -35,6 +36,19 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
   const all = useMemo(() => mergeMessages(history, live), [history, live]);
   const messages = useMemo(
     () => visibleMessages(all, new Set([...muted, ...blocked]), hiddenIds), [all, muted, blocked, hiddenIds]);
+
+  // A message from someone else arrives live: the phone taps once. Only socket messages count
+  // (history loads are not arrivals), and not muted, blocked or reported ones.
+  const lastLive = useRef(live.length ? live[live.length - 1].id : 0);
+  useEffect(() => {
+    const fresh = live.filter((m) => m.id > lastLive.current);
+    if (!fresh.length) return;
+    lastLive.current = fresh[fresh.length - 1].id;
+    const shown = new Set(messages.map((m) => m.id));
+    if (fresh.some((m) => m.user_id !== myUserId && shown.has(m.id))) {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+  }, [live, messages, myUserId]);
 
   const markSeen = useCallback(() => {
     if (all.length) setLastSeenId(all[all.length - 1].id);

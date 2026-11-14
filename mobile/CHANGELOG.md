@@ -1,5 +1,14 @@
 # Mobile Changelog
 
+## 14.11.2026
+
+Second round of tester fixes.
+
+- **Canastra tag.** When a meld became a canastra, its tag could show on iOS as an empty pill with no text. The tag is now a pill holding its text, rebuilt whenever the canastra's kind changes (`features/table/MeldRow.tsx`).
+- **Chat vibration.** A message from someone else gives one medium tap when it arrives. Your own messages don't, and neither do messages from muted or blocked players or older messages loaded from history.
+- **Cards you just drew glow.** When the table is taller than the screen and has to scroll, the cards that just came into your hand (from the stock, the lixo or the morto) get a soft gold ring and glow for about 2 s after they land. A new deal doesn't glow (`Hand` `fresh`).
+- **Home screen name.** iOS shows **Buraco** under the icon, because "Buraco Lounge" was cut off. The store listing keeps the full name. This needs a new build, since an OTA update can't change it.
+
 ## 13.11.2026
 
 First round of tester fixes.

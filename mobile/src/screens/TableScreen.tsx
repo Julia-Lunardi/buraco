@@ -69,8 +69,23 @@ export default function TableScreen({ navigation, route }: Props) {
   const [morto, setMorto] = useState<{ team: number; seat: number; key: number } | null>(null);
   // It just became your turn (not on opening the table): the phone taps twice.
   const [buzz, setBuzz] = useState(0);
+  // When the table is taller than the screen, the hand can be out of sight as cards come in:
+  // cards that just joined your hand glow for about 2 s (Hand `fresh`).
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const scrolls = viewportH > 0 && contentH > viewportH + 1;
+  const [fresh, setFresh] = useState<{ ids: number[]; key: number; until: number } | null>(null);
   if (game !== lastGame) {
     setLastGame(game);
+    if (scrolls && lastGame?.hand.length && game) {
+      const before = new Set(lastGame.hand.map((card) => card.id));
+      const added = game.hand.filter((card) => !before.has(card.id)).map((card) => card.id);
+      // A new deal replaces the whole hand: nothing to point out there.
+      if (added.length && game.hand.some((card) => before.has(card.id))) {
+        const landed = Math.max(...added.map((id) => flights.api.arrival(id)));
+        setFresh({ ids: added, key: (fresh?.key ?? 0) + 1, until: landed + 2200 });
+      }
+    }
     const took = pileTaken(lastGame, game);
     if (took) setTaken({ ...took, key: (taken?.key ?? 0) + 1 });
     const gotMorto = mortoTaken(lastGame, game);
@@ -90,6 +105,11 @@ export default function TableScreen({ navigation, route }: Props) {
     const second = setTimeout(() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {}); }, 140);
     return () => clearTimeout(second);
   }, [buzz]);
+  useEffect(() => {
+    if (!fresh) return;
+    const clear = setTimeout(() => setFresh(null), fresh.until);
+    return () => clearTimeout(clear);
+  }, [fresh]);
   useEffect(() => {
     if (!taken) return;
     const clear = setTimeout(() => setTaken(null), 3000);
@@ -275,7 +295,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const hand = game ? (
     <View collapsable={false} ref={place('hand')}>
       <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
-            selectionValid={newMeldValid || pickupValid} onToggle={toggle} />
+            selectionValid={newMeldValid || pickupValid} fresh={fresh} onToggle={toggle} />
     </View>
   ) : null;
 
@@ -286,7 +306,8 @@ export default function TableScreen({ navigation, route }: Props) {
       <FlightsProvider api={flights.api}>
       {landscape ? (
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 6 }}
-                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
+                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
+                    onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: 2 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
@@ -299,7 +320,8 @@ export default function TableScreen({ navigation, route }: Props) {
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}
-                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
+                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
+                    onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: space.space3 }} />
           {piles}

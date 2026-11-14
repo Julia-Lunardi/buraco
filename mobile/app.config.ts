@@ -36,6 +36,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: BUNDLE_ID,
     usesAppleSignIn: true,
     infoPlist: {
+      // The home screen cuts "Buraco Lounge" short; the store listing keeps the full name
+      // (App Store Connect). Prebuild leaves this alone instead of copying `name` in.
+      CFBundleDisplayName: 'Buraco',
       ITSAppUsesNonExemptEncryption: false,
       // Opts out of iPad Split View / Slide Over, which runtime orientation locks need.
       UIRequiresFullScreen: true,
