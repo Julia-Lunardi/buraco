@@ -2,6 +2,7 @@
 
 ## 16.11.2026
 
+- **Support nudge.** Every 10 finished games, the game-over screen gets a calm sheet: "Você já jogou 10 partidas!", the servers line, **Apoiar o app** (opens the Support screen) and **Agora não**. Never within 3 days of the last one, and not for 180 days after a contribution. The count lives on the device; a finished table opened again doesn't count twice. Nothing is shown when the store has no products. `EXPO_PUBLIC_SUPPORT_NUDGE_EVERY=1` makes it come up after every game for testing (`features/support/nudge.ts`).
 - **"Mesa", not "lixo".** In Portuguese the discard pile is now called **a mesa** everywhere in the app: "Ana pegou a mesa (+7)", "Pegar a mesa · 7", "Mesa vazia", the hints, the errors and the modes' descriptions. English and Danish are unchanged.
 
 ## 14.11.2026

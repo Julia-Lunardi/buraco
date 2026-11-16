@@ -1,10 +1,17 @@
 # Plan: tip jar ("Apoie o app")
 
-Status: **built (27.10.2026) on expo-iap 6.3.0, pinned exactly; includes the OpenIAP #528 consume fix.** Still to prove: one EAS iOS build on the current Xcode (needs `eas init`). Approved 26.10.2026. Price tiers default to USD 0.99 / 2.99 / 4.99 (Apple and Google set the local prices; in Brazil roughly R$ 5 / 15 / 25). Julia sets the actual tiers when she creates the products. No code yet: it is built during the mobile phase, after the app foundation (Expo app, theme, i18n, Settings) exists. Julia's original brief is kept verbatim at the end of this file and is the source of truth.
+Status: **built (27.10.2026) on expo-iap 6.3.0, pinned exactly; includes the OpenIAP #528 consume fix. Game-over nudge added 16.11.2026.** Still to prove: one EAS iOS build on the current Xcode (needs `eas init`). Approved 26.10.2026. Price tiers default to USD 0.99 / 2.99 / 4.99 (Apple and Google set the local prices; in Brazil roughly R$ 5 / 15 / 25). Julia sets the actual tiers when she creates the products. No code yet: it is built during the mobile phase, after the app foundation (Expo app, theme, i18n, Settings) exists. Julia's original brief is kept verbatim at the end of this file and is the source of truth.
 
 ## What it is
 
-An optional "Support the app" screen, reachable **only** from Settings, with three equally weighted contribution buttons. Contributions are consumable store purchases (Apple In-App Purchase, Google Play Billing) that unlock nothing. No popups, banners, badges or prompts anywhere else, and never after a game.
+An optional "Support the app" screen, reachable from Settings, with three equally weighted contribution buttons. Contributions are consumable store purchases (Apple In-App Purchase, Google Play Billing) that unlock nothing. No banners or badges anywhere.
+
+**The nudge (Julia, 16.11.2026).** The app is not a subscription and people contribute as they see fit, so every so many games the game-over screen shows one calm sheet: "Você já jogou 10 partidas!", the servers line, "Apoiar o app" (opens the Support screen) and "Agora não". This replaces the brief's "never after a game" rule. Code: `mobile/src/features/support/nudge.ts` (rules, device-only persistence, tests in `__tests__/supportNudge.test.ts`) and `SupportNudge.tsx` (the sheet, same shape as the notifications primer).
+
+- A game counts once its result is on screen and you had a seat (bot practice included); a finished table opened again does not count twice.
+- Due every **10** games since the last sheet (`NUDGE_EVERY_GAMES`; `EXPO_PUBLIC_SUPPORT_NUDGE_EVERY=1` for testing), never within **3 days** of the last one, and not for **180 days** after a contribution (a thank-you or a pending one, wherever it was made). A sheet skipped because it was too soon shows on the next game, not ten later.
+- Either button counts as shown. The sheet waits 1.2 s after the result appears, never covers the notifications primer, and is not shown when the store has no products (Expo Go without the mock, store outage).
+- Still no backend, no analytics: the count lives in AsyncStorage on the device and restarts with a reinstall.
 
 ## Purpose: server costs, not a personal tip (Julia, 26.10.2026)
 

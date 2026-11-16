@@ -11,6 +11,8 @@ import SegmentedControl from '../components/SegmentedControl';
 import ChatButton from '../features/chat/ChatButton';
 import ChatPanel from '../features/chat/ChatPanel';
 import { useChat } from '../features/chat/useChat';
+import SupportNudge from '../features/support/SupportNudge';
+import { useSupportNudge } from '../features/support/useTipJar';
 import Hand from '../features/table/Hand';
 import MeldRow from '../features/table/MeldRow';
 import { DiscardPile, MortoStacks, Stock } from '../features/table/Piles';
@@ -54,6 +56,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const [chatOpen, setChatOpen] = useState(false);
   const [hintText, setHintText] = useState('');
   const push = usePushOffer();
+  const nudge = useSupportNudge();
   const prefs = usePreferences();
   const [picked, setPicked] = useState<number[]>([]);
 
@@ -145,6 +148,11 @@ export default function TableScreen({ navigation, route }: Props) {
     if (lastStatus === 'playing' && (table.status === 'round_over' || table.status === 'finished')) setEnding(true);
   }
   const endingDone = useCallback(() => setEnding(false), []);
+  // A game you sat at is over and its result is on screen: it counts toward the support nudge.
+  const gameOver = !!table && table.status === 'finished' && !ending && table.my_seat !== null;
+  useEffect(() => {
+    if (gameOver) void nudge.gameFinished(tableId);
+  }, [gameOver, tableId]); // eslint-disable-line react-hooks/exhaustive-deps
   // The chat keeps up while it is open: what you are reading is not "new".
   const { markSeen } = chat;
   useEffect(() => { if (chatOpen) markSeen(); }, [chatOpen, markSeen]);
@@ -172,7 +180,14 @@ export default function TableScreen({ navigation, route }: Props) {
   }
 
   if (table.status === 'finished' && !ending) {
-    return <GameOver table={table} onHome={() => navigation.popToTop()} onAgain={() => { void playAgain(table); }} />;
+    return (
+      <>
+        <GameOver table={table} onHome={() => navigation.popToTop()} onAgain={() => { void playAgain(table); }} />
+        <SupportNudge visible={nudge.visible && !push.visible} games={nudge.games}
+                      onSupport={() => { void nudge.dismiss(); navigation.navigate('Support'); }}
+                      onLater={() => { void nudge.dismiss(); }} />
+      </>
+    );
   }
   if (table.status === 'round_over' && !ending) return <RoundSummary table={table} onNext={nextRound} />;
 
