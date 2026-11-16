@@ -266,7 +266,7 @@ const ptBR = {
     sortSuit: "Naipe",
     sortRank: "Valor",
     sortHand: "Ordenar a mão",
-    canMeld: "Pode baixar: toque na sua área.",
+    layDownMeld: "Baixar jogo",
     yourArea: "Sua área: baixar jogo aqui",
     cards: "{{n}} cartas",
     yourTurnA11y: "sua vez",

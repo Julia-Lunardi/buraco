@@ -266,7 +266,7 @@ const da: Messages = {
     sortSuit: "Kulør",
     sortRank: "Værdi",
     sortHand: "Sortér hånden",
-    canMeld: "Du kan lægge ned: tryk på dit område.",
+    layDownMeld: "Læg ned",
     yourArea: "Dit område: læg et spil ned her",
     cards: "{{n}} kort",
     yourTurnA11y: "din tur",

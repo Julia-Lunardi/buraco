@@ -266,7 +266,7 @@ const en: Messages = {
     sortSuit: "Suit",
     sortRank: "Rank",
     sortHand: "Sort the hand",
-    canMeld: "You can meld: tap your area.",
+    layDownMeld: "Lay down meld",
     yourArea: "Your area: lay a meld down here",
     cards: "{{n}} cards",
     yourTurnA11y: "your turn",

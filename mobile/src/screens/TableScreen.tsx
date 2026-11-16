@@ -47,7 +47,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Table'>;
  */
 export default function TableScreen({ navigation, route }: Props) {
   const { tableId } = route.params;
-  const { c, space, type } = useTheme();
+  const { c, space, radius, size, type } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { table, connected, error, act, nextRound, chat: liveChat, say } = useTableSocket(tableId);
@@ -307,7 +307,6 @@ export default function TableScreen({ navigation, route }: Props) {
     : error && game ? { text: describeError(error.code, error.detail, t('common.somethingWrong'), game.phase), color: c.invalidInk }
     : taken ? { text: t('table.tookPile', { name: seatName(table, taken.seat), n: taken.n }), color: c.accent }
     : hintText ? { text: hintText, color: c.tableInk }
-    : playing && newMeldValid ? { text: t('table.canMeld'), color: c.valid }
     : drawing && fechado && game.discard.length ? { text: t('table.pileHint'), color: c.tableInkSoft }
     : null;
   // Live tables: a person's turn runs on a 40 s clock (server: live_turn_seconds); bots' turns don't.
@@ -316,10 +315,20 @@ export default function TableScreen({ navigation, route }: Props) {
     <TurnClock deadline={table.turn_deadline} limit={LIVE_TURN_SECONDS} mine={myTurn} />
   ) : null;
   const noticeRow = (
-    <View style={{ minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+    <View style={{ minHeight: 28, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+                   columnGap: space.space3, rowGap: space.space2 }}>
       {clock}
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}
+      {/* A new meld needs no empty spot to tap: the button is always here once the selection is a valid meld. */}
+      {playing && newMeldValid ? (
+        <Pressable onPress={() => run({ type: 'lay_down', cards: selected })} accessibilityRole="button"
+                   style={({ pressed }) => ({ minHeight: size.touchMin, paddingHorizontal: space.space5, borderRadius: radius.radiusMd,
+                                              alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent,
+                                              opacity: pressed ? 0.8 : 1 })}>
+          <Text style={[type.label, { color: c.onAccent }]} numberOfLines={1}>{t('table.layDownMeld')}</Text>
+        </Pressable>
+      ) : null}
       {practice && myTurn && !hintText ? (
         <Pressable onPress={() => { void showHint(); }} accessibilityRole="button" hitSlop={10}>
           <Text style={[type.label, { color: c.accent }]}>{t('table.hint')}</Text>

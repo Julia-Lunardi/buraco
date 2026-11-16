@@ -2,6 +2,7 @@
 
 ## 16.11.2026
 
+- **"Baixar jogo" button.** When the cards you selected make a valid new meld on your turn, a gold **Baixar jogo** button appears under the piles, next to the notice line. A full meld area no longer leaves you hunting for an empty spot to tap. It replaces the old "Pode baixar: toque na sua área" hint. Tapping your area still works, and tapping one of your melds still adds the selection to it.
 - **Support nudge.** Every 10 finished games, the game-over screen gets a calm sheet: "Você já jogou 10 partidas!", the servers line, **Apoiar o app** (opens the Support screen) and **Agora não**. Never within 3 days of the last one, and not for 180 days after a contribution. The count lives on the device; a finished table opened again doesn't count twice. Nothing is shown when the store has no products. `EXPO_PUBLIC_SUPPORT_NUDGE_EVERY=1` makes it come up after every game for testing (`features/support/nudge.ts`).
 - **"Acabou o monte!" only when it did.** After every round the stamp said the stock had run out, and the points screen said so too. The app read who went out from a round the server had already put away. It now reads `round_endings`. The stock running out still swaps in a morto when one is left. Only when none is left does the round end with "Acabou o monte!".
 - **Winning and losing a round feel different** (`features/table/RoundEnd.tsx`, `roundOutcome.ts`):
