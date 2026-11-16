@@ -90,7 +90,7 @@ export function useTableSocket(tableId: string, initial?: TableView) {
     error,
     chat,
     act: (action: Action) => socketRef.current?.send({ type: 'action', action }),
-    nextRound: () => socketRef.current?.send({ type: 'next_round' }),
+    nextRound: (preset?: string) => socketRef.current?.send({ type: 'next_round', ...(preset ? { preset } : {}) }),
     say: (text: string) => socketRef.current?.send({ type: 'chat', text }),
   };
 }

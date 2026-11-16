@@ -1,5 +1,10 @@
 # Backend Changelog
 
+## 16.11.2026
+
+- **How each round ended.** Table views carry `round_endings`: per finished round, the seat that went out, or `null` when the stock ran out with no morto left to replace it (R-OUT-3). `Match.finish_round` drops the round, so the round-over view has `game: null`, and the app read that as "the stock ran out" after every round. Kept in `Match.endings`, which is rebuilt on replay.
+- **A mode per round.** `POST /tables/{id}/next-round` takes an optional `{"preset": "aberto" | "fechado" | "stbl"}`, and so does the socket's `{"type": "next_round"}`. Without one, the next round keeps the last round's mode. An unknown mode is `unknown_preset`. The modes are stored in `game_tables.round_presets` (JSON, migration `c3b8f1d6a2e4`) and replayed per round. In views, `preset` is now the current round's mode, `table_preset` is the one the table was created with, and `trincas_allowed` is the current round's. The match target stays the table's. A table created as STBL allows trincas in its Aberto and Fechado rounds, because its host never had the switch.
+
 ## 14.11.2026
 
 - Chat reactions: `POST /tables/{id}/chat/{message_id}/react` with `{"emoji": "👏"}` sets your reaction to a message, replacing any earlier one. The same emoji again, or `null`, takes it back. Only the six in `chat.REACTIONS` are accepted (anything else is `bad_reaction`), so there is no free text to moderate. Anyone seated may react, to their own messages too, while chat is on. Messages now carry `reactions: [{user_id, emoji}]` in history and on the socket. A reaction re-sends the whole message as a `chat` frame, which the app merges by id, and sends no push. Stored in `chat_reactions` (migration `a7d4e2c91b06`), one row per message and player, deleted with the message or the account.

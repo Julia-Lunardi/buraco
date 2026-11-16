@@ -202,7 +202,8 @@ export default function TableScreen({ navigation, route }: Props) {
   const playing = myTurn && game.phase === 'play';
   // Fechado: the pile can only be taken by using its top card in a meld right away.
   const fechado = table.preset === 'fechado';
-  const rules = RULES[table.preset] ?? RULES.aberto;
+  // The current round's mode (it can change between rounds), with the table's trincas switch.
+  const rules = { ...(RULES[table.preset] ?? RULES.aberto), trincasAllowed: table.trincas_allowed };
 
   const labelOf = (id: number) => game?.hand.find((card) => card.id === id)?.label ?? '';
   const selectedLabels = selected.map(labelOf);

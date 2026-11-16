@@ -3,6 +3,13 @@
 ## 16.11.2026
 
 - **Support nudge.** Every 10 finished games, the game-over screen gets a calm sheet: "Você já jogou 10 partidas!", the servers line, **Apoiar o app** (opens the Support screen) and **Agora não**. Never within 3 days of the last one, and not for 180 days after a contribution. The count lives on the device; a finished table opened again doesn't count twice. Nothing is shown when the store has no products. `EXPO_PUBLIC_SUPPORT_NUDGE_EVERY=1` makes it come up after every game for testing (`features/support/nudge.ts`).
+- **"Acabou o monte!" only when it did.** After every round the stamp said the stock had run out, and the points screen said so too. The app read who went out from a round the server had already put away. It now reads `round_endings`. The stock running out still swaps in a morto when one is left. Only when none is left does the round end with "Acabou o monte!".
+- **Winning and losing a round feel different** (`features/table/RoundEnd.tsx`, `roundOutcome.ts`):
+  - **You won the round** (your team scored more): confetti falls over the screen for about 2.5 s and the phone buzzes success. If your side also went out, the stamp says "Você venceu a rodada!" (2 players) or "Nós vencemos a rodada!" (4 players) instead of "Você bateu!".
+  - **You lost it:** a grey drizzle slants down the screen, the table darkens a little, and the stamp wilts. The phone buzzes a warning. If they also went out, the stamp says "Ana venceu a rodada!" or "Eles venceram a rodada!".
+  - **A tied round** keeps the burst of suits, with a medium tap and a line of its own.
+  - In every other case, for example you went out but still lost the round, the stamp says who went out, as before.
+- **Pick the next round's mode.** The points screen after a round has an Aberto / Fechado / STBL picker, set to the mode just played, with that mode's one-line rule under it. The round is dealt only when someone taps **Próxima rodada**, and everyone else follows. The table's meld checks follow the current round's mode and trincas setting.
 - **"Mesa", not "lixo".** In Portuguese the discard pile is now called **a mesa** everywhere in the app: "Ana pegou a mesa (+7)", "Pegar a mesa · 7", "Mesa vazia", the hints, the errors and the modes' descriptions. English and Danish are unchanged.
 
 ## 14.11.2026

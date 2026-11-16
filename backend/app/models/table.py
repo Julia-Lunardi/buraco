@@ -46,6 +46,9 @@ class GameTable(Base):
     # Secret: whoever knows the seed knows every hand. Never sent to clients.
     seed: Mapped[str] = mapped_column(String(64))
     rounds_started: Mapped[int] = mapped_column(Integer, default=0)
+    # The mode of each round after the first, as the players picked it between rounds
+    # ("aberto" | "fechado" | "stbl"); a round not listed plays `preset`. Assign a new list to change it.
+    round_presets: Mapped[list[str]] = mapped_column(JSON, default=list, server_default="[]")
     # Denormalised from the replay so "your turn" lists and pushes need no replay.
     current_seat: Mapped[int | None] = mapped_column(Integer)
     # "Jogar de novo com o mesmo grupo": the table that continues this group, once someone asks.

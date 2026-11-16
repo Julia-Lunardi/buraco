@@ -127,7 +127,7 @@ export function openTableSocket(deps: SocketDeps, handlers: SocketHandlers) {
   connect();
 
   return {
-    send(message: { type: 'action'; action: Action } | { type: 'next_round' } | { type: 'chat'; text: string }) {
+    send(message: { type: 'action'; action: Action } | { type: 'next_round'; preset?: string } | { type: 'chat'; text: string }) {
       socket?.send(JSON.stringify(message));
     },
     close() {

@@ -390,3 +390,14 @@ async def test_rematch_endpoint_points_the_old_table_to_the_new_one(client, sess
     assert new["id"] != table["id"] and new["status"] == "playing" and new["rematch_id"] is None
     old_view = (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).json()
     assert old_view["rematch_id"] == new["id"]
+
+
+async def test_next_round_takes_an_optional_mode(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    url = f"/tables/{table['id']}/next-round"
+    # Mid-round there is nothing to start: both forms are accepted and change nothing.
+    assert (await client.post(url, headers=bearer(ana))).json()["status"] == "playing"
+    assert (await client.post(url, json={"preset": "fechado"}, headers=bearer(ana))).json()["preset"] == "aberto"
+    bad = await client.post(url, json={"preset": "canasta"}, headers=bearer(ana))
+    assert bad.status_code == 422 and bad.json()["code"] == "unknown_preset"

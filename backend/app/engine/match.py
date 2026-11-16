@@ -14,16 +14,20 @@ class Match:
         self.seed = seed
         self.scores = [0, 0]
         self.history: list[list[TeamScore]] = []
+        # Per finished round: the seat that went out, or None when the stock ran out (R-OUT-3).
+        self.endings: list[int | None] = []
         self.dealer = num_players - 1  # so seat 0 starts the first round (R-SEAT-3)
         self.round: Round | None = None
 
-    def start_round(self) -> Round:
+    def start_round(self, preset: Preset | None = None) -> Round:
+        """`preset`: this round's rules, when the players picked another mode for it. The match
+        target stays the match's own."""
         if self.is_over:
             raise RuntimeError("the match is over")
         if self.round is not None and self.round.phase is not Phase.OVER:
             raise RuntimeError("the current round is still being played")
         first = (self.dealer + 1) % self.num_players
-        self.round = Round(self.preset, self.num_players, seed=f"{self.seed}/{len(self.history)}", first_seat=first)
+        self.round = Round(preset or self.preset, self.num_players, seed=f"{self.seed}/{len(self.history)}", first_seat=first)
         return self.round
 
     def finish_round(self) -> list[TeamScore]:
@@ -31,6 +35,7 @@ class Match:
             raise RuntimeError("no finished round to score")
         result = score_round(self.round)
         self.history.append(result)
+        self.endings.append(self.round.went_out)
         self.scores = [s + r.total for s, r in zip(self.scores, result)]
         self.dealer = (self.dealer + 1) % self.num_players
         self.round = None

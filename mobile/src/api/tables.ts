@@ -95,6 +95,10 @@ export interface TableView {
   scores: [number, number];
   rounds: [TeamScore, TeamScore][];
   winner: 0 | 1 | null;
+  /** Per finished round: the seat that went out, or null when the stock ran out with no morto left. */
+  round_endings?: (number | null)[];
+  /** The mode the table was created with; `preset` is the current round's, picked between rounds. */
+  table_preset?: string;
   /** Set once someone at a finished table asked to play again with the same group. */
   rematch_id: string | null;
   game: GameView | null;
@@ -175,8 +179,9 @@ export async function getHint(id: string): Promise<Action> {
   return (await api.get<{ action: Action }>(`/tables/${id}/hint`)).data.action;
 }
 
-export async function nextRound(id: string): Promise<TableView> {
-  return (await api.post<TableView>(`/tables/${id}/next-round`)).data;
+/** Any seated player deals the next round, in `preset` (default: the last round's mode). */
+export async function nextRound(id: string, preset?: Preset): Promise<TableView> {
+  return (await api.post<TableView>(`/tables/${id}/next-round`, preset ? { preset } : undefined)).data;
 }
 
 /** "Jogar de novo com o mesmo grupo": the new table (the same one whoever asks). */
