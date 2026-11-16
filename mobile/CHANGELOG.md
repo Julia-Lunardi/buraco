@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 16.11.2026
+
+- **"Mesa", not "lixo".** In Portuguese the discard pile is now called **a mesa** everywhere in the app: "Ana pegou a mesa (+7)", "Pegar a mesa · 7", "Mesa vazia", the hints, the errors and the modes' descriptions. English and Danish are unchanged.
+
 ## 14.11.2026
 
 Second round of tester fixes.
