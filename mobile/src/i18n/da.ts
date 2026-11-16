@@ -111,7 +111,7 @@ const da: Messages = {
     storeNote_ios: 'Betalingen håndteres af App Store.',
     storeNote_android: 'Betalingen håndteres af Google Play.',
     nudgeTitle: 'Du har spillet {{n}} spil!',
-    nudgeBody: 'Buraco Lounge er gratis og uden reklamer. Hvis du har lyst, hjælper et bidrag med at betale for de servere, der holder bordene kørende. Det er frivilligt og låser ikke op for noget.',
+    nudgeBody: 'Buraco Lounge er gratis og uden reklamer. Hvis du har lyst, hjælper et bidrag med at betale for de servere, der holder bordene kørende. Det er frivilligt.',
     nudgeWhere: 'Du finder det altid under Indstillinger › Støt appen.',
     nudgeSupport: 'Støt appen',
     nudgeLater: 'Ikke nu',
