@@ -111,7 +111,7 @@ const ptBR = {
     storeNote_ios: 'Pagamento processado pela App Store.',
     storeNote_android: 'Pagamento processado pelo Google Play.',
     nudgeTitle: 'Você já jogou {{n}} partidas!',
-    nudgeBody: 'O Buraco Lounge é gratuito e sem anúncios. Se quiser, uma contribuição ajuda a pagar os servidores que mantêm as mesas funcionando. É opcional.',
+    nudgeBody: 'O Buraco Lounge é gratuito e sem anúncios. Se quiser, uma contribuição ajuda a pagar os servidores que mantêm as mesas funcionando. É opcional, mas muito bem-vinda!',
     nudgeWhere: 'Isso fica sempre em Ajustes › Apoie o app.',
     nudgeSupport: 'Apoiar o app',
     nudgeLater: 'Agora não',

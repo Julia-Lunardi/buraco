@@ -111,7 +111,7 @@ const en: Messages = {
     storeNote_ios: 'Payment is handled by the App Store.',
     storeNote_android: 'Payment is handled by Google Play.',
     nudgeTitle: "You've played {{n}} games!",
-    nudgeBody: "Buraco Lounge is free and has no ads. If you like, a contribution helps pay for the servers that keep the tables running. It's optional.",
+    nudgeBody: "Buraco Lounge is free and has no ads. If you like, a contribution helps pay for the servers that keep the tables running. It's optional, but highly encouraged!",
     nudgeWhere: 'You can always find this under Settings › Support the app.',
     nudgeSupport: 'Support the app',
     nudgeLater: 'Not now',
