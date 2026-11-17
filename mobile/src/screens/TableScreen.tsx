@@ -25,7 +25,6 @@ import RoundEnd from '../features/table/RoundEnd';
 import { useCardSizes } from '../features/table/sizes';
 import TeamWell from '../features/table/TeamWell';
 import TurnClock, { LIVE_TURN_SECONDS } from '../features/table/TurnClock';
-import { arrangeHand, inOrder } from '../game/handOrder';
 import { analyse, RULES, sortHand } from '../game/melds';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
@@ -61,15 +60,10 @@ export default function TableScreen({ navigation, route }: Props) {
   const [picked, setPicked] = useState<number[]>([]);
 
   const game = table?.game ?? null;
-  // Your hand's order (game/handOrder): a new deal comes sorted by your preference; drawn cards
-  // go in at random places and the toggle shows neither until you tap Naipe or Valor.
-  const ids = (cards: { id: number }[]) => cards.map((card) => card.id);
-  const [order, setOrder] = useState<number[]>(() => (game ? ids(sortHand(game.hand, prefs.sort)) : []));
-  const [sortedBy, setSortedBy] = useState<'suit' | 'rank' | null>(prefs.sort);
-  const sortNow = (value: 'suit' | 'rank') => {
+  // The hand is always sorted, by suit or rank (your preference); drawn cards go straight into place.
+  const sortBy = prefs.sort;
+  const setSortBy = (value: 'suit' | 'rank') => {
     prefs.set('sort', value);
-    setSortedBy(value);
-    if (game) setOrder(ids(sortHand(game.hand, value)));
     void Haptics.selectionAsync().catch(() => {});
   };
   const flights = useCardFlights(game);
@@ -90,16 +84,6 @@ export default function TableScreen({ navigation, route }: Props) {
   const [fresh, setFresh] = useState<{ ids: number[]; key: number; until: number } | null>(null);
   if (game !== lastGame) {
     setLastGame(game);
-    if (game) {
-      const next = arrangeHand(order, ids(game.hand));
-      if (next === null) {
-        setOrder(ids(sortHand(game.hand, prefs.sort)));
-        setSortedBy(prefs.sort);
-      } else {
-        if (next.length > order.filter((id) => next.includes(id)).length) setSortedBy(null); // something came in
-        setOrder(next);
-      }
-    }
     if (scrolls && lastGame?.hand.length && game) {
       const before = new Set(lastGame.hand.map((card) => card.id));
       const added = game.hand.filter((card) => !before.has(card.id)).map((card) => card.id);
@@ -262,7 +246,7 @@ export default function TableScreen({ navigation, route }: Props) {
               meldsFirst melds={melds(myTeam)} areaLabel={t('table.yourArea')} gained={taken} side={landscape}
               onPressArea={playing && selected.length >= 3 ? () => run({ type: 'lay_down', cards: selected }) : undefined}
               trailing={
-                <SegmentedControl onTable value={sortedBy} onChange={sortNow} accessibilityLabel={t('table.sortHand')}
+                <SegmentedControl onTable value={sortBy} onChange={setSortBy} accessibilityLabel={t('table.sortHand')}
                                   options={[{ value: 'suit', label: t('table.sortSuit') }, { value: 'rank', label: t('table.sortRank') }]} />
               } />
   ) : null;
@@ -339,7 +323,7 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const hand = game ? (
     <View collapsable={false} ref={place('hand')}>
-      <Hand cards={inOrder(game.hand, order)} selected={selected} width={handWidth}
+      <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
             selectionValid={newMeldValid || pickupValid} fresh={fresh} onToggle={toggle} />
     </View>
   ) : null;

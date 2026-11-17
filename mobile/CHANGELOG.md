@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 17.11.2026
+
+- **The hand is always sorted again.** Drawn cards (from the stock, the mesa or the morto) go straight into their sorted place instead of a random one, and Naipe / Valor always shows which sort is on. Tapping it switches the sort with a light tap, as before. `game/handOrder.ts` is gone.
+
 ## 16.11.2026
 
 - **New app icon.** Two cards, a heart and a club, fanned behind a cafezinho on the felt green. It replaces the cards-and-leaves icon everywhere: the home screen icon, the Android adaptive and themed icons, the splash logo, the notification icon, the favicon and the Play Store listing. The master artwork is `docs/store/icon-master.svg`.
