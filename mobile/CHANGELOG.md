@@ -2,6 +2,7 @@
 
 ## 17.11.2026
 
+- **Your card count on your avatar.** The little count badge now sits on your own avatar too, not only on the other players'. Screen readers say it for you as well.
 - **The hand is always sorted again.** Drawn cards (from the stock, the mesa or the morto) go straight into their sorted place instead of a random one, and Naipe / Valor always shows which sort is on. Tapping it switches the sort with a light tap, as before. `game/handOrder.ts` is gone.
 
 ## 16.11.2026

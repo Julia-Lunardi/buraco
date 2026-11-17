@@ -52,7 +52,7 @@ export default function TeamWell(props: Props) {
         const on = seat.seat === currentSeat;
         const bot = seat.bot || seat.covered_by_bot;
         const name = seat.is_you ? t('newTable.you') : bot && !seat.name ? t('newTable.bot') : seat.name ?? '—';
-        const a11y = [name, seat.is_you ? null : t('table.cards', { n: handSizes[seat.seat] ?? 0 }),
+        const a11y = [name, t('table.cards', { n: handSizes[seat.seat] ?? 0 }),
                       on ? t('table.yourTurnA11y') : null, seat.covered_by_bot ? t('table.botA11y') : null]
           .filter(Boolean).join(', ');
         return (
@@ -65,13 +65,12 @@ export default function TeamWell(props: Props) {
                          boxShadow: on ? `0 0 0 2px ${c.accent}, 0 0 14px rgba(232, 178, 74, 0.55)`
                            : i ? `0 0 0 2px ${c.tableRaised}` : undefined }}>
             <Text style={[type.label, { fontSize: 13, color: c.tableInk }]}>{seat.is_you ? initials(seat.name ?? t('newTable.you')) : initials(name)}</Text>
-            {!seat.is_you ? (
-              <Text style={{ position: 'absolute', right: -7, bottom: -5, minWidth: 19, height: 19, paddingHorizontal: 5,
-                             borderRadius: 10, overflow: 'hidden', backgroundColor: c.tableRaised, color: c.tableInk,
-                             fontFamily: type.label.fontFamily, fontSize: 11, lineHeight: 19, textAlign: 'center' }}>
-                {handSizes[seat.seat] ?? 0}
-              </Text>
-            ) : null}
+            {/* Everyone's card count, yours too. */}
+            <Text style={{ position: 'absolute', right: -7, bottom: -5, minWidth: 19, height: 19, paddingHorizontal: 5,
+                           borderRadius: 10, overflow: 'hidden', backgroundColor: c.tableRaised, color: c.tableInk,
+                           fontFamily: type.label.fontFamily, fontSize: 11, lineHeight: 19, textAlign: 'center' }}>
+              {handSizes[seat.seat] ?? 0}
+            </Text>
             {gained?.seat === seat.seat ? <GainChip key={gained.key} n={gained.n} /> : null}
           </View>
         );
