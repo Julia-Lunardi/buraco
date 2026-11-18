@@ -15,8 +15,8 @@ with them through the backend's own services, every seat moved by the engine's b
 All games are "No seu tempo" (async), so nothing moves on its own while you capture.
 
   uv run python ../mobile/store-assets/seed_friends.py                 # pt-BR names and chat
-  uv run python ../mobile/store-assets/seed_friends.py --locale en --me Emma
-  uv run python ../mobile/store-assets/seed_friends.py --locale da --me Freja
+  uv run python ../mobile/store-assets/seed_friends.py -en --me Emma   # English listing
+  uv run python ../mobile/store-assets/seed_friends.py -da --me Freja  # Danish listing
 
 Run it again after signing in as a new guest for another locale: it never touches older accounts.
 """
@@ -123,7 +123,13 @@ async def say(db, table: GameTable, lines, who: dict[str, User]) -> list:
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--locale", choices=LOCALES, default="pt-BR")
+    parser.add_argument("--locale", choices=LOCALES, default="pt-BR",
+                        help="names and chat language (default: pt-BR)")
+    # Short flags for the listing locales, so `-en` reads like the store listing it is for.
+    parser.add_argument("-en", dest="locale", action="store_const", const="en",
+                        help="shortcut for --locale en")
+    parser.add_argument("-da", dest="locale", action="store_const", const="da",
+                        help="shortcut for --locale da")
     parser.add_argument("--me", help="your display name (default: the locale's)")
     args = parser.parse_args()
     loc = LOCALES[args.locale]
