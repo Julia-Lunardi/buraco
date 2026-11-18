@@ -15,6 +15,7 @@ class TableCreate(BaseModel):
     bot_level: Literal["relaxed", "standard", "sharp"] = "standard"
     target_score: int | None = Field(default=None, ge=500, le=10000)
     trincas_allowed: bool = True  # ignored for STBL, which never has them
+    clean_to_go_out: bool = False  # Aberto / Fechado: going out needs a clean canastra (STBL always does)
 
 
 class JoinIn(BaseModel):

@@ -372,3 +372,19 @@ async def test_a_stbl_table_allows_trincas_in_its_aberto_rounds(sessions):
         table = await play_to_round_end(db, table, ana)
         _, match = await tables.next_round(db, ana, table.id, preset="aberto")
         assert match.round.preset.trincas_allowed is True
+
+
+async def test_aberto_table_can_require_a_clean_canastra_to_go_out(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], clean_to_go_out=True)
+        match = await tables.load_match(db, table)
+        assert match.round.preset.go_out_requires.value == "clean_canastra"
+        assert match.round.preset.trincas_allowed  # nothing else changes: still Aberto
+        view = tables.table_view(table, match, ana)
+        assert view["clean_to_go_out"] is True and view["preset"] == "aberto"
+        plain = await tables.create_table(db, ana, num_players=2, seats=["bot"])
+        assert tables.table_view(plain, await tables.load_match(db, plain), ana)["clean_to_go_out"] is False
+        stbl = await tables.create_table(db, ana, num_players=2, seats=["bot"], preset="stbl", clean_to_go_out=True)
+        assert stbl.clean_to_go_out is False  # STBL always needs one: the option is not stored
+        assert tables.table_view(stbl, await tables.load_match(db, stbl), ana)["clean_to_go_out"] is True

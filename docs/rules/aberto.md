@@ -73,7 +73,7 @@ A turn has three steps, always in this order: **draw → meld (optional) → dis
 
 - **R-OUT-1** A player may go out only if **both** are true:
   - their team has no morto waiting (it was taken, or became stock under R-MORTO-3), and
-  - their team has **at least one canastra**, limpa or suja. *(In STBL it must be limpa.)*
+  - their team has **at least one canastra**, limpa or suja. *(In STBL it must be limpa. An Aberto or Fechado table can ask for the same when it is created: "Bater só com canastra limpa", table flag `clean_to_go_out`.)*
 - **R-OUT-2** A player goes out by discarding their last card, or by melding their last cards so no discard is needed. **[assumed]**
 - **R-OUT-3** The round also ends, with no bater bonus, when a discard leaves the stock empty and no morto is left to become the new stock. *(Clarified while building the engine: the round ends at that discard, rather than letting players keep taking the discard pile back and forth.)*
 - **R-OUT-4** A player cannot take the discard pile when doing so would leave them without a legal way to continue. In practice this is never blocked, because a player can always discard.

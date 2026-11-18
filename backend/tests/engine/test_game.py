@@ -324,3 +324,13 @@ def test_fechado_top_card_must_actually_fit():
 def test_aberto_pickup_takes_no_meld():
     rnd = rigged_round(["5H 6H KC", "5S 6S"], discard="QD 7H")
     illegal(rnd, 0, TakeDiscard(use_with=ids(rnd, 0, "5H 6H")), "pile_is_free")
+
+
+def test_a_clean_canastra_rule_says_so_when_you_cannot_go_out():
+    import dataclasses
+    from app.engine.presets import GoOutRequires
+    clean = dataclasses.replace(ABERTO, go_out_requires=GoOutRequires.CLEAN_CANASTRA)
+    # A suja canastra (a 2 as wild) is not enough when going out needs a clean one.
+    rnd = rigged_round(["3H", "5S 6S"], mortos=(None, "KD KC KS"), melds=(["3S 4S 2D 6S 7S 8S 9S"], []),
+                       phase=Phase.PLAY, preset=clean)
+    illegal(rnd, 0, Discard(ids(rnd, 0, "3H")[0]), "cannot_discard_last_clean")

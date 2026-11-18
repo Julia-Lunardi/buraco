@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.engine.bots import BOTS
 from app.engine.game import IllegalMove, Phase
 from app.engine.match import Match
-from app.engine.presets import PRESETS
+from app.engine.presets import PRESETS, GoOutRequires
 from app.engine.scoring import score_round
 from app.engine.serialize import action_from_dict, action_to_dict
 from app.models import GameAction, GameTable, PlayMode, TableSeat, TableStatus, User
@@ -39,7 +39,7 @@ class TableError(Exception):
 async def create_table(db: AsyncSession, host: User, *, num_players: int, seats: list[SeatKind],
                        mode: PlayMode = PlayMode.LIVE, preset: str = "aberto", chat_enabled: bool = True,
                        target_score: int | None = None, bot_level: str = "standard",
-                       trincas_allowed: bool = True) -> GameTable:
+                       trincas_allowed: bool = True, clean_to_go_out: bool = False) -> GameTable:
     """The host takes seat 0; `seats` describes seats 1..n-1. A table with only bots
     starts at once; otherwise it waits in the lobby for friends."""
     if preset not in PRESETS:
@@ -58,6 +58,7 @@ async def create_table(db: AsyncSession, host: User, *, num_players: int, seats:
     table = GameTable(code=await _free_code(db), host_id=host.id, preset=preset, num_players=num_players,
                       mode=mode, chat_enabled=chat_enabled, target_score=target, bot_level=bot_level,
                       trincas_allowed=trincas_allowed and PRESETS[preset].trincas_allowed,
+                      clean_to_go_out=clean_to_go_out and preset != "stbl",
                       seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=0, user_id=host.id)] + [
         TableSeat(seat=i, bot_level=bot_level if kind == "bot" else None) for i, kind in enumerate(seats, 1)
@@ -120,7 +121,7 @@ async def rematch(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTabl
 
     table = GameTable(code=await _free_code(db), host_id=user.id, preset=old.preset, num_players=old.num_players,
                       mode=old.mode, chat_enabled=old.chat_enabled, target_score=old.target_score,
-                      bot_level=old.bot_level, trincas_allowed=old.trincas_allowed, seed=secrets.token_hex(16))
+                      bot_level=old.bot_level, trincas_allowed=old.trincas_allowed, clean_to_go_out=old.clean_to_go_out, seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=s.seat, user_id=s.user_id, bot_level=None if s.user_id else (s.bot_level or old.bot_level))
                    for s in old.seats]
     db.add(table)
@@ -280,6 +281,9 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "bot_level": table.bot_level,
         "target_score": table.target_score,
         "trincas_allowed": _rules(table, current).trincas_allowed,
+        # Going out needs a clean canastra this round (STBL, or the table's option).
+        "clean_to_go_out": _rules(table, current).go_out_requires is GoOutRequires.CLEAN_CANASTRA,
+        "clean_to_go_out_option": table.clean_to_go_out,
         "status": table.status.value,
         "is_host": table.host_id == user.id,
         "my_seat": me,
@@ -348,10 +352,13 @@ def round_preset(table: GameTable, round_no: int) -> str:
 
 def _rules(table: GameTable, name: str):
     """A mode's rules at this table. Trincas follow the host's switch, which a table created as
-    STBL never had: its Aberto and Fechado rounds allow them."""
+    STBL never had: its Aberto and Fechado rounds allow them. The clean-canastra option makes
+    Aberto and Fechado go out like STBL."""
     base = PRESETS[name]
+    clean = base.go_out_requires is GoOutRequires.CLEAN_CANASTRA or table.clean_to_go_out
     return dataclasses.replace(base, target_score=table.target_score,
-                               trincas_allowed=base.trincas_allowed and (table.trincas_allowed or table.preset == "stbl"))
+                               trincas_allowed=base.trincas_allowed and (table.trincas_allowed or table.preset == "stbl"),
+                               go_out_requires=GoOutRequires.CLEAN_CANASTRA if clean else base.go_out_requires)
 
 
 # --- internals ----------------------------------------------------------------------

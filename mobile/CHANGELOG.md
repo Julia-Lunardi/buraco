@@ -1,5 +1,9 @@
 # Mobile Changelog
 
+## 18.11.2026
+
+- **"Bater só com canastra limpa".** Creating an Aberto or Fechado table has a new switch under the trincas one. With it on, your team needs a clean (or royal) canastra to go out, as in STBL. The lobby shows "Bate com limpa" among the table's rules. The "keep a card" errors say "canastra limpa" when that is what's missing, in STBL too.
+
 ## 17.11.2026
 
 - **Fechado works like at a real table.** The mesa is squared up: only its top card shows, with a cream edge beneath and the count. On your turn, select the cards that make a meld with the top card, for example the 7 and 8 of hearts for a 9 of hearts, and tap the top card. It glows while it can be picked and lifts once it is. When the meld is valid, a gold **Baixar jogo e pegar a mesa (+N)** button appears. It lays the meld down, and the rest of the pile comes into your hand. The line under the piles walks you through it ("Agora selecione as cartas…", "Essas cartas não fazem jogo com o 9 de copas."). Tapping one of your melds still adds the top card to it. Before, the whole pile showed spread out, and you had to tap the pile itself, which did nothing until your selection fit.

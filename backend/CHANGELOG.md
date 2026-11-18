@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 18.11.2026
+
+- **"Bater só com canastra limpa" for Aberto and Fechado tables.** `POST /tables` takes `clean_to_go_out` (default `false`, ignored for STBL, which always needs a clean canastra). It is stored on `game_tables.clean_to_go_out` (migration `d9e2a7c4b1f8`), kept on rematch, and turns the round's `go_out_requires` into `clean_canastra`, so the engine and the bots play it like STBL's go-out rule. Views carry `clean_to_go_out`, which is true when this round needs a clean canastra to go out, STBL included. When a clean canastra is what's missing, the go-out errors are `cannot_discard_last_clean` and `keep_a_card_clean`, so the app can say "canastra limpa".
+
 ## 16.11.2026
 
 - **How each round ended.** Table views carry `round_endings`: per finished round, the seat that went out, or `null` when the stock ran out with no morto left to replace it (R-OUT-3). `Match.finish_round` drops the round, so the round-over view has `game: null`, and the app read that as "the stock ran out" after every round. Kept in `Match.endings`, which is rebuilt on replay.

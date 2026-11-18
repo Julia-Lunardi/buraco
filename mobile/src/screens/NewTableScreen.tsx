@@ -36,6 +36,7 @@ export default function NewTableScreen({ navigation, route }: Props) {
   const [botLevel, setBotLevel] = useState<BotLevel>('standard');
   const [preset, setPreset] = useState<Preset>('aberto');
   const [trincas, setTrincas] = useState(true);
+  const [clean, setClean] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,7 +54,8 @@ export default function NewTableScreen({ navigation, route }: Props) {
     try {
       const table = await createTable({ preset, num_players: count, seats: otherSeats, mode, chat_enabled: chat,
                                         bot_level: botLevel, target_score: Number(target),
-                                        trincas_allowed: preset !== 'stbl' && trincas });
+                                        trincas_allowed: preset !== 'stbl' && trincas,
+                                        clean_to_go_out: preset !== 'stbl' && clean });
       navigation.replace(table.status === 'lobby' ? 'Lobby' : 'Table', { tableId: table.id });
     } catch (e) {
       setError(errorDetail(e, t('common.somethingWrong')));
@@ -115,6 +117,11 @@ export default function NewTableScreen({ navigation, route }: Props) {
         preset === 'stbl' ? null : (
           <View key="t">{toggle(t('newTable.trincas'), trincas ? t('newTable.trincasOn') : t('newTable.trincasOff'),
                                 trincas, setTrincas)}</View>
+        ),
+        // STBL always goes out with a clean canastra; Aberto and Fechado can ask for one.
+        preset === 'stbl' ? null : (
+          <View key="b">{toggle(t('newTable.cleanToGoOut'), clean ? t('newTable.cleanOn') : t('newTable.cleanOff'),
+                                clean, setClean)}</View>
         ),
       )}
 

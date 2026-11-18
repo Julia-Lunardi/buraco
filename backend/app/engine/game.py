@@ -281,7 +281,7 @@ class Round:
         team = self.teams[self.team_of(seat)]
         last_card = len(self.hands[seat]) == 1
         if last_card and team.morto is None and not self._can_go_out(self._team_shapes(self.team_of(seat))):
-            raise IllegalMove("cannot_discard_last", self._go_out_requirement())
+            raise IllegalMove(self._go_out_code("cannot_discard_last"), self._go_out_requirement())
         if not commit:
             return
         self._remove_from_hand(seat, [card])
@@ -326,6 +326,10 @@ class Round:
             return bool(kinds & {CanastraKind.LIMPA, CanastraKind.REAL})
         return bool(kinds - {None})
 
+    def _go_out_code(self, code: str) -> str:
+        """`code`, or `code_clean` when only a clean canastra lets a team go out (the app says which)."""
+        return f"{code}_clean" if self.preset.go_out_requires is GoOutRequires.CLEAN_CANASTRA else code
+
     def _go_out_requirement(self) -> str:
         need = "a clean canastra" if self.preset.go_out_requires is GoOutRequires.CLEAN_CANASTRA else "a canastra"
         return f"To empty your hand your team needs {need}. Keep a card to discard."
@@ -339,7 +343,7 @@ class Round:
         if remaining == 0 and not self.preset.go_out_by_meld_allowed:
             raise IllegalMove("must_discard_to_go_out", "Keep one card: you go out by discarding it.")
         if not self._can_go_out(shapes_after):
-            raise IllegalMove("keep_a_card", self._go_out_requirement())
+            raise IllegalMove(self._go_out_code("keep_a_card"), self._go_out_requirement())
 
     def _remove_from_hand(self, seat: int, cards: list[Card]) -> None:
         ids = {c.id for c in cards}

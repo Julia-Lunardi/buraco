@@ -66,7 +66,7 @@ async def create(body: TableCreate, user: User = Depends(get_current_user), db: 
     table = await tables.create_table(db, user, num_players=body.num_players, seats=body.seats, mode=body.mode,
                                       preset=body.preset, chat_enabled=body.chat_enabled,
                                       target_score=body.target_score, bot_level=body.bot_level,
-                                      trincas_allowed=body.trincas_allowed)
+                                      trincas_allowed=body.trincas_allowed, clean_to_go_out=body.clean_to_go_out)
     return await _publish(db, table, await tables.load_match(db, table), user)
 
 

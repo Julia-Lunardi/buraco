@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, BigInteger, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, func, true
+from sqlalchemy import JSON, BigInteger, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -42,6 +42,8 @@ class GameTable(Base):
     target_score: Mapped[int] = mapped_column(Integer)
     # The host may turn lavadeiras (trincas) off; STBL never has them.
     trincas_allowed: Mapped[bool] = mapped_column(default=True, server_default=true())
+    # Aberto / Fechado: only a clean canastra (limpa or real) lets a team go out, as STBL always does.
+    clean_to_go_out: Mapped[bool] = mapped_column(default=False, server_default=false())
     status: Mapped[TableStatus] = mapped_column(_enum(TableStatus, "table_status"), default=TableStatus.LOBBY)
     # Secret: whoever knows the seed knows every hand. Never sent to clients.
     seed: Mapped[str] = mapped_column(String(64))

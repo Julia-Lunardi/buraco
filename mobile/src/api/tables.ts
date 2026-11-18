@@ -87,6 +87,8 @@ export interface TableView {
   bot_level: BotLevel;
   target_score: number;
   trincas_allowed: boolean;
+  /** Going out needs a clean canastra this round (STBL, or the table's option). */
+  clean_to_go_out?: boolean;
   status: TableStatus;
   is_host: boolean;
   my_seat: number | null;
@@ -132,6 +134,8 @@ export interface NewTable {
   target_score?: number;
   /** Lavadeiras (trincas) on or off; STBL never has them. */
   trincas_allowed?: boolean;
+  /** Aberto / Fechado: going out needs a clean canastra (STBL always does). */
+  clean_to_go_out?: boolean;
 }
 
 export type Action =
