@@ -1,6 +1,7 @@
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
 import type { CardView } from '../../api/tables';
+import { spokenCard } from '../../components/PlayingCard';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
@@ -18,18 +19,45 @@ function Badge({ n }: { n: number }) {
   );
 }
 
-/** Design system `Stock` (minimal): two face-down cards and a count badge; it glows when
- * drawing is the move to make, and a tap draws. */
+const BACK = require('../../../assets/cards/back-full.png');
+
+interface DeckProps {
+  w: number;
+  h: number;
+  /** Corner radius of the cards, as the cards on the table have it at this size. */
+  r: number;
+  /** The gold "draw now" ring, hugging the card. */
+  active?: boolean;
+}
+
+/** A face-down pile seen from above: just its top card, flat, with the back's art and one soft
+ * shadow (no edges of the cards below: Julia's call, 13.11.2026). The count says how many. */
+export function DeckStack({ w, h, r, active }: DeckProps) {
+  const { c, shadow } = useTheme();
+  return (
+    <View style={{ width: w, height: h }}>
+      <View style={{ width: w, height: h, borderRadius: r, overflow: 'hidden', backgroundColor: c.cardBack,
+                     boxShadow: shadow.shadowCard }}>
+        <Image source={BACK} resizeMode="stretch" accessibilityIgnoresInvertColors style={{ width: w, height: h }} />
+      </View>
+      {active ? (
+        <View pointerEvents="none"
+              style={{ position: 'absolute', left: -3, top: -3, width: w + 6, height: h + 6, borderRadius: r + 3,
+                       borderWidth: 2, borderColor: c.accent, boxShadow: '0 0 16px rgba(232, 178, 74, 0.4)' }} />
+      ) : null}
+    </View>
+  );
+}
+
+/** Design system `Stock` (minimal): the face-down pile and a count badge; it glows when drawing is the move to make, and a tap draws. */
 export function Stock({ count, active, onPress }: { count: number; active: boolean; onPress?(): void }) {
-  const { c, radius } = useTheme();
+  const { radius } = useTheme();
   const { pile } = useCardSizes();
+  const r = pile.w < 48 ? radius.radiusXs + 1 : radius.radiusCard; // as Card draws its corners
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined}
-               accessibilityLabel={`${t('table.stock', { n: count })}${active ? `. ${t('table.draw')}` : ''}`}
-               style={{ width: pile.w + 3, height: pile.h + 3, borderRadius: radius.radiusCard,
-                        boxShadow: active ? `0 0 0 2px ${c.accent}, 0 0 18px rgba(232, 178, 74, 0.35)` : undefined }}>
-      <Card faceDown size="pile" style={{ position: 'absolute', left: 3, top: 3 }} />
-      <Card faceDown size="pile" style={{ position: 'absolute', left: 0, top: 0 }} />
+               accessibilityLabel={`${t('table.stock', { n: count })}${active ? `. ${t('table.draw')}` : ''}`}>
+      <DeckStack w={pile.w} h={pile.h} r={r} active={active} />
       <Badge n={count} />
     </Pressable>
   );
@@ -44,11 +72,17 @@ interface PileProps {
   target?: boolean;
   onTake?(): void;
   onDiscard?(): void;
+  /** Fechado: the pile is squared up and only its top card shows. A tap on it (your turn to
+   * draw) picks or unpicks that card for the meld that takes the pile. */
+  closed?: boolean;
+  /** Fechado: the top card is picked, and `'valid'` once it and your selection make a meld. */
+  topPicked?: boolean | 'valid';
+  onPickTop?(): void;
 }
 
 /** Design system `DiscardPile` (spread): every card in the lixo fanned out so all are
  * readable, the last one on top; when it can be taken it glows and a tap on it takes it. */
-export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard }: PileProps) {
+export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard, closed, topPicked, onPickTop }: PileProps) {
   const { c, radius } = useTheme();
   const { pile } = useCardSizes();
   const n = cards.length;
@@ -62,6 +96,9 @@ export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard 
   const rowGap = Math.round(ch * 0.52);
   const boxW = n ? cw + step * Math.max(0, per - 1) : cw;
   const boxH = ch + rowGap * (rows - 1);
+  if (closed) {
+    return <ClosedPile cards={cards} target={target} onDiscard={onDiscard} topPicked={topPicked} onPickTop={onPickTop} />;
+  }
   const onPress = takeable ? onTake : target ? onDiscard : undefined;
   const label = takeable ? t('table.takePile', { n })
     : `${n ? t('table.pile', { n }) : t('table.emptyPile')}${target ? `. ${t('table.discard')}` : ''}`;
@@ -87,6 +124,40 @@ export function DiscardPile({ cards, width, takeable, target, onTake, onDiscard 
   );
 }
 
+/** Fechado's pile: squared up, only the top card face up (a cream edge beneath when more lie
+ * under it) and the count. On your draw, a tap picks the top card for the meld that takes the
+ * pile; it lifts like a selected card in your hand. On your play, a tap discards as usual. */
+function ClosedPile({ cards, target, onDiscard, topPicked, onPickTop }: Pick<PileProps, 'cards' | 'target' | 'onDiscard' | 'topPicked' | 'onPickTop'>) {
+  const { c, radius, shadow } = useTheme();
+  const { pile } = useCardSizes();
+  const n = cards.length;
+  const top = cards[n - 1];
+  const onPress = onPickTop ?? (target ? onDiscard : undefined);
+  const named = n ? t('table.pileTop', { card: spokenCard(top.label), n }) : t('table.emptyPile');
+  const label = onPickTop ? `${named}. ${topPicked ? t('table.unpickTop') : t('table.pickTop')}`
+    : `${named}${target ? `. ${t('table.discard')}` : ''}`;
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} hitSlop={8} accessibilityRole={onPress ? 'button' : undefined}
+               accessibilityLabel={label} accessibilityState={onPickTop ? { selected: !!topPicked } : undefined}
+               style={{ width: pile.w + 3, height: pile.h + 3, borderRadius: 6,
+                        outlineWidth: target && !onPickTop ? 1.5 : 0, outlineStyle: 'dashed', outlineColor: c.accent, outlineOffset: 6 }}>
+      {n > 1 ? <View style={{ position: 'absolute', left: 3, top: 3, width: pile.w, height: pile.h,
+                              borderRadius: radius.radiusXs + 1, backgroundColor: '#efe6d2', boxShadow: shadow.shadowCard }} /> : null}
+      {n ? (
+        <CardSlot key={top.id} id={top.id} left={0} zIndex={1}>
+          {/* Your draw: the top card glows until picked, then lifts like a selected card. */}
+          <Card label={top.label} size="pile" selected={topPicked ?? false}
+                style={onPickTop && !topPicked ? { boxShadow: '0 0 14px rgba(232, 178, 74, 0.6)' } : undefined} />
+        </CardSlot>
+      ) : (
+        <View style={{ width: pile.w, height: pile.h, borderRadius: radius.radiusXs, borderWidth: 1.5, borderStyle: 'dashed',
+                       borderColor: c.tableLine }} />
+      )}
+      {n ? <Badge n={n} /> : null}
+    </Pressable>
+  );
+}
+
 /** Morto stacks are smaller than the playing cards: they are set aside, not in play. */
 const MORTO_SCALE = 0.62;
 
@@ -95,40 +166,40 @@ interface MortoProps {
   teams: { morto_waiting: boolean; took_morto: boolean }[];
   myTeam: number;
   label(team: number): string;
+  /** One above the other at the table's left edge, theirs on top (portrait); side by side otherwise. */
+  vertical?: boolean;
 }
 
-/** The two mortos, set aside by the stock as at a real table: ours first, then theirs, each a
+/** The two mortos, set aside from the stock as at a real table: ours first, then theirs, each a
  * small face-down stack with its team's name. Once a team takes its morto the cards fly to the
  * taker and an outline marked "pegou" stays, so it's clear all game long who has it. */
-export function MortoStacks({ teams, myTeam, label }: MortoProps) {
+export function MortoStacks({ teams, myTeam, label, vertical }: MortoProps) {
   const { c, type } = useTheme();
   const { pile } = useCardSizes();
   const flights = useFlights();
   const w = Math.round(pile.w * MORTO_SCALE);
   const h = Math.round(pile.h * MORTO_SCALE);
   return (
-    <View style={{ flexDirection: 'row', gap: 6 }}>
-      {[myTeam, 1 - myTeam].map((team) => {
+    <View style={{ flexDirection: vertical ? 'column' : 'row', gap: vertical ? 10 : 6 }}>
+      {/* Side by side ours comes first; stacked, theirs is on top and ours below, nearer our cards. */}
+      {(vertical ? [1 - myTeam, myTeam] : [myTeam, 1 - myTeam]).map((team) => {
         const { morto_waiting: waiting, took_morto: took } = teams[team];
         const mine = team === myTeam;
         const a11y = `${t('table.morto')} ${label(team)}: ${waiting ? t('table.mortoOnTable') : took ? t('table.mortoGone') : t('table.mortoStock')}`;
         return (
           <View key={team} accessible accessibilityLabel={a11y} style={{ alignItems: 'center', gap: 3 }}>
             <View collapsable={false} ref={(view) => flights?.register(`morto:${team}`, view)}
-                  style={{ width: w + 3, height: h + 3 }}>
+                  style={{ width: w, height: h }}>
               {waiting ? (
-                <>
-                  <Card faceDown size="pile" style={{ position: 'absolute', left: 3, top: 3, transform: [{ scale: MORTO_SCALE }],
-                                                      transformOrigin: 'top left' }} />
-                  <Card faceDown size="pile" style={{ position: 'absolute', left: 0, top: 0, transform: [{ scale: MORTO_SCALE }],
-                                                      transformOrigin: 'top left' }} />
-                </>
+                <DeckStack w={w} h={h} r={Math.max(3, Math.round(w * 0.1))} />
               ) : (
-                <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1.5, borderStyle: 'dashed',
+                <View style={{ width: w, height: h, borderRadius: 4, borderWidth: 1, borderStyle: 'dashed',
                                borderColor: took ? (mine ? c.accent : c.invalid) : c.tableLine,
                                alignItems: 'center', justifyContent: 'center' }}>
-                  {took ? <Text style={{ fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12, textAlign: 'center',
-                                         color: mine ? c.accent : c.invalid }}>{t('table.mortoTakenShort')}</Text> : null}
+                  {/* One line always: the outline is narrow, and "pegou" used to break as "pego / u". */}
+                  {took ? <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+                                style={{ alignSelf: 'stretch', fontFamily: type.label.fontFamily, fontSize: 10, lineHeight: 12,
+                                         textAlign: 'center', color: mine ? c.accent : c.invalid }}>{t('table.mortoTakenShort')}</Text> : null}
                 </View>
               )}
             </View>

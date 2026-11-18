@@ -7,13 +7,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getHint, getTable, rematch, type TableView } from '../api/tables';
 import { describeError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { spokenCard } from '../components/PlayingCard';
 import SegmentedControl from '../components/SegmentedControl';
 import ChatButton from '../features/chat/ChatButton';
 import ChatPanel from '../features/chat/ChatPanel';
 import { useChat } from '../features/chat/useChat';
+import SupportNudge from '../features/support/SupportNudge';
+import { useSupportNudge } from '../features/support/useTipJar';
 import Hand from '../features/table/Hand';
 import MeldRow from '../features/table/MeldRow';
 import { DiscardPile, MortoStacks, Stock } from '../features/table/Piles';
+import FeltTexture from '../features/table/Felt';
 import { FlightsProvider, useCardFlights } from '../features/table/flights';
 import MortoBanner, { MORTO_BANNER_MS } from '../features/table/MortoBanner';
 import { mortoTaken, pileTaken } from '../features/table/planFlights';
@@ -43,7 +47,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Table'>;
  */
 export default function TableScreen({ navigation, route }: Props) {
   const { tableId } = route.params;
-  const { c, space, type } = useTheme();
+  const { c, space, radius, size, type } = useTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const { table, connected, error, act, nextRound, chat: liveChat, say } = useTableSocket(tableId);
@@ -52,12 +56,19 @@ export default function TableScreen({ navigation, route }: Props) {
   const [chatOpen, setChatOpen] = useState(false);
   const [hintText, setHintText] = useState('');
   const push = usePushOffer();
+  const nudge = useSupportNudge();
   const prefs = usePreferences();
-  const sortBy = prefs.sort;
-  const setSortBy = (value: 'suit' | 'rank') => prefs.set('sort', value);
   const [picked, setPicked] = useState<number[]>([]);
+  // Fechado: the pile's top card, picked for the meld that takes the pile (by id, so a new top card is never picked).
+  const [pickedTop, setPickedTop] = useState<number | null>(null);
 
   const game = table?.game ?? null;
+  // The hand is always sorted, by suit or rank (your preference); drawn cards go straight into place.
+  const sortBy = prefs.sort;
+  const setSortBy = (value: 'suit' | 'rank') => {
+    prefs.set('sort', value);
+    void Haptics.selectionAsync().catch(() => {});
+  };
   const flights = useCardFlights(game);
   const cardW = useCardSizes().pile.w; // the stock beside the lixo
   const place = (key: string) => (view: View | null) => flights.api.register(key, view);
@@ -68,8 +79,23 @@ export default function TableScreen({ navigation, route }: Props) {
   const [morto, setMorto] = useState<{ team: number; seat: number; key: number } | null>(null);
   // It just became your turn (not on opening the table): the phone taps twice.
   const [buzz, setBuzz] = useState(0);
+  // When the table is taller than the screen, the hand can be out of sight as cards come in:
+  // cards that just joined your hand glow for about 2 s (Hand `fresh`).
+  const [viewportH, setViewportH] = useState(0);
+  const [contentH, setContentH] = useState(0);
+  const scrolls = viewportH > 0 && contentH > viewportH + 1;
+  const [fresh, setFresh] = useState<{ ids: number[]; key: number; until: number } | null>(null);
   if (game !== lastGame) {
     setLastGame(game);
+    if (scrolls && lastGame?.hand.length && game) {
+      const before = new Set(lastGame.hand.map((card) => card.id));
+      const added = game.hand.filter((card) => !before.has(card.id)).map((card) => card.id);
+      // A new deal replaces the whole hand: nothing to point out there.
+      if (added.length && game.hand.some((card) => before.has(card.id))) {
+        const landed = Math.max(...added.map((id) => flights.api.arrival(id)));
+        setFresh({ ids: added, key: (fresh?.key ?? 0) + 1, until: landed + 2200 });
+      }
+    }
     const took = pileTaken(lastGame, game);
     if (took) setTaken({ ...took, key: (taken?.key ?? 0) + 1 });
     const gotMorto = mortoTaken(lastGame, game);
@@ -90,6 +116,11 @@ export default function TableScreen({ navigation, route }: Props) {
     return () => clearTimeout(second);
   }, [buzz]);
   useEffect(() => {
+    if (!fresh) return;
+    const clear = setTimeout(() => setFresh(null), fresh.until);
+    return () => clearTimeout(clear);
+  }, [fresh]);
+  useEffect(() => {
     if (!taken) return;
     const clear = setTimeout(() => setTaken(null), 3000);
     return () => clearTimeout(clear);
@@ -104,6 +135,11 @@ export default function TableScreen({ navigation, route }: Props) {
     if (lastStatus === 'playing' && (table.status === 'round_over' || table.status === 'finished')) setEnding(true);
   }
   const endingDone = useCallback(() => setEnding(false), []);
+  // A game you sat at is over and its result is on screen: it counts toward the support nudge.
+  const gameOver = !!table && table.status === 'finished' && !ending && table.my_seat !== null;
+  useEffect(() => {
+    if (gameOver) void nudge.gameFinished(tableId);
+  }, [gameOver, tableId]); // eslint-disable-line react-hooks/exhaustive-deps
   // The chat keeps up while it is open: what you are reading is not "new".
   const { markSeen } = chat;
   useEffect(() => { if (chatOpen) markSeen(); }, [chatOpen, markSeen]);
@@ -124,13 +160,21 @@ export default function TableScreen({ navigation, route }: Props) {
   if (!table) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.table }}>
+        <FeltTexture />
         <ActivityIndicator color={c.tableInk} />
       </View>
     );
   }
 
   if (table.status === 'finished' && !ending) {
-    return <GameOver table={table} onHome={() => navigation.popToTop()} onAgain={() => { void playAgain(table); }} />;
+    return (
+      <>
+        <GameOver table={table} onHome={() => navigation.popToTop()} onAgain={() => { void playAgain(table); }} />
+        <SupportNudge visible={nudge.visible && !push.visible} games={nudge.games}
+                      onSupport={() => { void nudge.dismiss(); navigation.navigate('Support'); }}
+                      onLater={() => { void nudge.dismiss(); }} />
+      </>
+    );
   }
   if (table.status === 'round_over' && !ending) return <RoundSummary table={table} onNext={nextRound} />;
 
@@ -145,17 +189,20 @@ export default function TableScreen({ navigation, route }: Props) {
   const playing = myTurn && game.phase === 'play';
   // Fechado: the pile can only be taken by using its top card in a meld right away.
   const fechado = table.preset === 'fechado';
-  const rules = RULES[table.preset] ?? RULES.aberto;
+  // The current round's mode (it can change between rounds), with the table's trincas switch.
+  const rules = { ...(RULES[table.preset] ?? RULES.aberto), trincasAllowed: table.trincas_allowed };
 
   const labelOf = (id: number) => game?.hand.find((card) => card.id === id)?.label ?? '';
   const selectedLabels = selected.map(labelOf);
   const newMeldValid = selected.length >= 3 && analyse(selectedLabels, rules) !== null;
   const top = game?.discard[game.discard.length - 1];
-  // Fechado pickup into a new meld: the top card plus the selection must make one.
+  // Fechado pickup into a new meld: the top card plus the selection must make one. You pick
+  // the cards in your hand and the top card (in any order), then lay the meld down.
   const pickupValid = fechado && !!top && selected.length >= 2 && analyse([top.label, ...selectedLabels], rules) !== null;
+  const topPicked = drawing && fechado && !!top && pickedTop === top.id;
 
   const toggle = (id: number) => setPicked(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
-  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setHintText(''); };
+  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setPickedTop(null); setHintText(''); };
 
   async function showHint() {
     try {
@@ -163,7 +210,10 @@ export default function TableScreen({ navigation, route }: Props) {
       setHintText(t(`table.hint_${hint.type}`));
       // Pre-select the cards the hint uses; the player still makes the move.
       if (hint.type === 'lay_down' || hint.type === 'add_to_meld') setPicked(hint.cards);
-      else if (hint.type === 'take_discard' && hint.use_with) setPicked(hint.use_with);
+      else if (hint.type === 'take_discard' && hint.use_with) {
+        setPicked(hint.use_with);
+        if (top) setPickedTop(top.id); // Fechado: the top card goes in the meld too
+      }
       else if (hint.type === 'discard') setPicked([hint.card]);
     } catch {
       setHintText('');
@@ -195,7 +245,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const theirWell = game ? (
     <TeamWell seats={team(1 - myTeam)} handSizes={game.hand_sizes} currentSeat={game.current} score={table.scores[1 - myTeam]} roundPoints={table.round_points?.[1 - myTeam]}
               active={game.current % 2 !== myTeam}
-              meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} gained={taken} side={landscape} />
+              meldsFirst={false} melds={melds(1 - myTeam)} trailing={chatButton} gained={taken} side={landscape} backs />
   ) : null;
 
   const myWell = game ? (
@@ -211,41 +261,90 @@ export default function TableScreen({ navigation, route }: Props) {
 
   const teamLabel = (team: number) => team === myTeam ? t('table.us')
     : table.num_players === 2 ? seatName(table, table.seats.find((s) => s.team === team)?.seat ?? -1) : t('table.them');
-  const mortoWidth = 2 * (Math.round(cardW * 0.62) + 3) + 6;
-  const piles = game ? (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
-      <MortoStacks teams={game.teams} myTeam={myTeam} label={teamLabel} />
-      <View collapsable={false} ref={place('stock')}>
+  // Portrait: the mortos stand one above the other at the left edge, the stock and lixo centred
+  // in the room left. Landscape: side by side before the stock (height is what's scarce there).
+  const mortoW = Math.round(cardW * 0.62);
+  const mortoWidth = landscape ? 2 * (mortoW + 3) + 6 : mortoW + 16;
+  const stockAndPile = game ? (
+    <>
+      {/* Above the lixo, so the lixo never covers the stock's count badge. */}
+      <View collapsable={false} ref={place('stock')} style={{ zIndex: 2, marginRight: 6 }}>
         <Stock count={game.stock_size} active={drawing} onPress={drawing ? () => run({ type: 'draw' }) : undefined} />
       </View>
       <View collapsable={false} ref={place('discard')}>
         <DiscardPile cards={game.discard} width={Math.min(landscape ? 420 : 360, handWidth * (landscape ? 0.6 : 1) - mortoWidth - cardW - 3 - space.space3 * 2 - 8)}
-                     takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
-                     onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
+                     takeable={drawing && game.discard.length > 0 && !fechado}
+                     onTake={() => run({ type: 'take_discard' })}
+                     closed={fechado} topPicked={topPicked ? (pickupValid ? 'valid' : true) : false}
+                     onPickTop={drawing && fechado && top ? () => setPickedTop(topPicked ? null : top.id) : undefined}
                      target={playing && selected.length === 1}
                      onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
       </View>
-    </View>
+    </>
   ) : null;
+  const piles = game ? (landscape ? (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+      <MortoStacks teams={game.teams} myTeam={myTeam} label={teamLabel} />
+      {stockAndPile}
+    </View>
+  ) : (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.space3 }}>
+      <MortoStacks vertical teams={game.teams} myTeam={myTeam} label={teamLabel} />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+        {stockAndPile}
+      </View>
+    </View>
+  )) : null;
 
   // One quiet line under the piles: errors first, then the hint, then guidance.
   const notice = !connected ? { text: t('table.reconnecting'), color: c.tableInkSoft }
     : error && game ? { text: describeError(error.code, error.detail, t('common.somethingWrong'), game.phase), color: c.invalidInk }
     : taken ? { text: t('table.tookPile', { name: seatName(table, taken.seat), n: taken.n }), color: c.accent }
     : hintText ? { text: hintText, color: c.tableInk }
-    : playing && newMeldValid ? { text: t('table.canMeld'), color: c.valid }
-    : drawing && fechado && game.discard.length ? { text: t('table.pileHint'), color: c.tableInkSoft }
+    : drawing && fechado && top ? (
+      topPicked && selected.length >= 2 && !pickupValid ? { text: t('table.pickupInvalid', { card: spokenCard(top.label) }), color: c.invalidInk }
+      : topPicked && !pickupValid ? { text: t('table.pickupPickCards', { card: spokenCard(top.label) }), color: c.tableInk }
+      : !topPicked && pickupValid ? { text: t('table.pickupTapTop', { card: spokenCard(top.label) }), color: c.tableInk }
+      : topPicked ? null : { text: t('table.pileHint'), color: c.tableInkSoft })
     : null;
   // Live tables: a person's turn runs on a 40 s clock (server: live_turn_seconds); bots' turns don't.
   const turnSeat = game ? table.seats.find((s) => s.seat === game.current) : undefined;
   const clock = table.mode === 'live' && table.turn_deadline && turnSeat && !turnSeat.bot && !turnSeat.covered_by_bot ? (
     <TurnClock deadline={table.turn_deadline} limit={LIVE_TURN_SECONDS} mine={myTurn} />
   ) : null;
+  const modeLabel = [t(`newTable.${table.preset}`),
+                     ...(table.clean_to_go_out && table.preset !== 'stbl' ? [t('newTable.cleanTag')] : [])].join(' · ');
   const noticeRow = (
-    <View style={{ minHeight: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space3 }}>
+    <View style={{ minHeight: 28, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
+                   columnGap: space.space3, rowGap: space.space2 }}>
+      {/* This round's mode (it can change between rounds), and a clean-canastra table says so. */}
+      <View accessible accessibilityLabel={t('table.roundModeA11y', { mode: modeLabel })}
+            style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.radiusPill, borderWidth: 1, borderColor: c.tableLine }}>
+        <Text style={[type.caption, { fontSize: 11, lineHeight: 15, color: c.tableInkSoft }]} numberOfLines={1}>{modeLabel}</Text>
+      </View>
       {clock}
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}
+      {/* A new meld needs no empty spot to tap: the button is always here once the selection is a valid meld. */}
+      {/* Fechado: the top card and your cards make a meld; down it goes and the pile comes to your hand. */}
+      {topPicked && pickupValid ? (
+        <Pressable onPress={() => run({ type: 'take_discard', use_with: selected })} accessibilityRole="button"
+                   style={({ pressed }) => ({ minHeight: size.touchMin, paddingHorizontal: space.space5, borderRadius: radius.radiusMd,
+                                              alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent,
+                                              opacity: pressed ? 0.8 : 1 })}>
+          <Text style={[type.label, { color: c.onAccent }]} numberOfLines={1}>
+            {game.discard.length > 1 ? t('table.layDownTakePile', { n: game.discard.length - 1 }) : t('table.layDownMeld')}
+          </Text>
+        </Pressable>
+      ) : null}
+      {playing && newMeldValid ? (
+        <Pressable onPress={() => run({ type: 'lay_down', cards: selected })} accessibilityRole="button"
+                   style={({ pressed }) => ({ minHeight: size.touchMin, paddingHorizontal: space.space5, borderRadius: radius.radiusMd,
+                                              alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent,
+                                              opacity: pressed ? 0.8 : 1 })}>
+          <Text style={[type.label, { color: c.onAccent }]} numberOfLines={1}>{t('table.layDownMeld')}</Text>
+        </Pressable>
+      ) : null}
       {practice && myTurn && !hintText ? (
         <Pressable onPress={() => { void showHint(); }} accessibilityRole="button" hitSlop={10}>
           <Text style={[type.label, { color: c.accent }]}>{t('table.hint')}</Text>
@@ -257,17 +356,19 @@ export default function TableScreen({ navigation, route }: Props) {
   const hand = game ? (
     <View collapsable={false} ref={place('hand')}>
       <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
-            selectionValid={newMeldValid || pickupValid} onToggle={toggle} />
+            selectionValid={newMeldValid || (topPicked && pickupValid)} fresh={fresh} onToggle={toggle} />
     </View>
   ) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.table, paddingTop: insets.top + (landscape ? 4 : space.space2),
                    paddingBottom: insets.bottom + (landscape ? 4 : space.space3), paddingLeft: insets.left, paddingRight: insets.right }}>
+      <FeltTexture />
       <FlightsProvider api={flights.api}>
       {landscape ? (
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 6 }}
-                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
+                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
+                    onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: 2 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
@@ -280,7 +381,8 @@ export default function TableScreen({ navigation, route }: Props) {
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}
-                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}>
+                    onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
+                    onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: space.space3 }} />
           {piles}

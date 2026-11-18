@@ -1,11 +1,14 @@
+import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import type { TableView, TeamScore } from '../../api/tables';
+import type { Preset, TableView, TeamScore } from '../../api/tables';
 import Button from '../../components/Button';
+import SegmentedControl from '../../components/SegmentedControl';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
 import Card from './Card';
+import { roundOutcome } from './roundOutcome';
 
 // Same values as backend app/engine/presets.py (equal in every preset).
 const BONUS = { limpa: 200, suja: 100, real: 500 };
@@ -61,16 +64,22 @@ function Row({ cells, strong, head }: { cells: (string | { text: string; color: 
   );
 }
 
-/** Design `RoundSummary`: who went out, the round's points per item, and the running totals. */
-export function RoundSummary({ table, onNext }: { table: TableView; onNext(): void }) {
+const PRESETS: Preset[] = ['aberto', 'fechado', 'stbl'];
+
+/** Design `RoundSummary`: who went out, the round's points per item, the running totals, and
+ * the next round's mode. Nothing starts by itself: any player picks the mode (it starts on the
+ * last round's) and taps to deal; everyone else follows. */
+export function RoundSummary({ table, onNext }: { table: TableView; onNext(preset: Preset): void }) {
   const { c, space, radius, type } = useTheme();
   const teams = useTeams(table);
+  const [mode, setMode] = useState<Preset>(PRESETS.includes(table.preset as Preset) ? table.preset as Preset : 'aberto');
   const round = table.rounds[table.rounds.length - 1];
   if (!round) return null;
-  const wentOut = table.game?.went_out ?? null;
-  const subtitle = wentOut === null ? t('table.stockOut')
-    : wentOut === table.my_seat ? t('table.youWentOut')
-    : wentOut % 2 === teams.myTeam ? t('table.weWentOut')
+  // The round's own state is gone by now: who went out comes from the table's round endings.
+  const wentOut = roundOutcome(table)?.wentOut ?? 'stock';
+  const subtitle = wentOut === 'stock' ? t('table.stockOut')
+    : wentOut === 'you' ? t('table.youWentOut')
+    : wentOut === 'us' ? t('table.weWentOut')
     : teams.solo ? t('table.theyWentOut', { name: teams.opponentName }) : t('table.theyWentOutTeam');
   const per = (f: (s: TeamScore) => string) => teams.order.map((team) => f(round[team]));
   const anyReal = round.some((s) => s.canastras.real > 0);
@@ -110,7 +119,13 @@ export function RoundSummary({ table, onNext }: { table: TableView; onNext(): vo
         ))}
         {left > 0 ? <Text style={[type.body, { color: c.inkSoft }]}>{t('table.pointsLeft', { n: fmt(left) })}</Text> : null}
       </View>
-      <Button label={t('table.nextRound')} onPress={onNext} />
+      <View style={{ gap: space.space2 }}>
+        <Text style={[type.label, { color: c.ink }]}>{t('table.nextRoundMode')}</Text>
+        <SegmentedControl value={mode} onChange={setMode} accessibilityLabel={t('table.nextRoundMode')}
+                          options={PRESETS.map((p) => ({ value: p, label: t(`newTable.${p}`) }))} />
+        <Text style={[type.caption, { color: c.inkSoft }]}>{t(`newTable.${mode}Hint`)}</Text>
+      </View>
+      <Button label={t('table.nextRound')} onPress={() => onNext(mode)} />
     </Sheet>
   );
 }

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.engine.bots import BOTS
 from app.engine.game import IllegalMove, Phase
 from app.engine.match import Match
-from app.engine.presets import PRESETS
+from app.engine.presets import PRESETS, GoOutRequires
 from app.engine.scoring import score_round
 from app.engine.serialize import action_from_dict, action_to_dict
 from app.models import GameAction, GameTable, PlayMode, TableSeat, TableStatus, User
@@ -39,7 +39,7 @@ class TableError(Exception):
 async def create_table(db: AsyncSession, host: User, *, num_players: int, seats: list[SeatKind],
                        mode: PlayMode = PlayMode.LIVE, preset: str = "aberto", chat_enabled: bool = True,
                        target_score: int | None = None, bot_level: str = "standard",
-                       trincas_allowed: bool = True) -> GameTable:
+                       trincas_allowed: bool = True, clean_to_go_out: bool = False) -> GameTable:
     """The host takes seat 0; `seats` describes seats 1..n-1. A table with only bots
     starts at once; otherwise it waits in the lobby for friends."""
     if preset not in PRESETS:
@@ -58,6 +58,7 @@ async def create_table(db: AsyncSession, host: User, *, num_players: int, seats:
     table = GameTable(code=await _free_code(db), host_id=host.id, preset=preset, num_players=num_players,
                       mode=mode, chat_enabled=chat_enabled, target_score=target, bot_level=bot_level,
                       trincas_allowed=trincas_allowed and PRESETS[preset].trincas_allowed,
+                      clean_to_go_out=clean_to_go_out and preset != "stbl",
                       seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=0, user_id=host.id)] + [
         TableSeat(seat=i, bot_level=bot_level if kind == "bot" else None) for i, kind in enumerate(seats, 1)
@@ -120,7 +121,7 @@ async def rematch(db: AsyncSession, user: User, table_id: uuid.UUID) -> GameTabl
 
     table = GameTable(code=await _free_code(db), host_id=user.id, preset=old.preset, num_players=old.num_players,
                       mode=old.mode, chat_enabled=old.chat_enabled, target_score=old.target_score,
-                      bot_level=old.bot_level, trincas_allowed=old.trincas_allowed, seed=secrets.token_hex(16))
+                      bot_level=old.bot_level, trincas_allowed=old.trincas_allowed, clean_to_go_out=old.clean_to_go_out, seed=secrets.token_hex(16))
     table.seats = [TableSeat(seat=s.seat, user_id=s.user_id, bot_level=None if s.user_id else (s.bot_level or old.bot_level))
                    for s in old.seats]
     db.add(table)
@@ -157,14 +158,20 @@ async def act(db: AsyncSession, user: User, table_id: uuid.UUID, action: dict,
 
 
 async def next_round(db: AsyncSession, user: User, table_id: uuid.UUID,
-                     covered: frozenset[int] = frozenset()) -> tuple[GameTable, Match]:
+                     covered: frozenset[int] = frozenset(), preset: str | None = None) -> tuple[GameTable, Match]:
+    """Any seated player starts the next round, and may pick its mode (`preset`); without one
+    it keeps the last round's."""
+    if preset is not None and preset not in PRESETS:
+        raise TableError(status.HTTP_422_UNPROCESSABLE_CONTENT, "unknown_preset", f"Unknown mode {preset!r}.")
     table = await _locked(db, table_id)
     if _seat_of(table, user) is None:
         raise TableError(status.HTTP_403_FORBIDDEN, "not_seated", "You are not playing at this table.")
     if table.status is not TableStatus.ROUND_OVER:
         return table, await load_match(db, table)  # someone else already started it: not an error
     match = await load_match(db, table)
-    match.start_round()
+    chosen = preset or round_preset(table, table.rounds_started - 1)
+    table.round_presets = [round_preset(table, n) for n in range(table.rounds_started)] + [chosen]
+    match.start_round(_rules(table, chosen))
     table.rounds_started += 1
     table.status = TableStatus.PLAYING
     _advance(db, table, match, covered)
@@ -261,16 +268,22 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
                covered: frozenset[int] = frozenset(), seconds_left: float | None = None) -> dict:
     """Everything one player may see. Never includes the seed or other hands."""
     me = _seat_of(table, user)
+    current = round_preset(table, max(0, table.rounds_started - 1))
     return {
         "id": str(table.id),
         "code": table.code,
-        "preset": table.preset,
+        # The mode of the round being played (or just played): it can change between rounds.
+        "preset": current,
+        "table_preset": table.preset,
         "num_players": table.num_players,
         "mode": table.mode.value,
         "chat_enabled": table.chat_enabled,
         "bot_level": table.bot_level,
         "target_score": table.target_score,
-        "trincas_allowed": table.trincas_allowed,
+        "trincas_allowed": _rules(table, current).trincas_allowed,
+        # Going out needs a clean canastra this round (STBL, or the table's option).
+        "clean_to_go_out": _rules(table, current).go_out_requires is GoOutRequires.CLEAN_CANASTRA,
+        "clean_to_go_out_option": table.clean_to_go_out,
         "status": table.status.value,
         "is_host": table.host_id == user.id,
         "my_seat": me,
@@ -291,6 +304,8 @@ def table_view(table: GameTable, match: Match, user: User, *, connected: set[uui
         "scores": list(match.scores),
         "rounds": [[{**dataclasses.asdict(t), "total": t.total} for t in r] for r in match.history],
         "winner": match.winner,
+        # Per finished round: the seat that went out, or None when the stock ran out.
+        "round_endings": list(match.endings),
         "rematch_id": str(table.rematch_id) if table.rematch_id else None,
         "game": match.round.view_for(me) if match.round is not None and me is not None else None,
         # Points each team has on the table this round (melds + canastra bonuses): provisional,
@@ -319,17 +334,31 @@ async def load_match(db: AsyncSession, table: GameTable) -> Match:
     for row in rows:
         by_round[row.round_no].append(row)
 
-    base = PRESETS[table.preset]
-    preset = dataclasses.replace(base, target_score=table.target_score,
-                                 trincas_allowed=base.trincas_allowed and table.trincas_allowed)
-    match = Match(preset, table.num_players, table.seed)
+    match = Match(_rules(table, table.preset), table.num_players, table.seed)
     for round_no in range(table.rounds_started):
-        rnd = match.start_round()
+        rnd = match.start_round(_rules(table, round_preset(table, round_no)))
         for row in by_round[round_no]:
             rnd.apply(row.seat, action_from_dict(row.action))
         if rnd.phase is Phase.OVER:
             match.finish_round()
     return match
+
+
+def round_preset(table: GameTable, round_no: int) -> str:
+    """The mode round `round_no` (0-based) is played in: picked between rounds, else the table's."""
+    picked = table.round_presets or []
+    return picked[round_no] if 0 <= round_no < len(picked) else table.preset
+
+
+def _rules(table: GameTable, name: str):
+    """A mode's rules at this table. Trincas follow the host's switch, which a table created as
+    STBL never had: its Aberto and Fechado rounds allow them. The clean-canastra option makes
+    Aberto and Fechado go out like STBL."""
+    base = PRESETS[name]
+    clean = base.go_out_requires is GoOutRequires.CLEAN_CANASTRA or table.clean_to_go_out
+    return dataclasses.replace(base, target_score=table.target_score,
+                               trincas_allowed=base.trincas_allowed and (table.trincas_allowed or table.preset == "stbl"),
+                               go_out_requires=GoOutRequires.CLEAN_CANASTRA if clean else base.go_out_requires)
 
 
 # --- internals ----------------------------------------------------------------------

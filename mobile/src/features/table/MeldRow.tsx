@@ -46,8 +46,11 @@ export default function MeldRow({ meld, target, onPress }: Props) {
                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: space.space2, padding: 6, borderRadius: radius.radiusMd,
                         borderWidth: 1.5, borderStyle: 'dashed', borderColor: target ? c.accent : 'transparent',
                         backgroundColor: target ? 'rgba(232, 178, 74, 0.08)' : 'transparent' }}>
-      <View style={frame ?? undefined}>
-        <View style={{ width, height }}>
+      {/* Both wrappers always exist and never flatten away: when a meld becomes a canastra its
+          frame appears, and if that changed the view tree under the cards, Fabric would move
+          them mid-update and crash ("Attempt to unmount a view which has a different index"). */}
+      <View collapsable={false} style={frame ?? { padding: 0 }}>
+        <View collapsable={false} style={{ width, height }}>
           {meld.cards.map((card, i) => (
             <CardSlot key={card.id} id={card.id} left={vertical ? 0 : i * step} top={vertical ? i * down : 0} zIndex={i}>
               <Card label={card.label} size="table" />
@@ -55,13 +58,16 @@ export default function MeldRow({ meld, target, onPress }: Props) {
           ))}
         </View>
       </View>
+      {/* The pill is a View around the Text, keyed by kind: a Text that carried its own clipped
+          background came up on iOS as an empty pill when a meld turned into a canastra. */}
       {kind ? (
-        <Text style={[type.caption, {
-          fontSize: 11, lineHeight: 14, fontFamily: type.label.fontFamily, paddingHorizontal: 7, paddingVertical: 2,
-          borderRadius: radius.radiusPill, overflow: 'hidden',
-          ...(gold ? { color: c.onAccent, backgroundColor: c.accent }
-            : { color: c.tableInk, borderWidth: 1, borderColor: c.tableInkSoft }),
-        }]}>{t(`table.canastra_${kind}`)}</Text>
+        <View key={kind} style={{ flexShrink: 0, paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.radiusPill,
+                                  ...(gold ? { backgroundColor: c.accent } : { borderWidth: 1, borderColor: c.tableInkSoft }) }}>
+          <Text numberOfLines={1} style={[type.caption, { fontSize: 11, lineHeight: 14, fontFamily: type.label.fontFamily,
+                                                          color: gold ? c.onAccent : c.tableInk }]}>
+            {t(`table.canastra_${kind}`)}
+          </Text>
+        </View>
       ) : null}
     </Pressable>
   );

@@ -16,6 +16,8 @@ export interface ChatMessage {
   name: string | null;
   text: string;
   at: string | null;
+  /** One emoji per player (server: chat.REACTIONS). An update arrives as the same message again. */
+  reactions?: { user_id: string; emoji: string }[];
 }
 
 export type ServerMessage =
@@ -125,7 +127,7 @@ export function openTableSocket(deps: SocketDeps, handlers: SocketHandlers) {
   connect();
 
   return {
-    send(message: { type: 'action'; action: Action } | { type: 'next_round' } | { type: 'chat'; text: string }) {
+    send(message: { type: 'action'; action: Action } | { type: 'next_round'; preset?: string } | { type: 'chat'; text: string }) {
       socket?.send(JSON.stringify(message));
     },
     close() {

@@ -15,6 +15,7 @@ class TableCreate(BaseModel):
     bot_level: Literal["relaxed", "standard", "sharp"] = "standard"
     target_score: int | None = Field(default=None, ge=500, le=10000)
     trincas_allowed: bool = True  # ignored for STBL, which never has them
+    clean_to_go_out: bool = False  # Aberto / Fechado: going out needs a clean canastra (STBL always does)
 
 
 class JoinIn(BaseModel):
@@ -27,6 +28,14 @@ class ActionIn(BaseModel):
 
 class ChatIn(BaseModel):
     text: str = Field(min_length=1, max_length=1000)  # trimmed and capped at 300 by the service
+
+
+class NextRoundIn(BaseModel):
+    preset: str | None = None  # the next round's mode; None keeps the last round's
+
+
+class ReactIn(BaseModel):
+    emoji: str | None = Field(default=None, max_length=16)  # None takes the reaction back
 
 
 class ReportIn(BaseModel):

@@ -12,7 +12,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ChatMessage, ChatReport, GameTable, User, UserBlock
+from app.models import ChatMessage, ChatReaction, ChatReport, GameTable, User, UserBlock
 from app.services.profanity import clean
 from app.services.tables import TableError
 
@@ -20,11 +20,14 @@ MAX_LENGTH = 300
 RATE_LIMIT = 5  # messages
 RATE_WINDOW = timedelta(seconds=10)
 HIDE_AFTER_REPORTS = 2  # distinct reporters before a message is hidden from everyone
+# Reactions come from this set only (the app shows the same row), so there is nothing to filter.
+REACTIONS = ("👍", "❤️", "😂", "😮", "😢", "👏")
 
 
 def message_out(m: ChatMessage) -> dict:
     return {"id": m.id, "seat": m.seat, "user_id": str(m.user_id), "name": m.user.display_name if m.user else None,
-            "text": m.text, "at": m.created_at.isoformat() if m.created_at else None}
+            "text": m.text, "at": m.created_at.isoformat() if m.created_at else None,
+            "reactions": [{"user_id": str(r.user_id), "emoji": r.emoji} for r in m.reactions]}
 
 
 async def post(db: AsyncSession, user: User, table_id: uuid.UUID, text: str) -> ChatMessage:
@@ -50,6 +53,29 @@ async def post(db: AsyncSession, user: User, table_id: uuid.UUID, text: str) -> 
     db.add(message)
     await db.flush()
     await db.refresh(message)
+    return message
+
+
+async def react(db: AsyncSession, user: User, table_id: uuid.UUID, message_id: int, emoji: str | None) -> ChatMessage:
+    """Set `user`'s reaction to a message, replacing any earlier one; the same emoji again,
+    or None, takes it back. Anyone seated may react, to their own messages too."""
+    message = await db.get(ChatMessage, message_id)
+    table = await db.get(GameTable, table_id)
+    if (message is None or message.hidden or message.table_id != table_id or table is None
+            or all(s.user_id != user.id for s in table.seats)):
+        raise TableError(status.HTTP_404_NOT_FOUND, "no_such_message", "No such message.")
+    if not table.chat_enabled:
+        raise TableError(status.HTTP_403_FORBIDDEN, "chat_off", "Chat is turned off at this table.")
+    if emoji is not None and emoji not in REACTIONS:
+        raise TableError(status.HTTP_422_UNPROCESSABLE_CONTENT, "bad_reaction", "Pick one of the reactions.")
+    current = await db.get(ChatReaction, (message_id, user.id))
+    if current is not None:
+        await db.delete(current)
+        await db.flush()
+    if emoji is not None and (current is None or current.emoji != emoji):
+        db.add(ChatReaction(message_id=message_id, user_id=user.id, emoji=emoji))
+        await db.flush()
+    await db.refresh(message, ["reactions"])
     return message
 
 

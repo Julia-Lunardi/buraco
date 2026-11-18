@@ -1,5 +1,43 @@
 # Mobile Changelog
 
+## 18.11.2026
+
+- **The round's mode on the table.** A small outlined pill in the line under the piles says which buraco this round is: **Aberto**, **Fechado** or **STBL**, plus "Bate com limpa" on a clean-canastra table. It follows the mode picked between rounds.
+- **"Bater só com canastra limpa".** Creating an Aberto or Fechado table has a new switch under the trincas one. With it on, your team needs a clean (or royal) canastra to go out, as in STBL. The lobby shows "Bate com limpa" among the table's rules. The "keep a card" errors say "canastra limpa" when that is what's missing, in STBL too.
+
+## 17.11.2026
+
+- **Fechado works like at a real table.** The mesa is squared up: only its top card shows, with a cream edge beneath and the count. On your turn, select the cards that make a meld with the top card, for example the 7 and 8 of hearts for a 9 of hearts, and tap the top card. It glows while it can be picked and lifts once it is. When the meld is valid, a gold **Baixar jogo e pegar a mesa (+N)** button appears. It lays the meld down, and the rest of the pile comes into your hand. The line under the piles walks you through it ("Agora selecione as cartas…", "Essas cartas não fazem jogo com o 9 de copas."). Tapping one of your melds still adds the top card to it. Before, the whole pile showed spread out, and you had to tap the pile itself, which did nothing until your selection fit.
+- **Your card count on your avatar.** The little count badge now sits on your own avatar too, not only on the other players'. Screen readers say it for you as well.
+- **The hand is always sorted again.** Drawn cards (from the stock, the mesa or the morto) go straight into their sorted place instead of a random one, and Naipe / Valor always shows which sort is on. Tapping it switches the sort with a light tap, as before. `game/handOrder.ts` is gone.
+
+## 16.11.2026
+
+- **New app icon.** Two cards, a heart and a club, fanned behind a cafezinho on the felt green. It replaces the cards-and-leaves icon everywhere: the home screen icon, the Android adaptive and themed icons, the splash logo, the notification icon, the favicon and the Play Store listing. The master artwork is `docs/store/icon-master.svg`.
+- **"Baixar jogo" button.** When the cards you selected make a valid new meld on your turn, a gold **Baixar jogo** button appears under the piles, next to the notice line. A full meld area no longer leaves you hunting for an empty spot to tap. It replaces the old "Pode baixar: toque na sua área" hint. Tapping your area still works, and tapping one of your melds still adds the selection to it.
+- **Support nudge.** Every 10 finished games, the game-over screen gets a calm sheet: "Você já jogou 10 partidas!", the servers line, **Apoiar o app** (opens the Support screen) and **Agora não**. Never within 3 days of the last one, and not for 180 days after a contribution. The count lives on the device; a finished table opened again doesn't count twice. Nothing is shown when the store has no products. `EXPO_PUBLIC_SUPPORT_NUDGE_EVERY=1` makes it come up after every game for testing (`features/support/nudge.ts`).
+- **"Acabou o monte!" only when it did.** After every round the stamp said the stock had run out, and the points screen said so too. The app read who went out from a round the server had already put away. It now reads `round_endings`. The stock running out still swaps in a morto when one is left. Only when none is left does the round end with "Acabou o monte!".
+- **Winning and losing a round feel different** (`features/table/RoundEnd.tsx`, `roundOutcome.ts`):
+  - **You won the round** (your team scored more): confetti falls over the screen for about 2.5 s and the phone buzzes success. If your side also went out, the stamp says "Você venceu a rodada!" (2 players) or "Nós vencemos a rodada!" (4 players) instead of "Você bateu!".
+  - **You lost it:** a grey drizzle slants down the screen, the table darkens a little, and the stamp wilts. The phone buzzes a warning. If they also went out, the stamp says "Ana venceu a rodada!" or "Eles venceram a rodada!".
+  - **A tied round** keeps the burst of suits, with a medium tap and a line of its own.
+  - In every other case, for example you went out but still lost the round, the stamp says who went out, as before.
+- **Pick the next round's mode.** The points screen after a round has an Aberto / Fechado / STBL picker, set to the mode just played, with that mode's one-line rule under it. The round is dealt only when someone taps **Próxima rodada**, and everyone else follows. The table's meld checks follow the current round's mode and trincas setting.
+- **"Mesa", not "lixo".** In Portuguese the discard pile is now called **a mesa** everywhere in the app: "Ana pegou a mesa (+7)", "Pegar a mesa · 7", "Mesa vazia", the hints, the errors and the modes' descriptions. English and Danish are unchanged.
+
+## 14.11.2026
+
+Second round of tester fixes.
+
+- **Canastra tag.** When a meld became a canastra, its tag could show on iOS as an empty pill with no text. The tag is now a pill holding its text, rebuilt whenever the canastra's kind changes (`features/table/MeldRow.tsx`).
+- **Chat vibration.** A message from someone else gives one medium tap when it arrives. Your own messages don't, and neither do messages from muted or blocked players or older messages loaded from history.
+- **Cards you just drew glow.** When the table is taller than the screen and has to scroll, the cards that just came into your hand (from the stock, the lixo or the morto) get a soft gold ring and glow for about 2 s after they land. A new deal doesn't glow (`Hand` `fresh`).
+- **Chat input wraps.** A long message breaks onto new lines as you type, growing up to 4 lines and then scrolling, instead of running off to the right. The return key still sends.
+- **Chat reactions.** Touch and hold any message, yours included, to get a light tap and a row of six reactions (👍 ❤️ 😂 😮 😢 👏). On someone else's message, mute, report and block show below the row. Reactions sit under the bubble as chips with a count, and yours has a gold edge. Tapping a chip adds that reaction or takes yours back. Reactions from muted or blocked players aren't shown. This needs the backend from the same day.
+- **The morto's "pegou" mark** stays on one line, shrinking a little if the outline is too narrow. It used to break into "pego" and "u". The dashed outline is thinner, 1 pt instead of 1.5 pt.
+- **Drawn cards go in at random places.** Cards that come into your hand (from the stock, the lixo or the morto) go into random places, as in a real hand, and the Naipe / Valor toggle then shows neither as chosen. Tapping Naipe or Valor sorts the hand, with a light tap. Tapping the one already chosen sorts again. A new deal still comes sorted the way you last chose (`game/handOrder.ts`).
+- **Home screen name.** iOS shows **Buraco** under the icon, because "Buraco Lounge" was cut off. The store listing keeps the full name. This needs a new build, since an OTA update can't change it.
+
 ## 13.11.2026
 
 First round of tester fixes.
@@ -12,6 +50,10 @@ First round of tester fixes.
 - **"Ana pegou o morto!"**: a banner drops from the top for 3 s when anyone takes a morto, gold for your team and green with a red edge for theirs, with a success or warning vibration.
 - **Your turn**: the phone taps twice (two medium taps) when the turn comes to you. It doesn't tap when you open a table on your turn.
 - **Canastras** no longer lay a card crosswise, which hid the cards under it. Every card lies in order and stays readable, and a frame marks the canastra: gold with a glow for limpa, gold with a second ring for real, and a plain light frame for suja. The tag beside it remains, gold for limpa and real.
+- **The mortos stand at the table's left edge** in portrait, one above the other, theirs on top and ours below, nearer our cards, with the stock and lixo centred in the room left. Landscape keeps them side by side before the stock, where height is scarce.
+- **Their cards, face down.** Each opponent's hand shows beside their avatar as a row of card backs at the table's card size, one per card, overlapped tight like a closed hand, with only the top of each showing, fading into their panel instead of ending in a cut. Their cards now fly to and from the end of that row (draws, the lixo, the morto, discards and melds), not their avatar; a partner's still fly to the avatar. The count stays on the avatar. Your partner keeps just the count. The code is in `features/table/BacksFan.tsx`.
+- **Felt.** The table has a touch of texture: a seamless 64 pt tile of soft grain and a few fibres (`assets/felt@3x.png`), in white and black at low alpha, so it suits the green and the blue table alike.
+- **The stock and mortos are flat:** one face-down card each, with a single soft shadow and no edges of the cards below. Before, a second card offset by 3 pt left a smudge of frame lines and shadows. The gold "draw now" ring hugs the card with its corners, and the stock's count badge is no longer covered by the lixo (`DeckStack` in `features/table/Piles.tsx`).
 - **End of a round.** When a round ends in front of you, a stamp slams onto the felt ("Ana bateu!", "Você bateu!", "Acabou o monte!") with a burst of suits and a one-liner, and the phone thumps: a heavy tap, then success or warning. It holds 3.2 s before the points, or a tap skips it after 0.7 s. Opening a table that is already between rounds goes straight to the points. After a bot's last move the table now waits 1 s before this, down from 2 s. The code is in `features/table/RoundEnd.tsx`.
 
 ## 02.11.2026

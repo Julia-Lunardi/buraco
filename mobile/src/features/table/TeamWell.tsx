@@ -5,6 +5,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withDelay, withSequ
 import type { SeatView } from '../../api/tables';
 import { t } from '../../i18n';
 import { useTheme } from '../../theme';
+import BacksFan from './BacksFan';
 import { useFlights } from './flights';
 import { useCardSizes } from './sizes';
 import { FLIGHT_MS } from './timing';
@@ -29,6 +30,8 @@ interface Props {
   gained?: { seat: number; n: number; key: number } | null;
   /** Landscape: the strip stands beside the melds instead of above or below them. */
   side?: boolean;
+  /** Opponents: show each one's hand as a fan of card backs beside the avatars. */
+  backs?: boolean;
 }
 
 const initials = (name: string | null) =>
@@ -39,7 +42,7 @@ const initials = (name: string | null) =>
 export default function TeamWell(props: Props) {
   const { c, space, radius, type } = useTheme();
   const { seats, handSizes, currentSeat, score, roundPoints, active, meldsFirst, melds, trailing, onPressArea,
-          gained, side } = props;
+          gained, side, backs } = props;
   const flights = useFlights();
   const { table: card } = useCardSizes();
 
@@ -49,25 +52,25 @@ export default function TeamWell(props: Props) {
         const on = seat.seat === currentSeat;
         const bot = seat.bot || seat.covered_by_bot;
         const name = seat.is_you ? t('newTable.you') : bot && !seat.name ? t('newTable.bot') : seat.name ?? '—';
-        const a11y = [name, seat.is_you ? null : t('table.cards', { n: handSizes[seat.seat] ?? 0 }),
+        const a11y = [name, t('table.cards', { n: handSizes[seat.seat] ?? 0 }),
                       on ? t('table.yourTurnA11y') : null, seat.covered_by_bot ? t('table.botA11y') : null]
           .filter(Boolean).join(', ');
         return (
           <View key={seat.seat} accessible accessibilityLabel={a11y} collapsable={false}
-                ref={(view) => flights?.register(`seat:${seat.seat}`, view)}
+                // With backs shown, an opponent's cards fly to and from the backs (BacksFan), not here.
+                ref={backs && !seat.is_you ? undefined : (view) => flights?.register(`seat:${seat.seat}`, view)}
                 style={{ width: 38, height: 38, borderRadius: 19, marginLeft: i ? -6 : 0, backgroundColor: c.table,
                          alignItems: 'center', justifyContent: 'center', opacity: seat.connected === false ? 0.55 : 1,
                          borderWidth: bot ? 1.5 : 0, borderStyle: 'dashed', borderColor: c.tableInkSoft,
                          boxShadow: on ? `0 0 0 2px ${c.accent}, 0 0 14px rgba(232, 178, 74, 0.55)`
                            : i ? `0 0 0 2px ${c.tableRaised}` : undefined }}>
             <Text style={[type.label, { fontSize: 13, color: c.tableInk }]}>{seat.is_you ? initials(seat.name ?? t('newTable.you')) : initials(name)}</Text>
-            {!seat.is_you ? (
-              <Text style={{ position: 'absolute', right: -7, bottom: -5, minWidth: 19, height: 19, paddingHorizontal: 5,
-                             borderRadius: 10, overflow: 'hidden', backgroundColor: c.tableRaised, color: c.tableInk,
-                             fontFamily: type.label.fontFamily, fontSize: 11, lineHeight: 19, textAlign: 'center' }}>
-                {handSizes[seat.seat] ?? 0}
-              </Text>
-            ) : null}
+            {/* Everyone's card count, yours too. */}
+            <Text style={{ position: 'absolute', right: -7, bottom: -5, minWidth: 19, height: 19, paddingHorizontal: 5,
+                           borderRadius: 10, overflow: 'hidden', backgroundColor: c.tableRaised, color: c.tableInk,
+                           fontFamily: type.label.fontFamily, fontSize: 11, lineHeight: 19, textAlign: 'center' }}>
+              {handSizes[seat.seat] ?? 0}
+            </Text>
             {gained?.seat === seat.seat ? <GainChip key={gained.key} n={gained.n} /> : null}
           </View>
         );
@@ -89,6 +92,13 @@ export default function TeamWell(props: Props) {
       </>
   );
 
+  const others = backs ? seats.filter((s) => !s.is_you) : [];
+  const fans = others.length ? (
+    <View style={{ flex: side ? undefined : 1, minWidth: 0, flexDirection: 'row', gap: 10 }}>
+      {others.map((s) => <BacksFan key={s.seat} seat={s.seat} n={handSizes[s.seat] ?? 0} maxWidth={side ? 130 : undefined} />)}
+    </View>
+  ) : null;
+
   // Landscape: players and score in a column at the left, the melds beside them.
   const strip = side ? (
     <View style={{ gap: 6, justifyContent: 'center' }}>
@@ -99,6 +109,7 @@ export default function TeamWell(props: Props) {
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         {tally}
       </View>
+      {fans}
     </View>
   ) : (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 44 }}>
@@ -106,6 +117,7 @@ export default function TeamWell(props: Props) {
         {avatars}
         {tally}
       </View>
+      {fans}
       {trailing}
     </View>
   );

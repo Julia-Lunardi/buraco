@@ -390,3 +390,39 @@ async def test_rematch_endpoint_points_the_old_table_to_the_new_one(client, sess
     assert new["id"] != table["id"] and new["status"] == "playing" and new["rematch_id"] is None
     old_view = (await client.get(f"/tables/{table['id']}", headers=bearer(ana))).json()
     assert old_view["rematch_id"] == new["id"]
+
+
+async def test_next_round_takes_an_optional_mode(client, sessions, monkeypatch):
+    ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
+    table = (await client.post("/tables", json={"num_players": 2, "seats": ["bot"]}, headers=bearer(ana))).json()
+    url = f"/tables/{table['id']}/next-round"
+    # Mid-round there is nothing to start: both forms are accepted and change nothing.
+    assert (await client.post(url, headers=bearer(ana))).json()["status"] == "playing"
+    assert (await client.post(url, json={"preset": "fechado"}, headers=bearer(ana))).json()["preset"] == "aberto"
+    bad = await client.post(url, json={"preset": "canasta"}, headers=bearer(ana))
+    assert bad.status_code == 422 and bad.json()["code"] == "unknown_preset"
+
+
+def test_ws_next_round_in_the_mode_picked(live, monkeypatch):
+    """What the app does on the points screen: pick Fechado, tap, and the round is Fechado."""
+    ana = sync_sign_in(live, monkeypatch, "g-ana", "Ana")
+    table = live.post("/tables", json={"num_players": 2, "seats": ["bot"], "target_score": 10000},
+                      headers=bearer(ana)).json()
+    for _ in range(3000):  # play Ana's turns with the hint until the round ends
+        view = live.get(f"/tables/{table['id']}", headers=bearer(ana)).json()
+        if view["status"] != "playing":
+            break
+        hint = live.get(f"/tables/{table['id']}/hint", headers=bearer(ana)).json()
+        live.post(f"/tables/{table['id']}/actions", json={"action": hint["action"]}, headers=bearer(ana))
+    assert view["status"] == "round_over" and view["preset"] == "aberto"
+
+    with live.websocket_connect(f"/tables/{table['id']}/ws") as ws:
+        ws.send_json({"type": "auth", "token": ana})
+        next_state(ws)
+        ws.send_json({"type": "next_round", "preset": "fechado"})
+        state = next_state(ws)
+        while state["status"] != "playing":
+            state = next_state(ws)
+    assert state["preset"] == "fechado" and state["table_preset"] == "aberto"
+    again = live.get(f"/tables/{table['id']}", headers=bearer(ana)).json()  # a fresh load replays it the same
+    assert again["preset"] == "fechado"

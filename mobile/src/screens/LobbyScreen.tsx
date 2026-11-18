@@ -61,6 +61,7 @@ export default function LobbyScreen({ navigation, route }: Props) {
   const meta = [t(`newTable.${table.preset}`),
                 // Only worth saying when the host turned them off; STBL's rules already say so.
                 ...(table.trincas_allowed || table.preset === 'stbl' ? [] : [t('newTable.noTrincas')]),
+                ...(table.clean_to_go_out && table.preset !== 'stbl' ? [t('newTable.cleanTag')] : []),
                 table.mode === 'live' ? t('newTable.live') : t('newTable.async'),
                 t('home.upTo', { n: table.target_score.toLocaleString('pt-BR') })].join(' · ');
   const partner = n === 4 ? at(2) : null;

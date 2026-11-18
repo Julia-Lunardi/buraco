@@ -16,7 +16,7 @@ from app.db import session as db_session
 from app.db.session import get_db
 from app.models import GameTable, PlayMode, User
 from app.realtime import hub, viewer
-from app.schemas.tables import ActionIn, ChatIn, JoinIn, ReportIn, TableCreate, TableSettingsIn
+from app.schemas.tables import ActionIn, ChatIn, JoinIn, NextRoundIn, ReactIn, ReportIn, TableCreate, TableSettingsIn
 from app.models import TableStatus
 from app.services import chat, push, tables
 from app.services.tables import TableError
@@ -66,7 +66,7 @@ async def create(body: TableCreate, user: User = Depends(get_current_user), db: 
     table = await tables.create_table(db, user, num_players=body.num_players, seats=body.seats, mode=body.mode,
                                       preset=body.preset, chat_enabled=body.chat_enabled,
                                       target_score=body.target_score, bot_level=body.bot_level,
-                                      trincas_allowed=body.trincas_allowed)
+                                      trincas_allowed=body.trincas_allowed, clean_to_go_out=body.clean_to_go_out)
     return await _publish(db, table, await tables.load_match(db, table), user)
 
 
@@ -147,10 +147,11 @@ async def hint(table_id: uuid.UUID, user: User = Depends(get_current_user), db: 
 
 
 @router.post("/{table_id}/next-round")
-async def next_round(table_id: uuid.UUID, user: User = Depends(get_current_user),
+async def next_round(table_id: uuid.UUID, body: NextRoundIn | None = None, user: User = Depends(get_current_user),
                      db: AsyncSession = Depends(get_db)):
     before = await _before(db, table_id)
-    table, match = await tables.next_round(db, user, table_id, hub.covered(table_id))
+    table, match = await tables.next_round(db, user, table_id, hub.covered(table_id),
+                                           preset=body.preset if body else None)
     return await _publish(db, table, match, user, before)
 
 
@@ -196,6 +197,19 @@ async def chat_post(table_id: uuid.UUID, body: ChatIn, user: User = Depends(requ
     return await _deliver_chat(db, await chat.post(db, user, table_id, body.text))
 
 
+@router.post("/{table_id}/chat/{message_id}/react")
+async def chat_react(table_id: uuid.UUID, message_id: int, body: ReactIn, user: User = Depends(require_account),
+                     db: AsyncSession = Depends(get_db)) -> dict:
+    """React with one emoji (the same one again takes it back). The updated message goes out
+    on the socket like a new one; the app merges it by id. No push for a reaction."""
+    message = await chat.react(db, user, table_id, message_id, body.emoji)
+    out = chat.message_out(message)
+    skip = await chat.blocked_by(db, message.user_id)
+    await db.commit()
+    await hub.send_chat(table_id, out, skip)
+    return out
+
+
 @router.post("/{table_id}/chat/{message_id}/report")
 async def chat_report(table_id: uuid.UUID, message_id: int, body: ReportIn, user: User = Depends(require_account),
                       db: AsyncSession = Depends(get_db)) -> dict:
@@ -216,7 +230,7 @@ async def update_settings(table_id: uuid.UUID, body: TableSettingsIn, user: User
 # --- WebSocket ------------------------------------------------------------------------
 #
 # Client → server: {"type": "auth", "token": "<access token>"} first (tokens stay out of
-#   URLs and access logs), then {"type": "action", "action": {...}}, {"type": "next_round"},
+#   URLs and access logs), then {"type": "action", "action": {...}}, {"type": "next_round", "preset"?: ...},
 #   {"type": "chat", "text": "..."} or {"type": "ping"}.
 # Server → client: {"type": "state", "table": {...}} after every change,
 #   {"type": "chat", "message": {...}} (never from someone you blocked),
@@ -264,7 +278,9 @@ async def live(ws: WebSocket, table_id: uuid.UUID):
                         await _deliver_chat(db, await chat.post(db, user, table_id, str(message.get("text", ""))))
                         continue
                     elif message.get("type") == "next_round":
-                        table, match = await tables.next_round(db, user, table_id, hub.covered(table_id))
+                        preset = message.get("preset")
+                        table, match = await tables.next_round(db, user, table_id, hub.covered(table_id),
+                                                               preset=preset if isinstance(preset, str) else None)
                     else:
                         await ws.send_json({"type": "error", "code": "unknown_message", "detail": "Unknown message."})
                         continue

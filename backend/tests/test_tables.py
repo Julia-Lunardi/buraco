@@ -316,3 +316,75 @@ async def test_rematch_seats_a_bot_where_a_player_left(sessions):
         await db.flush()
         new = await tables.rematch(db, ana, old.id)
         assert new.status is TableStatus.PLAYING and new.seats[1].bot_level == "sharp"
+
+
+async def play_to_round_end(db, table, user):
+    for _ in range(3000):
+        if table.status is not TableStatus.PLAYING:
+            return table
+        table, _ = await human_turn(db, table, user)
+    raise AssertionError("the round never ended")
+
+
+async def test_each_round_can_have_its_own_mode_and_replays_with_it(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], target_score=10000)
+        table = await play_to_round_end(db, table, ana)
+        with pytest.raises(TableError) as exc:
+            await tables.next_round(db, ana, table.id, preset="canasta")
+        assert exc.value.code == "unknown_preset"
+        table, match = await tables.next_round(db, ana, table.id, preset="stbl")
+        assert match.round.preset.name == "stbl" and not match.round.preset.trincas_allowed
+        assert table.round_presets == ["aberto", "stbl"]
+        view = tables.table_view(table, match, ana)
+        assert view["preset"] == "stbl" and view["table_preset"] == "aberto" and view["trincas_allowed"] is False
+        table = await play_to_round_end(db, table, ana)
+        table, match = await tables.next_round(db, ana, table.id)  # no pick: keeps the last mode
+        assert table.round_presets == ["aberto", "stbl", "stbl"]
+        await db.commit()
+        replayed = await tables.load_match(db, table)
+        assert replayed.round.preset.name == "stbl" and len(replayed.history) == 2
+
+
+async def test_the_view_says_how_each_round_ended(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], target_score=10000)
+        table = await play_to_round_end(db, table, ana)
+        match = await tables.load_match(db, table)
+        view = tables.table_view(table, match, ana)
+        assert view["game"] is None  # the finished round is gone from the view...
+        assert len(view["round_endings"]) == 1  # ...but how it ended is kept
+        ending = view["round_endings"][0]
+        bater = [s.bater for s in match.history[0]]
+        if ending is None:
+            assert bater == [0, 0]  # the stock ran out with no morto left
+        else:
+            assert bater[ending % 2] > 0
+
+
+async def test_a_stbl_table_allows_trincas_in_its_aberto_rounds(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], preset="stbl", target_score=10000)
+        assert table.trincas_allowed is False
+        table = await play_to_round_end(db, table, ana)
+        _, match = await tables.next_round(db, ana, table.id, preset="aberto")
+        assert match.round.preset.trincas_allowed is True
+
+
+async def test_aberto_table_can_require_a_clean_canastra_to_go_out(sessions):
+    async with sessions() as db:
+        ana = await make_user(db)
+        table = await tables.create_table(db, ana, num_players=2, seats=["bot"], clean_to_go_out=True)
+        match = await tables.load_match(db, table)
+        assert match.round.preset.go_out_requires.value == "clean_canastra"
+        assert match.round.preset.trincas_allowed  # nothing else changes: still Aberto
+        view = tables.table_view(table, match, ana)
+        assert view["clean_to_go_out"] is True and view["preset"] == "aberto"
+        plain = await tables.create_table(db, ana, num_players=2, seats=["bot"])
+        assert tables.table_view(plain, await tables.load_match(db, plain), ana)["clean_to_go_out"] is False
+        stbl = await tables.create_table(db, ana, num_players=2, seats=["bot"], preset="stbl", clean_to_go_out=True)
+        assert stbl.clean_to_go_out is False  # STBL always needs one: the option is not stored
+        assert tables.table_view(stbl, await tables.load_match(db, stbl), ana)["clean_to_go_out"] is True
