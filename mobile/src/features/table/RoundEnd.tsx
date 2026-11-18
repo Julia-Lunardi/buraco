@@ -1,8 +1,8 @@
 import * as Haptics from 'expo-haptics';
-import { useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { type LayoutChangeEvent, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
-  Easing, FadeIn, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming,
+  Easing, FadeIn, type SharedValue, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming,
 } from 'react-native-reanimated';
 
 import type { TableView } from '../../api/tables';
@@ -11,8 +11,16 @@ import { useTheme } from '../../theme';
 import { roundOutcome } from './roundOutcome';
 import SuitIcon from './SuitIcon';
 
-/** How long the moment holds before the points replace it (a tap skips ahead). */
+/** How long the moment holds before the points replace it (a tap skips ahead). A lost round
+ * holds longer: its sad face takes its time to fall. */
 export const ROUND_END_MS = 3200;
+const LOST_END_MS = 4800;
+// A lost round: the stamp's letters gather into a ":(" that falls, zigzagging, to the bottom.
+const GATHER_AT = 950;
+const GATHER_MS = 650;
+const FACE_AT = GATHER_AT + 420;
+const FALL_AT = FACE_AT + 380;
+const FALL_MS = 2800;
 const STAMP_LANDS_MS = 260;
 const SKIP_AFTER_MS = 700; // a tap meant for the last card mustn't skip it unseen
 
@@ -33,8 +41,9 @@ const pick = (lines: string, seed: number) => {
  * card went down still sees what happened.
  * - Won the round (your team scored more): confetti falls and the phone buzzes success. If your
  *   side also went out, the stamp says so: "Você venceu a rodada!".
- * - Lost it: a grey drizzle falls and the stamp sags; the phone buzzes a warning. If they also
- *   went out: "Ana venceu a rodada!".
+ * - Lost it: the phone buzzes a warning, then the stamp's letters slide together into a sad
+ *   face, ":(", that drifts down to the bottom of the screen like a falling leaf. If they also
+ *   went out, the stamp first says "Ana venceu a rodada!".
  * - A tie: the old burst of suits. "Acabou o monte!" only when the stock ran out with no morto
  *   left (a morto that becomes the stock keeps the round going).
  */
@@ -64,7 +73,9 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
   const stamp = useSharedValue(0);
   const shake = useSharedValue(0);
   const ring = useSharedValue(0);
-  const sag = useSharedValue(0);
+  const gather = useSharedValue(0); // lost: the letters come together (0 → 1)
+  const face = useSharedValue(0); // lost: the ":(" appears
+  const fall = useSharedValue(0); // lost: and falls
   const skippable = useRef(false);
 
   useEffect(() => {
@@ -73,8 +84,13 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
       withTiming(1, { duration: 45 }), withTiming(-1, { duration: 70 }), withTiming(0.6, { duration: 60 }),
       withTiming(-0.3, { duration: 55 }), withTiming(0, { duration: 50 })));
     ring.value = withDelay(STAMP_LANDS_MS, withTiming(1, { duration: 650, easing: Easing.out(Easing.cubic) }));
-    // A lost round: the stamp wilts a moment after it lands.
-    if (mood === 'lost') sag.value = withDelay(STAMP_LANDS_MS + 450, withTiming(1, { duration: 900, easing: Easing.inOut(Easing.cubic) }));
+    let pop: ReturnType<typeof setTimeout> | undefined;
+    if (mood === 'lost') {
+      gather.value = withDelay(GATHER_AT, withTiming(1, { duration: GATHER_MS, easing: Easing.inOut(Easing.cubic) }));
+      face.value = withDelay(FACE_AT, withSpring(1, { damping: 9, stiffness: 160 }));
+      fall.value = withDelay(FALL_AT, withTiming(1, { duration: FALL_MS, easing: Easing.inOut(Easing.sin) }));
+      pop = setTimeout(() => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); }, FACE_AT);
+    }
     const thump = setTimeout(() => {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
     }, STAMP_LANDS_MS);
@@ -84,18 +100,17 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
         : Haptics.NotificationFeedbackType.Warning).catch(() => {});
     }, STAMP_LANDS_MS + 260);
     const unlock = setTimeout(() => { skippable.current = true; }, SKIP_AFTER_MS);
-    const end = setTimeout(onDone, ROUND_END_MS);
-    return () => { clearTimeout(thump); clearTimeout(verdict); clearTimeout(unlock); clearTimeout(end); };
-  }, [good, mood, onDone, ring, sag, shake, stamp]);
+    const end = setTimeout(onDone, mood === 'lost' ? LOST_END_MS : ROUND_END_MS);
+    return () => { clearTimeout(thump); clearTimeout(verdict); clearTimeout(unlock); clearTimeout(end); clearTimeout(pop); };
+  }, [face, fall, gather, good, mood, onDone, ring, shake, stamp]);
 
   // Falls from above the table, big and tilted, and lands askew like a rubber stamp.
   const stampStyle = useAnimatedStyle(() => ({
     opacity: Math.min(1, stamp.value * 3),
     transform: [
       { translateX: shake.value * 9 },
-      { translateY: sag.value * 14 },
-      { scale: 2.3 - 1.3 * stamp.value - 0.06 * sag.value },
-      { rotate: `${-16 + 9 * stamp.value + 11 * sag.value}deg` },
+      { scale: 2.3 - 1.3 * stamp.value },
+      { rotate: `${-16 + 9 * stamp.value}deg` },
     ],
   }));
   const ringStyle = useAnimatedStyle(() => ({
@@ -103,7 +118,11 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
     transform: [{ scale: 0.6 + 1.6 * ring.value }],
   }));
 
+  // Lost: the banner's frame fades as its letters leave it.
+  const frameStyle = useAnimatedStyle(() => ({ opacity: 1 - gather.value }));
+
   const ink = mood === 'won' ? c.accent : mood === 'lost' ? c.cardRed : c.tableInk;
+  const titleStyle = { fontFamily: type.score.fontFamily, fontSize: 38, lineHeight: 44, color: ink, textAlign: 'center' as const };
 
   return (
     <Pressable onPress={() => { if (skippable.current) onDone(); }}
@@ -114,12 +133,13 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
         <Animated.View style={[{ position: 'absolute', width: 240, height: 240, borderRadius: 120, borderWidth: 3,
                                  borderColor: ink }, ringStyle]} />
         {mood === 'tie' ? <SuitBurst color={ink} good seed={seed} /> : null}
-        <Animated.View accessibilityLiveRegion="assertive"
-                       style={[{ paddingHorizontal: 26, paddingVertical: 14, borderRadius: 14, borderWidth: 4, borderColor: ink,
-                                 backgroundColor: c.tableRaised, boxShadow: '0 10px 30px rgba(0, 0, 0, 0.45)' }, stampStyle]}>
-          <Text style={{ fontFamily: type.score.fontFamily, fontSize: 38, lineHeight: 44, color: ink, textAlign: 'center' }}>
-            {title}
-          </Text>
+        <Animated.View accessibilityLiveRegion="assertive" style={[{ paddingHorizontal: 26, paddingVertical: 14 }, stampStyle]}>
+          <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: 14, borderWidth: 4, borderColor: ink,
+                                                            backgroundColor: c.tableRaised, boxShadow: '0 10px 30px rgba(0, 0, 0, 0.45)' },
+                                 frameStyle]} />
+          {mood === 'lost' ? <GatheringTitle text={title} style={titleStyle} gather={gather} />
+            : <Text style={titleStyle}>{title}</Text>}
+          {mood === 'lost' ? <SadFace color={ink} fontFamily={type.score.fontFamily} face={face} fall={fall} /> : null}
         </Animated.View>
         <Animated.Text entering={FadeIn.delay(STAMP_LANDS_MS + 300).duration(300)}
                        style={[type.bodyStrong, { color: c.tableInk, marginTop: 28, textAlign: 'center', paddingHorizontal: 32 }]}>
@@ -130,7 +150,6 @@ export default function RoundEnd({ table, onDone }: { table: TableView; onDone()
           {t('roundEnd.tapToSkip')}
         </Animated.Text>
         {mood === 'won' ? <Confetti seed={seed} colors={[c.accent, c.cardRed, c.teamA, c.teamB, '#f4ead5']} /> : null}
-        {mood === 'lost' ? <Drizzle seed={seed} /> : null}
       </Animated.View>
     </Pressable>
   );
@@ -213,35 +232,90 @@ function Falling({ x, delay, duration, sway, spin, color, w, round, fall }: {
                                   borderRadius: round ? w / 2 : 1.5, backgroundColor: color }, style]} />;
 }
 
-/** A lost round: a short grey drizzle slants down the screen, and the scrim darkens with it. */
-function Drizzle({ seed }: { seed: number }) {
-  const { width, height } = useWindowDimensions();
-  const drops = useMemo(() => Array.from({ length: 46 }, (_, i) => {
-    const r = (k: number) => jitter(seed + 211, i * 4 + k);
-    return { x: r(0) * (width + 80), delay: STAMP_LANDS_MS + 150 + r(1) * 1500, duration: 650 + r(2) * 350, len: 12 + r(3) * 14 };
-  }), [seed, width]);
-  const gloom = useSharedValue(0);
-  useEffect(() => {
-    gloom.value = withDelay(STAMP_LANDS_MS + 150, withTiming(1, { duration: 900 }));
-  }, [gloom]);
-  const gloomStyle = useAnimatedStyle(() => ({ opacity: 0.22 * gloom.value }));
+type Box = { x: number; y: number; w: number; h: number };
+
+/** The stamp's title, a letter at a time, so the letters can leave the banner: each slides to
+ * the middle, shrinking and tumbling, the outer ones first, where they become the sad face.
+ * Words still wrap whole. */
+function GatheringTitle({ text, style, gather }: { text: string; style: object; gather: SharedValue<number> }) {
+  const { width } = useWindowDimensions();
+  const words = text.split(' ');
+  const count = text.replace(/ /g, '').length;
+  // Where each letter sits, from layout: words in the title, letters in their word.
+  const [layout, setLayout] = useState<{ title?: Box; words: Record<number, Box>; letters: Record<string, Box> }>({ words: {}, letters: {} });
+  const box = (e: LayoutChangeEvent): Box => {
+    const { x, y, width: w, height: h } = e.nativeEvent.layout;
+    return { x, y, w, h };
+  };
+  let index = 0;
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#0b1016' }, gloomStyle]} />
-      {drops.map((d, i) => <Drop key={i} {...d} fall={height + 60} />)}
+    <View onLayout={(e) => { const b = box(e); setLayout((l) => ({ ...l, title: b })); }}
+          style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 10, maxWidth: width - 110 }}>
+      {words.map((word, wi) => (
+        <View key={wi} style={{ flexDirection: 'row' }}
+              onLayout={(e) => { const b = box(e); setLayout((l) => ({ ...l, words: { ...l.words, [wi]: b } })); }}>
+          {[...word].map((ch, li) => {
+            const i = index++;
+            const key = `${wi}:${li}`;
+            const at = layout.letters[key];
+            const w = layout.words[wi];
+            const title = layout.title;
+            // How far this letter is from the middle of the title: it travels there.
+            const dx = at && w && title ? title.w / 2 - (w.x + at.x + at.w / 2) : 0;
+            const dy = at && w && title ? title.h / 2 - (w.y + at.y + at.h / 2) : 0;
+            const fromEdge = count > 1 ? Math.abs(i - (count - 1) / 2) / ((count - 1) / 2) : 0; // 1 at the ends
+            return (
+              <Letter key={li} ch={ch} style={style} gather={gather} dx={dx} dy={dy} delay={(1 - fromEdge) * 0.3}
+                      spin={(i % 2 ? 1 : -1) * (120 + (i * 37) % 120)}
+                      onLayout={(e) => { const b = box(e); setLayout((l) => ({ ...l, letters: { ...l.letters, [key]: b } })); }} />
+            );
+          })}
+        </View>
+      ))}
     </View>
   );
 }
 
-function Drop({ x, delay, duration, len, fall }: { x: number; delay: number; duration: number; len: number; fall: number }) {
-  const k = useSharedValue(0);
-  useEffect(() => {
-    k.value = withDelay(delay, withTiming(1, { duration, easing: Easing.linear }));
-  }, [k, delay, duration]);
-  const style = useAnimatedStyle(() => ({
-    opacity: k.value === 0 || k.value === 1 ? 0 : 0.55,
-    transform: [{ translateX: x - 60 * k.value }, { translateY: -30 + fall * k.value }, { rotate: '14deg' }],
-  }));
-  return <Animated.View style={[{ position: 'absolute', top: 0, left: 0, width: 1.5, height: len, borderRadius: 1,
-                                  backgroundColor: 'rgba(200, 212, 224, 0.9)' }, style]} />;
+function Letter({ ch, style, gather, dx, dy, delay, spin, onLayout }: {
+  ch: string; style: object; gather: SharedValue<number>; dx: number; dy: number; delay: number; spin: number;
+  onLayout(e: LayoutChangeEvent): void;
+}) {
+  const anim = useAnimatedStyle(() => {
+    const p = Math.min(1, Math.max(0, (gather.value - delay) / (1 - delay)));
+    return {
+      opacity: 1 - p * p,
+      transform: [{ translateX: dx * p }, { translateY: dy * p }, { scale: 1 - 0.8 * p }, { rotate: `${spin * p}deg` }],
+    };
+  });
+  return <Animated.Text onLayout={onLayout} style={[style, anim]}>{ch}</Animated.Text>;
+}
+
+/** The ":(" the letters became, turned a quarter so it reads as a frowning face. It pops up in
+ * the middle of the banner, then drifts down to the bottom of the screen, swinging from side to
+ * side like a falling leaf, and fades as it gets there. */
+function SadFace({ color, fontFamily, face, fall }: {
+  color: string; fontFamily: string; face: SharedValue<number>; fall: SharedValue<number>;
+}) {
+  const { height } = useWindowDimensions();
+  const drop = height * 0.62;
+  const style = useAnimatedStyle(() => {
+    const f = fall.value;
+    const swing = Math.sin(f * Math.PI * 4); // four swings on the way down
+    return {
+      opacity: Math.min(1, face.value * 2) * (f > 0.85 ? (1 - f) / 0.15 : 1),
+      transform: [
+        { translateX: swing * 70 * Math.min(1, f * 4) },
+        { translateY: drop * f },
+        { scale: 0.3 + 0.7 * face.value },
+        // Tilts into each swing, as a leaf does; 90° turns ":(" into a frown.
+        { rotate: `${90 + Math.cos(f * Math.PI * 4) * 28 * Math.min(1, f * 4)}deg` },
+      ],
+    };
+  });
+  return (
+    // Upright on the screen, though the stamp lands tilted (-7°).
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '7deg' }] }]}>
+      <Animated.Text style={[{ fontFamily, fontSize: 64, lineHeight: 72, color }, style]}>:(</Animated.Text>
+    </View>
+  );
 }

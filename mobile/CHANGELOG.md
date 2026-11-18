@@ -2,6 +2,7 @@
 
 ## 18.11.2026
 
+- **Losing a round: the stamp turns into a sad face.** The grey drizzle and the sagging stamp are gone. About a second after the stamp lands, its letters leave the banner one by one. The outer letters go first, sliding to the middle, shrinking and tumbling, while the banner's frame fades. There they become a big **:(** turned on its side, a frowning face in the stamp's red, with a light tap. It drifts down to the bottom of the screen in about 2.8 s, swinging side to side four times like a falling leaf, and fades as it arrives. A lost round's moment now holds 4.8 s instead of 3.2 s, and a tap still skips it after 0.7 s.
 - **The round's mode on the table.** A small outlined pill in the line under the piles says which buraco this round is: **Aberto**, **Fechado** or **STBL**, plus "Bate com limpa" on a clean-canastra table. It follows the mode picked between rounds.
 - **"Bater só com canastra limpa".** Creating an Aberto or Fechado table has a new switch under the trincas one. With it on, your team needs a clean (or royal) canastra to go out, as in STBL. The lobby shows "Bate com limpa" among the table's rules. The "keep a card" errors say "canastra limpa" when that is what's missing, in STBL too.
 
