@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getHint, getTable, rematch, type TableView } from '../api/tables';
 import { describeError } from '../api/errors';
 import { useAuth } from '../auth/AuthContext';
+import { spokenCard } from '../components/PlayingCard';
 import SegmentedControl from '../components/SegmentedControl';
 import ChatButton from '../features/chat/ChatButton';
 import ChatPanel from '../features/chat/ChatPanel';
@@ -58,6 +59,8 @@ export default function TableScreen({ navigation, route }: Props) {
   const nudge = useSupportNudge();
   const prefs = usePreferences();
   const [picked, setPicked] = useState<number[]>([]);
+  // Fechado: the pile's top card, picked for the meld that takes the pile (by id, so a new top card is never picked).
+  const [pickedTop, setPickedTop] = useState<number | null>(null);
 
   const game = table?.game ?? null;
   // The hand is always sorted, by suit or rank (your preference); drawn cards go straight into place.
@@ -193,11 +196,13 @@ export default function TableScreen({ navigation, route }: Props) {
   const selectedLabels = selected.map(labelOf);
   const newMeldValid = selected.length >= 3 && analyse(selectedLabels, rules) !== null;
   const top = game?.discard[game.discard.length - 1];
-  // Fechado pickup into a new meld: the top card plus the selection must make one.
+  // Fechado pickup into a new meld: the top card plus the selection must make one. You pick
+  // the cards in your hand and the top card (in any order), then lay the meld down.
   const pickupValid = fechado && !!top && selected.length >= 2 && analyse([top.label, ...selectedLabels], rules) !== null;
+  const topPicked = drawing && fechado && !!top && pickedTop === top.id;
 
   const toggle = (id: number) => setPicked(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id]);
-  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setHintText(''); };
+  const run = (action: Parameters<typeof act>[0]) => { act(action); setPicked([]); setPickedTop(null); setHintText(''); };
 
   async function showHint() {
     try {
@@ -205,7 +210,10 @@ export default function TableScreen({ navigation, route }: Props) {
       setHintText(t(`table.hint_${hint.type}`));
       // Pre-select the cards the hint uses; the player still makes the move.
       if (hint.type === 'lay_down' || hint.type === 'add_to_meld') setPicked(hint.cards);
-      else if (hint.type === 'take_discard' && hint.use_with) setPicked(hint.use_with);
+      else if (hint.type === 'take_discard' && hint.use_with) {
+        setPicked(hint.use_with);
+        if (top) setPickedTop(top.id); // Fechado: the top card goes in the meld too
+      }
       else if (hint.type === 'discard') setPicked([hint.card]);
     } catch {
       setHintText('');
@@ -265,8 +273,10 @@ export default function TableScreen({ navigation, route }: Props) {
       </View>
       <View collapsable={false} ref={place('discard')}>
         <DiscardPile cards={game.discard} width={Math.min(landscape ? 420 : 360, handWidth * (landscape ? 0.6 : 1) - mortoWidth - cardW - 3 - space.space3 * 2 - 8)}
-                     takeable={drawing && game.discard.length > 0 && (!fechado || pickupValid)}
-                     onTake={() => run(fechado ? { type: 'take_discard', use_with: selected } : { type: 'take_discard' })}
+                     takeable={drawing && game.discard.length > 0 && !fechado}
+                     onTake={() => run({ type: 'take_discard' })}
+                     closed={fechado} topPicked={topPicked ? (pickupValid ? 'valid' : true) : false}
+                     onPickTop={drawing && fechado && top ? () => setPickedTop(topPicked ? null : top.id) : undefined}
                      target={playing && selected.length === 1}
                      onDiscard={playing && selected.length === 1 ? () => run({ type: 'discard', card: selected[0] }) : undefined} />
       </View>
@@ -291,7 +301,11 @@ export default function TableScreen({ navigation, route }: Props) {
     : error && game ? { text: describeError(error.code, error.detail, t('common.somethingWrong'), game.phase), color: c.invalidInk }
     : taken ? { text: t('table.tookPile', { name: seatName(table, taken.seat), n: taken.n }), color: c.accent }
     : hintText ? { text: hintText, color: c.tableInk }
-    : drawing && fechado && game.discard.length ? { text: t('table.pileHint'), color: c.tableInkSoft }
+    : drawing && fechado && top ? (
+      topPicked && selected.length >= 2 && !pickupValid ? { text: t('table.pickupInvalid', { card: spokenCard(top.label) }), color: c.invalidInk }
+      : topPicked && !pickupValid ? { text: t('table.pickupPickCards', { card: spokenCard(top.label) }), color: c.tableInk }
+      : !topPicked && pickupValid ? { text: t('table.pickupTapTop', { card: spokenCard(top.label) }), color: c.tableInk }
+      : topPicked ? null : { text: t('table.pileHint'), color: c.tableInkSoft })
     : null;
   // Live tables: a person's turn runs on a 40 s clock (server: live_turn_seconds); bots' turns don't.
   const turnSeat = game ? table.seats.find((s) => s.seat === game.current) : undefined;
@@ -305,6 +319,17 @@ export default function TableScreen({ navigation, route }: Props) {
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}
       {/* A new meld needs no empty spot to tap: the button is always here once the selection is a valid meld. */}
+      {/* Fechado: the top card and your cards make a meld; down it goes and the pile comes to your hand. */}
+      {topPicked && pickupValid ? (
+        <Pressable onPress={() => run({ type: 'take_discard', use_with: selected })} accessibilityRole="button"
+                   style={({ pressed }) => ({ minHeight: size.touchMin, paddingHorizontal: space.space5, borderRadius: radius.radiusMd,
+                                              alignItems: 'center', justifyContent: 'center', backgroundColor: c.accent,
+                                              opacity: pressed ? 0.8 : 1 })}>
+          <Text style={[type.label, { color: c.onAccent }]} numberOfLines={1}>
+            {game.discard.length > 1 ? t('table.layDownTakePile', { n: game.discard.length - 1 }) : t('table.layDownMeld')}
+          </Text>
+        </Pressable>
+      ) : null}
       {playing && newMeldValid ? (
         <Pressable onPress={() => run({ type: 'lay_down', cards: selected })} accessibilityRole="button"
                    style={({ pressed }) => ({ minHeight: size.touchMin, paddingHorizontal: space.space5, borderRadius: radius.radiusMd,
@@ -324,7 +349,7 @@ export default function TableScreen({ navigation, route }: Props) {
   const hand = game ? (
     <View collapsable={false} ref={place('hand')}>
       <Hand cards={sortHand(game.hand, sortBy)} selected={selected} width={handWidth}
-            selectionValid={newMeldValid || pickupValid} fresh={fresh} onToggle={toggle} />
+            selectionValid={newMeldValid || (topPicked && pickupValid)} fresh={fresh} onToggle={toggle} />
     </View>
   ) : null;
 

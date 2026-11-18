@@ -2,6 +2,7 @@
 
 ## 17.11.2026
 
+- **Fechado works like at a real table.** The mesa is squared up: only its top card shows, with a cream edge beneath and the count. On your turn, select the cards that make a meld with the top card, for example the 7 and 8 of hearts for a 9 of hearts, and tap the top card. It glows while it can be picked and lifts once it is. When the meld is valid, a gold **Baixar jogo e pegar a mesa (+N)** button appears. It lays the meld down, and the rest of the pile comes into your hand. The line under the piles walks you through it ("Agora selecione as cartas…", "Essas cartas não fazem jogo com o 9 de copas."). Tapping one of your melds still adds the top card to it. Before, the whole pile showed spread out, and you had to tap the pile itself, which did nothing until your selection fit.
 - **Your card count on your avatar.** The little count badge now sits on your own avatar too, not only on the other players'. Screen readers say it for you as well.
 - **The hand is always sorted again.** Drawn cards (from the stock, the mesa or the morto) go straight into their sorted place instead of a random one, and Naipe / Valor always shows which sort is on. Tapping it switches the sort with a light tap, as before. `game/handOrder.ts` is gone.
 

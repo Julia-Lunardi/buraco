@@ -25,4 +25,4 @@ Engine flag (§9 of aberto.md): `discard_pickup = must_use_top_card`. All other 
 
 ## In the app
 
-On your turn, select the cards that go with the top card and tap "Pegar o lixo", or tap one of your melds to add the top card to it. The move is checked as a whole, so nothing moves unless the meld is valid.
+The pile (*a mesa*) is squared up: only its top card shows, with the count. On your turn to draw, select the cards in your hand that make a meld with the top card and tap the top card, in either order. It lifts like a selected card. When the meld is valid, a **Baixar jogo e pegar a mesa** button appears. Tapping it lays the meld down and puts the rest of the pile in your hand. To add the top card to one of your melds instead, tap that meld. Nothing moves unless the meld is valid.
