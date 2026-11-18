@@ -231,6 +231,7 @@ const en: Messages = {
     us: "Us",
     them: "Them",
     roundOver: "Round over",
+    roundModeA11y: "This round's mode: {{mode}}",
     nextRoundMode: "Next round's mode",
     nextRound: "Next round",
     gameOver: "Game over",

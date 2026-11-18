@@ -312,9 +312,16 @@ export default function TableScreen({ navigation, route }: Props) {
   const clock = table.mode === 'live' && table.turn_deadline && turnSeat && !turnSeat.bot && !turnSeat.covered_by_bot ? (
     <TurnClock deadline={table.turn_deadline} limit={LIVE_TURN_SECONDS} mine={myTurn} />
   ) : null;
+  const modeLabel = [t(`newTable.${table.preset}`),
+                     ...(table.clean_to_go_out && table.preset !== 'stbl' ? [t('newTable.cleanTag')] : [])].join(' · ');
   const noticeRow = (
     <View style={{ minHeight: 28, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
                    columnGap: space.space3, rowGap: space.space2 }}>
+      {/* This round's mode (it can change between rounds), and a clean-canastra table says so. */}
+      <View accessible accessibilityLabel={t('table.roundModeA11y', { mode: modeLabel })}
+            style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.radiusPill, borderWidth: 1, borderColor: c.tableLine }}>
+        <Text style={[type.caption, { fontSize: 11, lineHeight: 15, color: c.tableInkSoft }]} numberOfLines={1}>{modeLabel}</Text>
+      </View>
       {clock}
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}

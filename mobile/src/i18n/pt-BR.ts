@@ -231,6 +231,7 @@ const ptBR = {
     us: "Nós",
     them: "Eles",
     roundOver: "Rodada encerrada",
+    roundModeA11y: "Modo desta rodada: {{mode}}",
     nextRoundMode: "Modo da próxima rodada",
     nextRound: "Próxima rodada",
     gameOver: "Fim de jogo",

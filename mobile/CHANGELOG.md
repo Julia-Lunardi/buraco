@@ -2,6 +2,7 @@
 
 ## 18.11.2026
 
+- **The round's mode on the table.** A small outlined pill in the line under the piles says which buraco this round is: **Aberto**, **Fechado** or **STBL**, plus "Bate com limpa" on a clean-canastra table. It follows the mode picked between rounds.
 - **"Bater só com canastra limpa".** Creating an Aberto or Fechado table has a new switch under the trincas one. With it on, your team needs a clean (or royal) canastra to go out, as in STBL. The lobby shows "Bate com limpa" among the table's rules. The "keep a card" errors say "canastra limpa" when that is what's missing, in STBL too.
 
 ## 17.11.2026

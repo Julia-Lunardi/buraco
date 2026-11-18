@@ -231,6 +231,7 @@ const da: Messages = {
     us: "Os",
     them: "Dem",
     roundOver: "Runden er slut",
+    roundModeA11y: "Rundens spilform: {{mode}}",
     nextRoundMode: "Næste rundes spilform",
     nextRound: "Næste runde",
     gameOver: "Spillet er slut",
