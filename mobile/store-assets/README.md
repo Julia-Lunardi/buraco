@@ -108,6 +108,7 @@ uv run python ../mobile/store-assets/advance.py <token> <table-id>  # push a tab
 | Script | What it is for |
 |---|---|
 | `seed_app_user.py` | Seeds slots 01/06, 05 and 03 onto the account the app just created. Run it from `backend/`: it imports the backend's own token helper rather than re-implementing one. Pass the names that should appear at the table — localise them per locale: `Emma Sam` for en, `Ana Marina` for pt-BR, `Freja Mads` for da. A Brazilian player reading "Freja took the morto" notices |
+| `seed_friends.py` | A life with friends for the Home and table shots: four test friends and five tables, all async so nothing moves while you capture. Aberto in round 2 on your turn with a chat and reactions, a 4-player Fechado on their turn, STBL on your turn, a "Bate com limpa" Aberto in round 3, and a lobby with a friend and an open seat. Every seat is played by the engine's bot through the backend's services, so friend tables work too (`/hint` only serves practice games). `--locale pt-BR|en|da` picks names and chat, `--me` your name. It seeds the newest *guest* account, so sign in as a guest in the app first. Run it from `backend/` |
 | `advance.py` | Plays an existing table further: past a round end, so the score chips carry a real match score |
 | `tap.py` | Taps or swipes the simulator at a point in *device pixels* — the same coordinates you read off a screenshot. `uv run --with pyobjc-framework-Quartz python3 tap.py <x> <y>` |
 
