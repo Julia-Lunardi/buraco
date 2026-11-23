@@ -8,12 +8,12 @@ shares the exact code path with `apply()`.
 from __future__ import annotations
 
 import random
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 
 from .cards import Card, build_deck
-from .melds import CanastraKind, MeldShape, analyse, canastra_kind, in_order
+from .melds import CanastraKind, MeldShape, analyse, blocked_trinca, canastra_kind, in_order
 from .presets import DiscardPickup, GoOutRequires, Preset
 
 
@@ -219,6 +219,7 @@ class Round:
         else:
             shape = analyse(cards, self.preset)
             if shape is None:
+                self._refuse_blocked_trinca(cards)
                 raise IllegalMove("invalid_meld", "The top card and your cards don't form a meld.")
             after = self._team_shapes(team) + [(len(cards), shape)]
         remaining = len(self.hands[seat]) + len(self.discard) - len(cards)
@@ -236,11 +237,16 @@ class Round:
         self.phase = Phase.PLAY
         self._after_meld(seat)
 
+    def _refuse_blocked_trinca(self, cards: Sequence[Card]) -> None:
+        if blocked_trinca(cards, self.preset):
+            raise IllegalMove("trincas_off", "Trincas are turned off at this table: only sequences can be melded.")
+
     def _lay_down(self, seat: int, action: LayDown, commit: bool) -> None:
         self._require_turn(seat, Phase.PLAY)
         cards = self._pick(seat, action.card_ids)
         shape = analyse(cards, self.preset)
         if shape is None:
+            self._refuse_blocked_trinca(cards)
             what = "a sequence of 3+ cards of one suit" + (" or a trinca" if self.preset.trincas_allowed else "")
             raise IllegalMove("invalid_meld", f"These cards are not {what} (with at most "
                                               f"{self.preset.max_wilds_per_meld} wild card).")

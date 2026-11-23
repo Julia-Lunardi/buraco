@@ -10,7 +10,7 @@ export function parseLabel(label: string): { rank: string; suit: keyof typeof SU
   return { rank: label.slice(0, -1), suit: label.slice(-1) as keyof typeof SUIT };
 }
 
-/** Accessible name in words ("10 de copas", "2 de paus, curinga"), as the design system asks. */
+/** Accessible name in words ("10 de copas", "2 de paus, coringa"), as the design system asks. */
 export function spokenCard(label: string): string {
   const { rank, suit } = parseLabel(label);
   if (!suit) return t('cards.joker');

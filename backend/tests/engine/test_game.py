@@ -1,3 +1,5 @@
+import dataclasses
+
 import pytest
 
 from app.engine.game import (
@@ -10,7 +12,7 @@ from app.engine.game import (
     Round,
     TakeDiscard,
 )
-from app.engine.presets import ABERTO
+from app.engine.presets import ABERTO, FECHADO
 
 from .helpers import rigged_round
 
@@ -127,6 +129,19 @@ def test_lay_down_a_sequence():
 def test_lay_down_invalid_meld():
     rnd = rigged_round(["3H 4H 6H 9C KD", "5S 6S"], phase=Phase.PLAY)
     illegal(rnd, 0, LayDown(ids(rnd, 0, "3H 4H 6H")), "invalid_meld")
+
+
+def test_trinca_at_a_table_without_trincas_says_so():
+    no_trincas = dataclasses.replace(ABERTO, trincas_allowed=False)
+    rnd = rigged_round(["7H 7S 7C 3H 4H 6H", "5S 6S"], phase=Phase.PLAY, preset=no_trincas)
+    illegal(rnd, 0, LayDown(ids(rnd, 0, "7H 7S 7C")), "trincas_off")
+    illegal(rnd, 0, LayDown(ids(rnd, 0, "3H 4H 6H")), "invalid_meld")  # not a trinca: the usual help
+
+
+def test_fechado_trinca_pickup_without_trincas_says_so():
+    no_trincas = dataclasses.replace(FECHADO, trincas_allowed=False)
+    rnd = rigged_round(["7H 7S KC", "5S 6S"], discard="QD 7C", preset=no_trincas)
+    illegal(rnd, 0, TakeDiscard(use_with=ids(rnd, 0, "7H 7S")), "trincas_off")
 
 
 def test_extend_own_team_meld():
@@ -290,8 +305,6 @@ def test_view_shows_only_own_hand():
 
 # --- Fechado: the pile only by using its top card (R-PILE-F) ------------------------
 
-from app.engine.presets import FECHADO  # noqa: E402
-
 
 def test_fechado_refuses_a_plain_pickup():
     rnd = rigged_round(["5H 6H KC", "5S 6S"], discard="QD 7H", preset=FECHADO)
@@ -327,7 +340,6 @@ def test_aberto_pickup_takes_no_meld():
 
 
 def test_a_clean_canastra_rule_says_so_when_you_cannot_go_out():
-    import dataclasses
     from app.engine.presets import GoOutRequires
     clean = dataclasses.replace(ABERTO, go_out_requires=GoOutRequires.CLEAN_CANASTRA)
     # A suja canastra (a 2 as wild) is not enough when going out needs a clean one.

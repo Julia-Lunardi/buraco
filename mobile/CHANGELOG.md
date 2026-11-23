@@ -1,5 +1,10 @@
 # Mobile Changelog
 
+## 23.11.2026
+
+- **"Nesta mesa não vale trinca".** Trying to lay down a trinca at a table with trincas off now says that trincas are off at this table, instead of the general "how to build a meld" message that mentions trincas. Fechado's pickup hint says the same before you send the move. Needs the backend's `trincas_off` error.
+- **"Coringa", not "curinga".** The Portuguese texts, including the card's spoken name and the meld errors, now say "coringa".
+
 ## 18.11.2026
 
 - **Losing a round: the stamp turns into a sad face.** The grey drizzle and the sagging stamp are gone. About a second after the stamp lands, its letters leave the banner one by one. The outer letters go first, sliding to the middle, shrinking and tumbling, while the banner's frame fades. There they become a big **:(** turned on its side, a frowning face in the stamp's red, with a light tap. It drifts down to the bottom of the screen in about 2.8 s, swinging side to side four times like a falling leaf, and fades as it arrives. A lost round's moment now holds 4.8 s instead of 3.2 s, and a tap still skips it after 0.7 s.
@@ -144,7 +149,7 @@ First round of tester fixes.
 
 ## 27.10.2026 (5)
 
-- Server errors are explained in the app's language instead of the server's English (`api/errors.ts`). This is the "why was that illegal?" text: rules explained, never blame. Example: "Um jogo precisa de 3 cartas seguidas do mesmo naipe, ou de 3 cartas iguais (trinca), com no máximo 1 curinga."
+- Server errors are explained in the app's language instead of the server's English (`api/errors.ts`). This is the "why was that illegal?" text: rules explained, never blame. Example: "Um jogo precisa de 3 cartas seguidas do mesmo naipe, ou de 3 cartas iguais (trinca), com no máximo 1 coringa."
   - `wrong_phase` reads "draw first" or "you already drew" depending on the phase.
   - An unknown code still shows the server's own reason, so nothing fails silently.
   - A test scans `backend/app` for every error code and fails if the app can't explain one, except a short explicit list of codes players can't trigger.

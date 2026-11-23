@@ -350,6 +350,7 @@ const da: Messages = {
     stock_empty: "Bunken er tom.",
     discard_empty: "Kassebunken er tom. Træk fra bunken.",
     invalid_meld: "Et spil skal have 3 kort i træk i samme kulør, eller 3 ens (trinca), med højst 1 joker.",
+    trincas_off: "Trincas er slået fra ved dette bord: kun sekvenser i samme kulør kan meldes.",
     not_your_meld: "Du kan kun lægge kort til dit eget holds spil.",
     canastra_closed: "I denne spilform kan en færdig canastra ikke få flere kort.",
     cannot_extend: "De kort passer ikke til dette spil. Husk: højst 1 joker pr. spil.",
