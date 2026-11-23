@@ -16,7 +16,7 @@ Where a rule was an educated guess rather than something you confirmed, it is ma
 ## 2. Cards
 
 - **R-CARD-1** Two standard 52-card decks plus 4 jokers: **108 cards**.
-- **R-CARD-2** **Wild cards** (*curingas*) are jokers and all 2s.
+- **R-CARD-2** **Wild cards** (*coringas*) are jokers and all 2s.
 - **R-CARD-3** A 2 played in its natural position in a sequence of its own suit (for example ♥A-2-3) counts as a natural card, not a wild.
 - **R-CARD-4** The engine checks after every action that hands + stock + discard pile + mortos + melds always add up to exactly 108 cards.
 

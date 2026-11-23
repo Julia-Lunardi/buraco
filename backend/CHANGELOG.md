@@ -1,5 +1,9 @@
 # Backend Changelog
 
+## 23.11.2026
+
+- **A trinca at a table without trincas says so.** Laying down a trinca, or taking a Fechado pile into one, at a table with trincas off now fails with `trincas_off` instead of `invalid_meld`, whose text explained how to build a trinca. Other invalid melds keep `invalid_meld`.
+
 ## 18.11.2026
 
 - **"Bater só com canastra limpa" for Aberto and Fechado tables.** `POST /tables` takes `clean_to_go_out` (default `false`, ignored for STBL, which always needs a clean canastra). It is stored on `game_tables.clean_to_go_out` (migration `d9e2a7c4b1f8`), kept on rematch, and turns the round's `go_out_requires` into `clean_canastra`, so the engine and the bots play it like STBL's go-out rule. Views carry `clean_to_go_out`, which is true when this round needs a clean canastra to go out, STBL included. When a clean canastra is what's missing, the go-out errors are `cannot_discard_last_clean` and `keep_a_card_clean`, so the app can say "canastra limpa".

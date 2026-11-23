@@ -1,4 +1,4 @@
-import { analyse, RULES, sortHand } from '../src/game/melds';
+import { analyse, blockedTrinca, RULES, sortHand } from '../src/game/melds';
 
 // The same cases as backend/tests/engine/test_melds.py, so client and server agree.
 const aberto = RULES.aberto;
@@ -44,4 +44,11 @@ test('sorting by suit groups suits with aces high and jokers last', () => {
   const hand = ['JK', '3D', 'AS', '5S', 'KH', '2C'].map((label, id) => ({ id, label }));
   expect(sortHand(hand, 'suit').map((c) => c.label)).toEqual(['5S', 'AS', 'KH', '2C', '3D', 'JK']);
   expect(sortHand(hand, 'rank').map((c) => c.label)).toEqual(['2C', '3D', '5S', 'KH', 'AS', 'JK']);
+});
+
+test('a trinca at a table without trincas is reported as blocked, not as a bad meld', () => {
+  const off = { ...RULES.aberto, trincasAllowed: false };
+  expect(blockedTrinca(['7H', '7S', '7C'], off)).toBe(true);
+  expect(blockedTrinca(['7H', '7S', '7C'], RULES.aberto)).toBe(false);
+  expect(blockedTrinca(['3H', '4H', '6H'], off)).toBe(false);
 });

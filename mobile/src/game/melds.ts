@@ -41,6 +41,11 @@ export function analyse(labels: string[], rules: MeldRules, kind?: MeldKind): { 
   return valid.length ? valid.reduce((a, b) => (b.wilds < a.wilds ? b : a)) : null;
 }
 
+/** True when the cards would be a legal trinca but this table has trincas off (server: blocked_trinca). */
+export function blockedTrinca(labels: string[], rules: MeldRules): boolean {
+  return !rules.trincasAllowed && asTrinca(labels.map(parse), rules.maxWilds) !== null;
+}
+
 function asSequence(cards: Parsed[], maxWilds: number) {
   const n = cards.length;
   if (n < 3 || n > MAX_SEQUENCE) return null;

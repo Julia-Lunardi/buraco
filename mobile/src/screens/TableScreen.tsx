@@ -26,7 +26,7 @@ import RoundEnd from '../features/table/RoundEnd';
 import { useCardSizes } from '../features/table/sizes';
 import TeamWell from '../features/table/TeamWell';
 import TurnClock, { LIVE_TURN_SECONDS } from '../features/table/TurnClock';
-import { analyse, RULES, sortHand } from '../game/melds';
+import { analyse, blockedTrinca, RULES, sortHand } from '../game/melds';
 import { t } from '../i18n';
 import type { RootStackParamList } from '../navigation/types';
 import PushPrimer from '../notifications/PushPrimer';
@@ -302,7 +302,9 @@ export default function TableScreen({ navigation, route }: Props) {
     : taken ? { text: t('table.tookPile', { name: seatName(table, taken.seat), n: taken.n }), color: c.accent }
     : hintText ? { text: hintText, color: c.tableInk }
     : drawing && fechado && top ? (
-      topPicked && selected.length >= 2 && !pickupValid ? { text: t('table.pickupInvalid', { card: spokenCard(top.label) }), color: c.invalidInk }
+      topPicked && selected.length >= 2 && !pickupValid ? {
+        text: blockedTrinca([top.label, ...selectedLabels], rules) ? t('errors.trincas_off') : t('table.pickupInvalid', { card: spokenCard(top.label) }),
+        color: c.invalidInk }
       : topPicked && !pickupValid ? { text: t('table.pickupPickCards', { card: spokenCard(top.label) }), color: c.tableInk }
       : !topPicked && pickupValid ? { text: t('table.pickupTapTop', { card: spokenCard(top.label) }), color: c.tableInk }
       : topPicked ? null : { text: t('table.pileHint'), color: c.tableInkSoft })

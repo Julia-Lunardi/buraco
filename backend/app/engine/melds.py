@@ -48,6 +48,12 @@ def analyse(cards: Sequence[Card], preset: Preset, kind: MeldKind | None = None)
     return min(valid, key=lambda s: s.wilds) if valid else None
 
 
+def blocked_trinca(cards: Sequence[Card], preset: Preset) -> bool:
+    """True when `cards` would be a legal trinca but this table has trincas turned off, so the
+    player is told that, not how to build a meld."""
+    return not preset.trincas_allowed and _as_trinca(cards, preset.max_wilds_per_meld) is not None
+
+
 def canastra_kind(size: int, shape: MeldShape, preset: Preset) -> CanastraKind | None:
     if size < preset.canastra_size:
         return None

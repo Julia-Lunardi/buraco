@@ -350,6 +350,7 @@ const en: Messages = {
     stock_empty: "The stock is empty.",
     discard_empty: "The discard pile is empty. Draw from the stock.",
     invalid_meld: "A meld needs 3 cards in a row of one suit, or 3 of the same rank (trinca), with at most 1 wild card.",
+    trincas_off: "Trincas are off at this table: only sequences of one suit can be melded.",
     not_your_meld: "You can only add cards to your own team's melds.",
     canastra_closed: "In this mode a finished canastra takes no more cards.",
     cannot_extend: "Those cards don't continue this meld. Remember: at most 1 wild card per meld.",
