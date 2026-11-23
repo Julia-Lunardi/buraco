@@ -33,6 +33,7 @@ frames) bleeding off the bottom. Portrait slides keep one headline size per loca
 so the gallery row lines up; landscape slides put type left, device right.
 """
 import json
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
@@ -66,15 +67,15 @@ PLATFORMS = {
     "ios-6.3":           dict(out=(1206, 2622), kind="portrait", island=True, cap="phone",
                               raw=["phone-ios"]),
     "ipad-13":           dict(out=(2064, 2752), kind="portrait", island=False, exact=True, cap="tablet",
-                              raw=["tablet-ios", "phone-ios"]),
+                              raw=["tablet-ios"]),
     "ipad-13-ls":        dict(out=(2752, 2064), kind="landscape", island=False, exact=True, cap="tablet-ls",
-                              raw=["tablet-ios-ls", "phone-ios-ls"]),
+                              raw=["tablet-ios-ls"]),
     "android":           dict(out=(1080, 1920), kind="portrait", island=False, cap="phone",
                               raw=["phone-android", "phone-ios"]),
     "android-tablet-7":  dict(out=(1920, 1200), kind="landscape", island=False, exact=True, cap="tablet-ls",
-                              raw=["tablet-android-ls", "tablet-ios-ls", "phone-ios-ls"]),
+                              raw=["tablet-android-ls", "tablet-ios-ls"]),
     "android-tablet-10": dict(out=(2560, 1600), kind="landscape", island=False, exact=True, cap="tablet-ls",
-                              raw=["tablet-android-ls", "tablet-ios-ls", "phone-ios-ls"]),
+                              raw=["tablet-android-ls", "tablet-ios-ls"]),
 }
 
 # Portrait metrics, as fractions of the canvas. HEAD_Y and PHONE_TOP are fixed per
@@ -402,6 +403,16 @@ def work_canvas(spec):
 def main():
     captions = json.loads((HERE / "captions.json").read_text())
     locales = [k for k in captions if not k.startswith("_")]
+    # `compose.py en pt-BR` builds just those: a locale whose captures do not exist
+    # yet keeps its copy in captions.json without rendering placeholder artwork.
+    args = [a for a in sys.argv[1:] if a != "--placeholders"]
+    placeholders = "--placeholders" in sys.argv
+    if args:
+        wanted = args
+        missing = [l for l in wanted if l not in locales]
+        if missing:
+            raise SystemExit(f"no such locale in captions.json: {', '.join(missing)}")
+        locales = wanted
     d0 = ImageDraw.Draw(Image.new("RGB", (8, 8)))
     made = 0
 
@@ -410,6 +421,11 @@ def main():
         land = spec["kind"] == "landscape"
         for locale in locales:
             entries = captions[locale]
+            if not placeholders and not any(find_raw(spec["raw"], locale, e["slot"])[0] is not None
+                                            for e in entries):
+                print(f"{platform}/{locale}: skipped — no {spec['cap']} captures yet "
+                      f"(raw/{spec['raw'][0]}/{locale}/). Pass --placeholders to lay it out anyway.")
+                continue
             m = metrics(spec, (w, h), entries, d0)
             out_dir = HERE / "out" / platform / locale
             out_dir.mkdir(parents=True, exist_ok=True)

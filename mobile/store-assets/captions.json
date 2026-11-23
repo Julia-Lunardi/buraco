@@ -1,54 +1,54 @@
 {
   "_note": "One entry per screenshot slot; captures go in raw/<kind>/<locale>/<slot>.png and are pasted untouched (never repainted — retake instead). headline: *asterisks* = accent colour in display italic, \\n = forced line break, max 2 lines. sub: one benefit, max 2 lines. theme: sand | clay, alternated across the set. tilt: true tilts the device (hero slide only). Apple/Google rules: no prices, URLs, copyright symbols or unverifiable claims; real UI only; localise every language the listing supports (pt-BR, en, da).",
   "_slots": {
-    "01": "Table mid-game, 4 players in pairs, melds on the felt, your turn (accent glow), scores Us/Them visible",
-    "02": "New table — Play mode section: Live / At your pace segmented control with its hint",
-    "03": "Lobby — the 6-letter table code and Share invite, one friend joined",
-    "04": "New table — Rules section: Aberto / Fechado / STBL with the lavadeiras switch",
-    "05": "Practice table against bots with a hint showing (hint_take_discard reads well)",
-    "06": "Table in dark mode — landscape on tablets, portrait on phones"
+    "01": "Table mid-game, 4 players in pairs, melds on the felt, scores Us/Them visible",
+    "02": "New table — Play mode: Live / At your pace, with 'At your pace' chosen and its hint",
+    "03": "Home — Your tables (several games, whose turn it is) and the Practice row",
+    "04": "New table — Rules: Aberto / Fechado / STBL with the lavadeiras switch",
+    "05": "Table with the chat panel open: messages, reactions and the quick phrases",
+    "06": "Table mid-hand with cards chosen, melds and canastras on the felt"
   },
 
   "en": [
     { "slot": "01", "theme": "sand", "tilt": true,
-      "headline": "Buraco with\n*your friends*",
-      "sub": "Live or at your pace, 2 players or 4 in pairs." },
+      "headline": "Missing your\n*friends?*",
+      "sub": "Invite them to a game of buraco!" },
     { "slot": "02", "theme": "clay",
-      "headline": "Play now, or\n*when you can*",
+      "headline": "Play now.\n*Or Thursday.*",
       "sub": "Live with a turn clock, or at everyone's own pace." },
     { "slot": "03", "theme": "sand",
-      "headline": "One code,\n*your table*",
-      "sub": "A private table: only people with the code can join." },
+      "headline": "Keep track of\n*all your games*",
+      "sub": "Games with friends and practice against bots, side by side." },
     { "slot": "04", "theme": "clay",
-      "headline": "The rules\n*you play by*",
-      "sub": "Aberto, fechado or STBL. Lavadeiras on or off." },
+      "headline": "Aberto, fechado\n*or STBL*",
+      "sub": "Lavadeiras on or off, and you choose the points to win." },
     { "slot": "05", "theme": "sand",
-      "headline": "Practise\n*against bots*",
-      "sub": "Relaxed, standard or sharp. No account needed." },
+      "headline": "Room for\n*a little chat*",
+      "sub": "Short messages and quick phrases. The host can turn chat off." },
     { "slot": "06", "theme": "clay",
-      "headline": "Big cards,\n*easy to read*",
-      "sub": "Dark mode, portrait or landscape, and tablet layouts." }
+      "headline": "Melds, canastras,\n*the morto*",
+      "sub": "The full game: lay down, take the morto, go out." }
   ],
 
   "pt-BR": [
     { "slot": "01", "theme": "sand", "tilt": true,
-      "headline": "Buraco com\n*os amigos*",
-      "sub": "Ao vivo ou no seu tempo, em 2 ou em duplas." },
+      "headline": "Bateu saudades\n*dos amigos?*",
+      "sub": "Convide para uma partida de buraco!" },
     { "slot": "02", "theme": "clay",
-      "headline": "Jogue agora, ou\n*quando puder*",
+      "headline": "Jogue agora.\n*Ou na quinta.*",
       "sub": "Ao vivo com tempo por jogada, ou no ritmo de cada um." },
     { "slot": "03", "theme": "sand",
-      "headline": "Um código,\n*sua mesa*",
-      "sub": "Mesa privada: só entra quem tiver o código." },
+      "headline": "Acompanhe\n*todos os jogos*",
+      "sub": "Jogos com amigos e treino contra bots, lado a lado." },
     { "slot": "04", "theme": "clay",
-      "headline": "As regras\n*da sua turma*",
-      "sub": "Aberto, fechado ou STBL. Com ou sem lavadeiras." },
+      "headline": "Aberto, fechado\n*ou STBL*",
+      "sub": "Com ou sem lavadeiras, e você escolhe os pontos." },
     { "slot": "05", "theme": "sand",
-      "headline": "Treine\n*contra bots*",
-      "sub": "Tranquilo, normal ou esperto. Sem precisar de conta." },
+      "headline": "Chat na\n*mesa*",
+      "sub": "Mensagens curtas e frases rápidas. Quem criou a mesa pode desligar." },
     { "slot": "06", "theme": "clay",
-      "headline": "Cartas grandes,\n*fáceis de ler*",
-      "sub": "Modo escuro, retrato ou paisagem, e telas para tablet." }
+      "headline": "Jogos, canastras,\n*o morto*",
+      "sub": "O jogo completo: baixe, pegue o morto e bata." }
   ],
 
   "da": [
@@ -59,23 +59,23 @@
       "headline": "Spil nu, eller\n*når du kan*",
       "sub": "Live med tid per tur, eller i jeres eget tempo." },
     { "slot": "03", "theme": "sand",
-      "headline": "Én kode,\n*jeres bord*",
-      "sub": "Privat bord: kun dem med koden kan komme ind." },
+      "headline": "Jeres borde,\n*ét sted*",
+      "sub": "Spil med venner og træning mod bots, side om side." },
     { "slot": "04", "theme": "clay",
       "headline": "Reglerne,\n*som I spiller*",
       "sub": "Aberto, fechado eller STBL. Med eller uden lavadeiras." },
     { "slot": "05", "theme": "sand",
-      "headline": "Øv dig\n*mod bots*",
-      "sub": "Afslappet, normal eller skarp. Ingen konto nødvendig." },
+      "headline": "Et par ord,\n*mellem spillene*",
+      "sub": "Korte beskeder og hurtige fraser. Værten kan slå chatten fra." },
     { "slot": "06", "theme": "clay",
       "headline": "Store kort,\n*nemme at læse*",
-      "sub": "Mørk tilstand, portræt eller landskab, og tablet-layout." }
+      "sub": "Tydelige kort, en læsevenlig skrift og layout til tablets." }
   ],
 
   "_play_feature_graphic": {
     "_note": "Sits beside the icon and the 'Buraco Lounge' wordmark, so the tagline never repeats the app name. Danish gets the actual word hygge; the others get their own idiom for the same warmth. Alternative if you want it sweeter: en 'Good cards,\\n*better company*' / pt-BR 'Cartas boas,\\n*companhia melhor*' / da 'Gode kort,\\n*bedre selskab*'.",
     "en": { "slot": "01", "theme": "sand", "tagline": "Cards and\n*good company*" },
-    "pt-BR": { "slot": "01", "theme": "sand", "tagline": "Cartas e\n*boa companhia*" },
+    "pt-BR": { "slot": "01", "theme": "sand", "tagline": "Senta aí,\n*vamos jogar!*" },
     "da": { "slot": "01", "theme": "sand", "tagline": "Hygge med\n*vennerne*" }
   },
 
@@ -83,7 +83,7 @@
     "_note": "Header + search results. The line is proved by the 'Your turn' notice row and your own melds, so those are what CREATIVE_FOCUS puts inside the art safe area. Danish alternatives for the opening: 'Sæt dig til bordet.' or 'Kom til bordet.'",
     "en": { "slot": "01", "theme": "sand", "tagline": "Pull up a chair.\n*It's your turn.*",
             "sub": "Buraco with friends, wherever you are." },
-    "pt-BR": { "slot": "01", "theme": "sand", "tagline": "Senta aí.\n*É a sua vez.*",
+    "pt-BR": { "slot": "01", "theme": "sand", "tagline": "Senta aí,\n*vamos jogar!*",
                "sub": "Buraco com os amigos, de onde vocês estiverem." },
     "da": { "slot": "01", "theme": "sand", "tagline": "Sæt dig ned.\n*Det er din tur.*",
             "sub": "Buraco med vennerne, uanset hvor I er." }
