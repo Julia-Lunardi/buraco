@@ -1,5 +1,8 @@
 # Backend Changelog
 
+## 26.11.2026
+
+- **"Your turn" says who you're playing with.** The turn push names the other people at the table: "Sua vez na mesa K7Q2MX com Ana." / "…com Ana, Bia e Caio." (partner first at four), in English ("with Ana and Bia") and Danish ("med Ana og Bia") too. Bots aren't named; a table with only bots keeps the old text. `data.type` is still `your_turn`.
 ## 23.11.2026
 
 - **A trinca at a table without trincas says so.** Laying down a trinca, or taking a Fechado pile into one, at a table with trincas off now fails with `trincas_off` instead of `invalid_meld`, whose text explained how to build a trinca. Other invalid melds keep `invalid_meld`.

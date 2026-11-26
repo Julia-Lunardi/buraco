@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 
 import { api } from '../api/client';
 import { i18n } from '../i18n';
+import { navigationRef } from '../navigation/ref';
 
 type Notifications = typeof import('expo-notifications');
 
@@ -16,16 +17,27 @@ export const notifications: Notifications | null = (() => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports -- lazy on purpose (see above)
     const mod = require('expo-notifications') as Notifications;
-    // The table is already on screen when a turn changes; banners in the app would be noise.
+    // With the app open, a notice about the table on screen is noise (it shows there already),
+    // but one about another table (a message, your turn) is shown as a banner, quietly.
     mod.setNotificationHandler({
-      handleNotification: async () => ({ shouldShowBanner: false, shouldShowList: true, shouldPlaySound: false,
-                                         shouldSetBadge: false }),
+      handleNotification: async (notification) => {
+        const tableId = (notification.request.content.data as { table_id?: unknown } | undefined)?.table_id;
+        const banner = !onTable(tableId);
+        return { shouldShowBanner: banner, shouldShowList: banner, shouldPlaySound: false, shouldSetBadge: false };
+      },
     });
     return mod;
   } catch {
     return null;
   }
 })();
+
+/** Is that table the screen in front of the player right now? */
+function onTable(tableId: unknown): boolean {
+  if (typeof tableId !== 'string' || !navigationRef.isReady()) return false;
+  const route = navigationRef.getCurrentRoute();
+  return route?.name === 'Table' && (route.params as { tableId?: string } | undefined)?.tableId === tableId;
+}
 
 /** Android channels, one per kind of notice (ids match backend services/push.py). HIGH shows a
  * banner; Expo's own fallback channel is DEFAULT, which only puts an icon in the status bar.

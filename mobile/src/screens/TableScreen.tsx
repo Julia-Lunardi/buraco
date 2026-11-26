@@ -316,14 +316,18 @@ export default function TableScreen({ navigation, route }: Props) {
   ) : null;
   const modeLabel = [t(`newTable.${table.preset}`),
                      ...(table.clean_to_go_out && table.preset !== 'stbl' ? [t('newTable.cleanTag')] : [])].join(' · ');
+  // At the top of the table, above their team: this round's mode (it can change between
+  // rounds), and a clean-canastra table says so.
+  const modePill = game ? (
+    <View accessible accessibilityLabel={t('table.roundModeA11y', { mode: modeLabel })}
+          style={{ alignSelf: 'center', paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.radiusPill,
+                   borderWidth: 1, borderColor: c.tableLine }}>
+      <Text style={[type.caption, { fontSize: 11, lineHeight: 15, color: c.tableInkSoft }]} numberOfLines={1}>{modeLabel}</Text>
+    </View>
+  ) : null;
   const noticeRow = (
     <View style={{ minHeight: 28, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center',
                    columnGap: space.space3, rowGap: space.space2 }}>
-      {/* This round's mode (it can change between rounds), and a clean-canastra table says so. */}
-      <View accessible accessibilityLabel={t('table.roundModeA11y', { mode: modeLabel })}
-            style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.radiusPill, borderWidth: 1, borderColor: c.tableLine }}>
-        <Text style={[type.caption, { fontSize: 11, lineHeight: 15, color: c.tableInkSoft }]} numberOfLines={1}>{modeLabel}</Text>
-      </View>
       {clock}
       {notice ? <Text style={[type.caption, { color: notice.color, textAlign: 'center', flexShrink: 1 }]}
                       accessibilityLiveRegion="polite">{notice.text}</Text> : null}
@@ -371,6 +375,7 @@ export default function TableScreen({ navigation, route }: Props) {
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 6 }}
                     onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
                     onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
+          {modePill}
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: 2 }} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.space4 }}>
@@ -385,6 +390,7 @@ export default function TableScreen({ navigation, route }: Props) {
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: gutter, gap: 10 }}
                     onScrollEndDrag={flights.remember} onMomentumScrollEnd={flights.remember}
                     onLayout={(e) => setViewportH(e.nativeEvent.layout.height)} onContentSizeChange={(_, h) => setContentH(h)}>
+          {modePill}
           {theirWell}
           <View style={{ flexGrow: 1, minHeight: space.space3 }} />
           {piles}

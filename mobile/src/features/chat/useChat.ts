@@ -14,15 +14,22 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
   const [muted, setMuted] = useState<Set<string>>(new Set());
   const [hiddenIds, setHiddenIds] = useState<Set<number>>(new Set());
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
-  const [lastSeenId, setLastSeenId] = useState(0);
+  // null until known: no badge before then, rather than one counting every old message.
+  const [lastSeenId, setLastSeenId] = useState<number | null>(null);
   const muteKey = `chatMuted:${tableId}`;
+  const seenKey = `chatSeen:${tableId}`;
 
   useEffect(() => {
     let alive = true;
-    chatHistory(tableId).then((h) => {
+    // What you last read is kept on the phone, per table: opening the table from a "new
+    // message" push (or from the lobby) still shows those messages as unread. Only a table
+    // never opened on this phone starts with everything read: old messages are not "new".
+    Promise.all([chatHistory(tableId).catch(() => [] as ChatMessage[]),
+                 AsyncStorage.getItem(seenKey).catch(() => null)]).then(([h, raw]) => {
       if (!alive) return;
-      setHistory(h);
-      setLastSeenId(h.length ? h[h.length - 1].id : 0); // old messages are not "new"
+      if (h.length) setHistory(h);
+      const stored = raw === null ? NaN : Number(raw);
+      setLastSeenId((seen) => seen ?? (Number.isFinite(stored) ? stored : h.length ? h[h.length - 1].id : 0));
     }).catch(() => {});
     AsyncStorage.getItem(muteKey).then((raw) => alive && raw && setMuted(new Set(JSON.parse(raw)))).catch(() => {});
     // Back from the background: the socket was closed meanwhile, so fetch what was said. These
@@ -31,7 +38,7 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
       if (next === 'active') chatHistory(tableId).then((h) => alive && setHistory(h)).catch(() => {});
     });
     return () => { alive = false; sub.remove(); };
-  }, [tableId, muteKey]);
+  }, [tableId, muteKey, seenKey]);
 
   const all = useMemo(() => mergeMessages(history, live), [history, live]);
   const ignored = useMemo(() => new Set([...muted, ...blocked]), [muted, blocked]);
@@ -52,12 +59,15 @@ export function useChat(tableId: string, live: ChatMessage[], myUserId: string |
   }, [live, messages, myUserId]);
 
   const markSeen = useCallback(() => {
-    if (all.length) setLastSeenId(all[all.length - 1].id);
-  }, [all]);
+    if (!all.length) return;
+    const newest = all[all.length - 1].id;
+    setLastSeenId(newest);
+    AsyncStorage.setItem(seenKey, String(newest)).catch(() => {});
+  }, [all, seenKey]);
 
   return {
     messages,
-    unread: unreadCount(messages, myUserId, lastSeenId),
+    unread: lastSeenId === null ? 0 : unreadCount(messages, myUserId, lastSeenId),
     markSeen,
     isMuted: (userId: string) => muted.has(userId),
     toggleMute(userId: string) {
