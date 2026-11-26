@@ -52,6 +52,15 @@ def test_texts_follow_the_device_language():
     assert push.text_for("your_turn", "fr", code="K7Q2MX") == "Sua vez na mesa K7Q2MX."  # pt-BR first
 
 
+def test_turn_texts_name_who_you_play_with():
+    assert push.text_for("your_turn", "en", code="K7Q2MX", names=[]) == "Your turn at table K7Q2MX."
+    assert push.text_for("your_turn", "pt-BR", code="K7Q2MX", names=["Ana"]) == "Sua vez na mesa K7Q2MX com Ana."
+    assert (push.text_for("your_turn", "pt-BR", code="K7Q2MX", names=["Ana", "Bia", "Caio"])
+            == "Sua vez na mesa K7Q2MX com Ana, Bia e Caio.")
+    assert push.text_for("your_turn", "en", code="K7Q2MX", names=["Ana", "Bia"]) == "Your turn at table K7Q2MX with Ana and Bia."
+    assert push.text_for("your_turn", "da", code="K7Q2MX", names=["Ana", "Bia"]) == "Din tur ved bord K7Q2MX med Ana og Bia."
+
+
 async def test_token_must_be_an_expo_token(client, sessions, monkeypatch):
     ana = await sign_in(client, monkeypatch, "g-ana", "Ana")
     assert (await register(client, ana, "not-a-token")).status_code == 422
@@ -79,7 +88,7 @@ async def test_async_turn_pushes_the_next_player_in_their_language(client, expo,
     turn = [m for m in expo if m["data"]["type"] == "your_turn"]
     assert len(turn) == 1
     assert turn[0]["to"] == "ExponentPushToken[bia-phone]"
-    assert turn[0]["body"] == f"Your turn at table {table['code']}."
+    assert turn[0]["body"] == f"Your turn at table {table['code']} with Ana."
     assert turn[0]["data"]["table_id"] == table["id"]
 
 

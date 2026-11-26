@@ -36,6 +36,9 @@ _transport: httpx.AsyncBaseTransport | None = None  # tests swap in a MockTransp
 _TEXT = {
     "your_turn": {"pt-BR": "Sua vez na mesa {code}.", "en": "Your turn at table {code}.",
                   "da": "Din tur ved bord {code}."},
+    # With several tables going, the code alone doesn't say which game it is: who you play with does.
+    "your_turn_with": {"pt-BR": "Sua vez na mesa {code} com {names}.", "en": "Your turn at table {code} with {names}.",
+                       "da": "Din tur ved bord {code} med {names}."},
     "joined": {"pt-BR": "{name} entrou na sua mesa {code}.", "en": "{name} joined your table {code}.",
                "da": "{name} har sat sig ved dit bord {code}."},
     "round_over": {"pt-BR": "Rodada encerrada na mesa {code}.", "en": "Round over at table {code}.",
@@ -54,9 +57,21 @@ CHAT_QUIET_SECONDS = 180  # one "new message" push per person and table in this 
 _chat_pushed: dict[tuple[uuid.UUID, uuid.UUID], float] = {}
 
 
+_AND = {"pt-BR": "e", "en": "and", "da": "og"}
+
+
+def _join(names: list[str], lang: str) -> str:
+    """"Ana", "Ana e Bia", "Ana, Bia e Caio": in the device's language."""
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} {_AND[lang]} {names[-1]}"
+
+
 def text_for(kind: str, locale: str, **values) -> str:
-    texts = _TEXT[kind]
+    """With `names` (a list), the kind's "_with" text, the names joined the way the device's
+    language lists people."""
+    texts = _TEXT[f"{kind}_with"] if values.get("names") else _TEXT[kind]
     lang = locale if locale in texts else locale.split("-")[0] if locale.split("-")[0] in texts else "pt-BR"
+    if values.get("names"):
+        values = {**values, "names": _join(values["names"], lang)}
     return texts[lang].format(**values)
 
 
@@ -111,7 +126,11 @@ async def after_change(db: AsyncSession, table: GameTable, previous_seat: int | 
             and table.current_seat is not None and table.current_seat != previous_seat):
         user_id = people.get(table.current_seat)
         if user_id is not None and user_id not in present:
-            await send(db, [user_id], "your_turn", data, code=table.code)
+            # The other people at the table (bots aren't named), partner first, then seat order.
+            others = sorted((s for s in table.seats if s.user is not None and s.user_id != user_id),
+                            key=lambda s: ((s.seat - table.current_seat) % 2, s.seat))
+            names = [s.user.display_name for s in others if s.user.display_name]
+            await send(db, [user_id], "your_turn", data, code=table.code, names=names)
 
 
 async def joined(db: AsyncSession, table: GameTable, name: str, present: set[uuid.UUID]) -> None:

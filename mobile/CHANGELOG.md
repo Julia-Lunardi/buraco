@@ -1,5 +1,10 @@
 # Mobile Changelog
 
+## 26.11.2026
+
+- **The round's mode sits at the top of the table.** The Aberto / Fechado / STBL pill (and "Bate com limpa") moved from the line under the piles to a slim line above their team, so the middle of the table holds only the piles, the clock and the notices.
+- **Unread messages survive opening the table.** The chat badge only remembered what you had read while the table was open, so opening a table from a "new message" notification, or from the lobby, marked everything as read and the badge stayed empty. What you last read is now kept on the phone per table (`chatSeen:<id>`). A table never opened on this phone still starts with everything read. The badge waits until it knows, instead of briefly counting old messages.
+- **Notices about other tables show while the app is open.** Every notification was silenced with the app in front, so a message or "your turn" from another table only appeared in the notification list. Now only notices about the table on screen stay quiet; the rest show as a banner, without sound.
 ## 23.11.2026
 
 - **"Nesta mesa não vale trinca".** Trying to lay down a trinca at a table with trincas off now says that trincas are off at this table, instead of the general "how to build a meld" message that mentions trincas. Fechado's pickup hint says the same before you send the move. Needs the backend's `trincas_off` error.
